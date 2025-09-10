@@ -26,6 +26,30 @@ jQuery(() => {
         }
     }
     
+    // 自动检查是否有新版本
+    async function checkForUpdates() {
+        try {
+            const response = await fetch('https://api.github.com/repos/chuzhitang/Janus-Treasure-chest/releases/latest');
+            const latestRelease = await response.json();
+            const latestVersion = latestRelease.tag_name || latestRelease.name;
+            
+            console.log(`[Janusの百宝箱] 检查更新: 最新版本 ${latestVersion}, 当前版本 ${extensionVersion}`);
+            
+            if (latestVersion !== extensionVersion) {
+                // 显示NEW标识
+                const newBadge = document.querySelector('.janus-new-badge');
+                if (newBadge) {
+                    newBadge.style.display = 'inline';
+                    newBadge.style.color = '#ff4444';
+                    newBadge.style.fontWeight = 'bold';
+                }
+                console.log('[Janusの百宝箱] 发现新版本！');
+            }
+        } catch (error) {
+            console.log('[Janusの百宝箱] 检查更新失败:', error);
+        }
+    }
+    
     // 模块功能处理函数
     window.janusHandlers = {
         dmss: () => {
@@ -49,21 +73,58 @@ jQuery(() => {
         },
         
         update: async () => {
-            toastr.info('正在检查更新...', 'Janusの百宝箱');
-            console.log('[Janusの百宝箱] 检查更新中...');
-            
-            // 模拟检查更新
-            setTimeout(() => {
-                // 这里可以实际检查GitHub的最新版本
-                const hasUpdate = Math.random() > 0.7; // 30%概率有更新
+            try {
+                // 显示更新按钮为加载状态
+                const updateBtn = document.querySelector('.janus-update-btn');
+                const originalText = updateBtn.innerHTML;
+                updateBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 更新中...';
+                updateBtn.disabled = true;
                 
-                if (hasUpdate) {
-                    toastr.success('发现新版本！NEW!', 'Janusの百宝箱');
-                    // 这里可以添加实际的更新逻辑
-                } else {
+                console.log('[Janusの百宝箱] 开始更新流程...');
+                
+                // 1. 检查GitHub最新版本
+                const response = await fetch('https://api.github.com/repos/chuzhitang/Janus-Treasure-chest/releases/latest');
+                const latestRelease = await response.json();
+                const latestVersion = latestRelease.tag_name || latestRelease.name;
+                
+                console.log(`[Janusの百宝箱] 最新版本: ${latestVersion}, 当前版本: ${extensionVersion}`);
+                
+                if (latestVersion === extensionVersion) {
                     toastr.info('已是最新版本', 'Janusの百宝箱');
+                    updateBtn.innerHTML = originalText;
+                    updateBtn.disabled = false;
+                    return;
                 }
-            }, 1500);
+                
+                // 2. 执行更新
+                const updateResponse = await fetch('/api/extensions/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: 'https://github.com/chuzhitang/Janus-Treasure-chest.git'
+                    })
+                });
+                
+                if (updateResponse.ok) {
+                    toastr.success('更新成功！正在刷新页面...', 'Janusの百宝箱');
+                    setTimeout(() => {
+                        location.reload(); // 刷新页面
+                    }, 1500);
+                } else {
+                    throw new Error('更新失败');
+                }
+                
+            } catch (error) {
+                console.error('[Janusの百宝箱] 更新失败:', error);
+                toastr.error('更新失败，请手动更新', 'Janusの百宝箱');
+                
+                // 恢复按钮状态
+                const updateBtn = document.querySelector('.janus-update-btn');
+                updateBtn.innerHTML = '<i class="fa-solid fa-sync-alt"></i> 更新';
+                updateBtn.disabled = false;
+            }
         }
     };
     
@@ -73,23 +134,23 @@ jQuery(() => {
             <!-- 功能按钮区域 -->
             <div class="janus-button-row">
                 <button onclick="window.janusHandlers.dmss()" class="menu_button" title="动态记忆流系统">
-                    DMSS
+                    <i class="fa-solid fa-brain"></i> 动态记忆流系统
                 </button>
                 <button onclick="window.janusHandlers.quickTools()" class="menu_button" title="快速交互工具">
-                    快速交互工具
+                    <i class="fa-solid fa-bolt"></i> 快速交互工具
                 </button>
                 <button onclick="window.janusHandlers.presetHelper()" class="menu_button" title="预设打包助手">
-                    预设打包助手
+                    <i class="fa-solid fa-box"></i> 预设打包助手
                 </button>
                 <button onclick="window.janusHandlers.games()" class="menu_button" title="前端游戏">
-                    前端游戏
+                    <i class="fa-solid fa-gamepad"></i> 前端游戏
                 </button>
             </div>
             
             <!-- 底部信息区域：更新按钮 + 版本信息 -->
             <div class="janus-bottom-row">
-                <button onclick="window.janusHandlers.update()" class="menu_button menu_button_icon" title="检查更新">
-                    <i class="fa-solid fa-sync-alt"></i> 更新
+                <button onclick="window.janusHandlers.update()" class="menu_button menu_button_icon janus-update-btn" title="检查并更新到最新版本">
+                    <i class="fa-solid fa-sync-alt"></i> 更新<span class="janus-new-badge" style="display: none;"> NEW!</span>
                 </button>
                 <div class="janus-version-info">
                     <small class="janus-version-text">版本: ${extensionVersion} | 状态: 加载中...</small>
@@ -102,7 +163,7 @@ jQuery(() => {
             padding: 10px 0;
         }
         
-        /* 功能按钮布局 */
+        /* 功能按钮布局 - 所有设备都4个一行 */
         .janus-button-row {
             display: grid;
             gap: 8px;
@@ -137,25 +198,6 @@ jQuery(() => {
             font-size: 11px;
             flex-grow: 1;
         }
-        
-        /* 平板端适配 */
-        @media (max-width: 768px) and (min-width: 481px) {
-            .janus-button-row {
-                grid-template-columns: repeat(4, 1fr); 
-            }
-        }
-        
-        /* 手机端适配 */
-        @media (max-width: 480px) {
-            .janus-button-row {
-                grid-template-columns: repeat(4, 1fr); 
-            }
-            
-            .janus-button-row .menu_button {
-                font-size: 11px;
-                padding: 6px 4px;
-            }
-        }
         </style>
     `;
     
@@ -176,9 +218,13 @@ jQuery(() => {
         `);
         console.log('[Janusの百宝箱] 扩展界面已加载完成');
         
-        // 加载完成后获取版本信息
+        // 加载完成后获取版本信息并检查更新
         setTimeout(() => {
             getVersionFromManifest();
+            // 再延迟一点检查更新
+            setTimeout(() => {
+                checkForUpdates();
+            }, 1000);
         }, 500);
         
         toastr.success('Janusの百宝箱扩展已成功加载！', 'Janusの百宝箱');
