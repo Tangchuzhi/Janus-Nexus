@@ -338,11 +338,42 @@
             if (presetManager) {
                 for (const presetName of selectedPresets) {
                     try {
-                        const preset = presetManager.getPresetSettings(presetName);
+                        // 使用 getCompletionPresetByName 获取预设的完整内容
+                        const preset = presetManager.getCompletionPresetByName(presetName);
                         if (preset) {
                             const finalName = tagPrefix ? `${tagPrefix}${presetName}` : presetName;
-                            packageObj.presets[finalName] = preset;
-                            debugLog(`已打包预设: ${finalName}`);
+                            
+                            // 过滤掉API相关的设置
+                            const filteredPreset = { ...preset };
+                            const apiKeys = [
+                                'api_server', 'preset', 'streaming', 'truncation_length', 'n',
+                                'streaming_url', 'stopping_strings', 'can_use_tokenization',
+                                'can_use_streaming', 'preset_settings_novel', 'preset_settings',
+                                'streaming_novel', 'nai_preamble', 'model_novel', 'streaming_kobold',
+                                'enabled', 'bind_to_context', 'seed', 'legacy_api', 'mancer_model',
+                                'togetherai_model', 'ollama_model', 'vllm_model', 'aphrodite_model',
+                                'server_urls', 'type', 'custom_model', 'bypass_status_check',
+                                'infermaticai_model', 'dreamgen_model', 'openrouter_model',
+                                'featherless_model', 'max_tokens_second', 'openrouter_providers',
+                                'openrouter_allow_fallbacks', 'tabby_model', 'derived', 'generic_model',
+                                'include_reasoning', 'global_banned_tokens', 'send_banned_tokens',
+                                'auto_parse', 'add_to_prompts', 'auto_expand', 'show_hidden', 'max_additions'
+                            ];
+                            
+                            // 删除API相关的键
+                            apiKeys.forEach(key => {
+                                if (filteredPreset.hasOwnProperty(key)) {
+                                    delete filteredPreset[key];
+                                }
+                            });
+                            
+                            // 确保预设名称正确
+                            filteredPreset.name = finalName;
+                            
+                            packageObj.presets[finalName] = filteredPreset;
+                            debugLog(`已打包预设: ${finalName} (${Object.keys(filteredPreset).length} 个设置项)`);
+                        } else {
+                            debugLog(`预设 ${presetName} 未找到`);
                         }
                     } catch (error) {
                         debugLog(`预设 ${presetName} 打包失败: ${error.message}`);
@@ -562,8 +593,12 @@
                 if (presetManager) {
                     for (const [name, preset] of Object.entries(packageData.presets)) {
                         try {
-                            await presetManager.savePreset(name, preset, { skipUpdate: true });
-                            debugLog(`预设导入: ${name}`);
+                            // 确保预设名称正确
+                            const presetToSave = { ...preset };
+                            presetToSave.name = name;
+                            
+                            await presetManager.savePreset(name, presetToSave, { skipUpdate: true });
+                            debugLog(`预设导入: ${name} (${Object.keys(presetToSave).length} 个设置项)`);
                             importedCount++;
                         } catch (error) {
                             debugLog(`预设 ${name} 导入失败: ${error.message}`);
