@@ -4,6 +4,7 @@ jQuery(() => {
     // 扩展信息
     const extensionName = 'Janus-Treasure-chest';
     let extensionVersion = 'v1.0.0'; // 默认版本号
+    let currentActiveTab = 'dmss'; // 当前激活的标签页
     
     // 从manifest.json获取版本信息
     async function getVersionFromManifest() {
@@ -50,27 +51,66 @@ jQuery(() => {
         }
     }
     
+    // 切换标签页
+    function switchTab(tabName) {
+        currentActiveTab = tabName;
+        
+        // 更新标签按钮状态
+        document.querySelectorAll('.janus-tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        
+        // 更新内容区域
+        const contentArea = document.querySelector('.janus-content-area');
+        let content = '';
+        
+        switch(tabName) {
+            case 'dmss':
+                content = `
+                    <div class="janus-tab-content">
+                        <h4><i class="fa-solid fa-brain"></i> 动态记忆流系统 (DMSS)</h4>
+                        <p>这里将显示DMSS功能界面...</p>
+                        <!-- 在这里添加DMSS的具体功能 -->
+                    </div>
+                `;
+                break;
+            case 'quickTools':
+                content = `
+                    <div class="janus-tab-content">
+                        <h4><i class="fa-solid fa-bolt"></i> 快速交互工具</h4>
+                        <p>这里将显示快速交互工具界面...</p>
+                        <!-- 在这里添加快速交互工具的具体功能 -->
+                    </div>
+                `;
+                break;
+            case 'presetHelper':
+                content = `
+                    <div class="janus-tab-content">
+                        <h4><i class="fa-solid fa-box"></i> 预设打包助手</h4>
+                        <p>这里将显示预设打包助手界面...</p>
+                        <!-- 在这里添加预设打包助手的具体功能 -->
+                    </div>
+                `;
+                break;
+            case 'games':
+                content = `
+                    <div class="janus-tab-content">
+                        <h4><i class="fa-solid fa-gamepad"></i> 前端游戏</h4>
+                        <p>这里将显示前端游戏界面...</p>
+                        <!-- 在这里添加前端游戏的具体功能 -->
+                    </div>
+                `;
+                break;
+        }
+        
+        contentArea.innerHTML = content;
+        console.log(`[Janusの百宝箱] 切换到标签页: ${tabName}`);
+    }
+    
     // 模块功能处理函数
     window.janusHandlers = {
-        dmss: () => {
-            toastr.info('DMSS功能正在开发中，敬请期待！', 'Janusの百宝箱');
-            console.log('[Janusの百宝箱] DMSS模块被点击');
-        },
-        
-        quickTools: () => {
-            toastr.info('快速交互工具功能正在开发中，敬请期待！', 'Janusの百宝箱');
-            console.log('[Janusの百宝箱] 快速交互工具模块被点击');
-        },
-        
-        presetHelper: () => {
-            toastr.info('预设打包助手功能正在开发中，敬请期待！', 'Janusの百宝箱');
-            console.log('[Janusの百宝箱] 预设打包助手模块被点击');
-        },
-        
-        games: () => {
-            toastr.info('前端游戏功能正在开发中，敬请期待！', 'Janusの百宝箱');
-            console.log('[Janusの百宝箱] 前端游戏模块被点击');
-        },
+        switchTab: switchTab,
         
         update: async () => {
             try {
@@ -97,37 +137,40 @@ jQuery(() => {
                 }
                 
                 // 2. 触发SillyTavern原生的更新按钮
-                console.log('[Janusの百宝箱] 触发原生更新按钮...');
+                console.log('[Janusの百宝箱] 尝试触发原生更新按钮...');
                 
-                // 找到百宝箱扩展的原生更新按钮
+                // 尝试找到并点击原生更新按钮
                 const nativeUpdateBtn = document.querySelector("body > dialog > div.popup-body > div.popup-content > div > div:nth-child(3) > div:nth-child(3) > div.extension_actions.flex-container.alignItemsCenter > button.btn_update.menu_button.interactable");
                 
                 if (nativeUpdateBtn) {
-                    // 直接触发原生更新按钮的点击事件
+                    console.log('[Janusの百宝箱] 找到原生更新按钮，正在触发...');
                     nativeUpdateBtn.click();
-                    console.log('[Janusの百宝箱] 已触发原生更新按钮');
                     
-                    // 显示成功消息
-                    toastr.success('正在使用原生更新功能更新...', 'Janusの百宝箱');
+                    toastr.success('已触发更新，请等待完成...', 'Janusの百宝箱');
                     
-                    // 延迟一段时间后刷新页面（给更新过程一些时间）
+                    // 等待一段时间后刷新页面
                     setTimeout(() => {
                         location.reload();
                     }, 3000);
-                    
                 } else {
-                    // 如果找不到原生按钮，提示用户手动更新
-                    console.log('[Janusの百宝箱] 未找到原生更新按钮，可能需要先打开扩展管理页面');
-                    toastr.warning('请先打开扩展管理页面，然后再尝试更新', 'Janusの百宝箱');
+                    console.log('[Janusの百宝箱] 未找到原生更新按钮，尝试其他方法...');
                     
-                    // 恢复按钮状态
-                    updateBtn.innerHTML = originalText;
-                    updateBtn.disabled = false;
+                    // 备用方案：尝试通过更通用的选择器
+                    const alternativeBtn = document.querySelector(".btn_update.menu_button.interactable");
+                    if (alternativeBtn) {
+                        alternativeBtn.click();
+                        toastr.success('已触发更新，请等待完成...', 'Janusの百宝箱');
+                        setTimeout(() => {
+                            location.reload();
+                        }, 3000);
+                    } else {
+                        throw new Error('无法找到更新按钮');
+                    }
                 }
                 
             } catch (error) {
                 console.error('[Janusの百宝箱] 更新失败:', error);
-                toastr.error('更新过程出错，请手动更新', 'Janusの百宝箱');
+                toastr.error('自动更新失败，请手动更新扩展', 'Janusの百宝箱');
                 
                 // 恢复按钮状态
                 const updateBtn = document.querySelector('.janus-update-btn');
@@ -137,23 +180,32 @@ jQuery(() => {
         }
     };
     
-    // 简洁的HTML内容 - 符合SillyTavern原生风格
+    // 菜单栏布局的HTML内容
     const html = `
         <div class="janus-simple-container">
-            <!-- 功能按钮区域 -->
-            <div class="janus-button-row">
-                <button onclick="window.janusHandlers.dmss()" class="menu_button" title="动态记忆流系统">
-                    <i class="fa-solid fa-brain"></i> 动态记忆流系统
+            <!-- 菜单栏标签页 -->
+            <div class="janus-tab-bar">
+                <button onclick="window.janusHandlers.switchTab('dmss')" class="menu_button janus-tab-btn active" data-tab="dmss" title="动态记忆流系统">
+                    <i class="fa-solid fa-brain"></i> DMSS
                 </button>
-                <button onclick="window.janusHandlers.quickTools()" class="menu_button" title="快速交互工具">
-                    <i class="fa-solid fa-bolt"></i> 快速交互工具
+                <button onclick="window.janusHandlers.switchTab('quickTools')" class="menu_button janus-tab-btn" data-tab="quickTools" title="快速交互工具">
+                    <i class="fa-solid fa-bolt"></i> 快速工具
                 </button>
-                <button onclick="window.janusHandlers.presetHelper()" class="menu_button" title="预设打包助手">
-                    <i class="fa-solid fa-box"></i> 预设打包助手
+                <button onclick="window.janusHandlers.switchTab('presetHelper')" class="menu_button janus-tab-btn" data-tab="presetHelper" title="预设打包助手">
+                    <i class="fa-solid fa-box"></i> 预设助手
                 </button>
-                <button onclick="window.janusHandlers.games()" class="menu_button" title="前端游戏">
-                    <i class="fa-solid fa-gamepad"></i> 前端游戏
+                <button onclick="window.janusHandlers.switchTab('games')" class="menu_button janus-tab-btn" data-tab="games" title="前端游戏">
+                    <i class="fa-solid fa-gamepad"></i> 游戏
                 </button>
+            </div>
+            
+            <!-- 内容区域 -->
+            <div class="janus-content-area">
+                <div class="janus-tab-content">
+                    <h4><i class="fa-solid fa-brain"></i> 动态记忆流系统 (DMSS)</h4>
+                    <p>这里将显示DMSS功能界面...</p>
+                    <!-- 在这里添加DMSS的具体功能 -->
+                </div>
             </div>
             
             <!-- 底部信息区域：更新按钮 + 版本信息 -->
@@ -172,19 +224,52 @@ jQuery(() => {
             padding: 10px 0;
         }
         
-        /* 功能按钮布局 - 2个一行 */
-        .janus-button-row {
-            display: grid;
-            gap: 8px;
+        /* 菜单栏标签页布局 */
+        .janus-tab-bar {
+            display: flex;
+            gap: 4px;
             margin-bottom: 15px;
-            grid-template-columns: repeat(2, 1fr); 
+            border-bottom: 1px solid var(--SmartThemeBorderColor, #ccc);
+            padding-bottom: 8px;
         }
         
-        .janus-button-row .menu_button {
+        .janus-tab-btn {
             font-size: 12px;
-            padding: 8px 6px;
-            white-space: nowrap;
+            padding: 6px 12px;
+            flex: 1;
             min-width: 0;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .janus-tab-btn.active {
+            border-bottom-color: var(--SmartThemeQuoteColor, #007bff);
+            background-color: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
+            font-weight: bold;
+        }
+        
+        .janus-tab-btn:hover {
+            background-color: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.05));
+        }
+        
+        /* 内容区域 */
+        .janus-content-area {
+            min-height: 200px;
+            padding: 15px;
+            background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .janus-tab-content h4 {
+            margin: 0 0 10px 0;
+            color: var(--SmartThemeTextColor);
+        }
+        
+        .janus-tab-content p {
+            margin: 0;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.8;
         }
         
         /* 底部信息区域 */
