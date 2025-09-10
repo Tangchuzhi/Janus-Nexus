@@ -1,31 +1,126 @@
-#janus-treasure-chest {
-    padding: 10px;
-    margin: 10px 0;
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 5px;
-    background-color: var(--SmartThemeBodyColor);
+.janus-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    color: white;
 }
 
-#janus-treasure-chest h3 {
-    margin-top: 0;
-    color: var(--SmartThemeEmColor);
+.janus-header {
+    text-align: center;
+    margin-bottom: 30px;
 }
 
-.janus-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+.janus-header h2 {
+    margin: 0;
+    font-size: 2.5em;
+    font-weight: 700;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
 }
 
-.janus-button {
-    padding: 8px 16px;
-    background-color: var(--SmartThemeQuoteColor);
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 4px;
+.janus-subtitle {
+    margin: 10px 0 0 0;
+    opacity: 0.9;
+    font-size: 1.1em;
+}
+
+.janus-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.janus-card {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 15px;
+    padding: 20px;
+    text-align: center;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.3s ease;
+    color: white;
+    font-family: inherit;
+    backdrop-filter: blur(10px);
 }
 
-.janus-button:hover {
-    background-color: var(--SmartThemeHighlightColor);
+.janus-card:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+}
+
+.janus-card:active {
+    transform: translateY(-2px);
+}
+
+.card-icon {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+}
+
+.janus-card h3 {
+    margin: 10px 0 5px 0;
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.janus-card p {
+    margin: 0;
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
+.janus-status {
+    text-align: center;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
+/* 响应式设计 */
+@media (max-width: 600px) {
+    .janus-container {
+        padding: 15px;
+    }
+    
+    .janus-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    .janus-card {
+        padding: 15px;
+    }
+    
+    .card-icon {
+        font-size: 2em;
+    }
+    
+    .janus-header h2 {
+        font-size: 2em;
+    }
+}
+
+/* SillyTavern 集成样式 */
+#extensions_settings .janus-container {
+    background: var(--SmartThemeBodyColor);
+    color: var(--SmartThemeTextColor);
+    border: 1px solid var(--SmartThemeBorderColor);
+}
+
+#extensions_settings .janus-card {
+    background: var(--SmartThemeChatTintColor);
+    border-color: var(--SmartThemeBorderColor);
+    color: var(--SmartThemeTextColor);
+}
+
+#extensions_settings .janus-card:hover {
+    background: var(--SmartThemeQuoteColor);
 }
