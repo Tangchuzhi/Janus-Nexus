@@ -82,15 +82,15 @@ jQuery(() => {
                 
                 if (versionInfo.hasUpdate) {
                     versionDisplay.innerHTML = `
-                        <span style="color: #dc3545;">${localText}</span>
+                        <span style="color: #ffc107;">当前版: v${versionInfo.local}</span>
                         <span style="margin: 0 8px;">|</span>
-                        <span style="color: #28a745;">${remoteText}</span>
+                        <span style="color: #ffc107;">最新版: v${versionInfo.remote}</span>
                     `;
                 } else {
                     versionDisplay.innerHTML = `
-                        <span style="color: #28a745;">${localText}</span>
+                        <span style="color: #28a745;">当前版: v${versionInfo.local}</span>
                         <span style="margin: 0 8px;">|</span>
-                        <span style="color: #6c757d;">${remoteText}</span>
+                        <span style="color: #28a745;">最新版: v${versionInfo.remote}</span>
                     `;
                 }
             }
@@ -213,82 +213,15 @@ jQuery(() => {
     
     // 模块功能处理函数
     window.janusHandlers = {
-        switchTab: switchTab,
-        
-        update: async () => {
-            try {
-                const updateIcon = document.querySelector('.janus-update-icon');
-                updateIcon.className = 'fa-solid fa-spinner fa-spin janus-update-icon';
-                
-                // 使用我们自定义的更新函数
-                const result = await updateJanus();
-                
-                if (result.success) {
-                    if (result.isUpToDate) {
-                        console.log('[Janusの百宝箱] 已是最新版本');
-                        // 显示已是最新版本的消息
-                        if (typeof toastr !== 'undefined') {
-                            toastr.success('Janusの百宝箱已是最新版本');
-                        }
-                        updateIcon.className = 'fa-solid fa-check janus-update-icon';
-                        updateIcon.style.color = '#28a745';
-                        // 3秒后恢复原样
-                        setTimeout(() => {
-                            updateIcon.className = 'fa-solid fa-sync-alt janus-update-icon';
-                            updateIcon.style.color = '';
-                        }, 3000);
-                    } else {
-                        console.log('[Janusの百宝箱] 更新成功，准备刷新页面...');
-                        // 显示更新成功消息
-                        if (typeof toastr !== 'undefined') {
-                            toastr.success('Janusの百宝箱更新成功，页面即将刷新...');
-                        }
-                        updateIcon.className = 'fa-solid fa-check janus-update-icon';
-                        updateIcon.style.color = '#28a745';
-                        // 2秒后刷新页面
-                        setTimeout(() => location.reload(), 2000);
-                    }
-                } else {
-                    console.log('[Janusの百宝箱] 更新失败:', result.error);
-                    // 显示更新失败消息
-                    if (typeof toastr !== 'undefined') {
-                        toastr.error(`更新失败: ${result.error}`);
-                    }
-                    updateIcon.className = 'fa-solid fa-exclamation-triangle janus-update-icon';
-                    updateIcon.style.color = '#dc3545';
-                    // 3秒后恢复原样
-                    setTimeout(() => {
-                        updateIcon.className = 'fa-solid fa-sync-alt janus-update-icon';
-                        updateIcon.style.color = '';
-                    }, 3000);
-                }
-            } catch (error) {
-                console.error('[Janusの百宝箱] 更新过程出错:', error);
-                const updateIcon = document.querySelector('.janus-update-icon');
-                updateIcon.className = 'fa-solid fa-exclamation-triangle janus-update-icon';
-                updateIcon.style.color = '#dc3545';
-                // 显示错误消息
-                if (typeof toastr !== 'undefined') {
-                    toastr.error(`更新过程出错: ${error.message}`);
-                }
-                // 3秒后恢复原样
-                setTimeout(() => {
-                    updateIcon.className = 'fa-solid fa-sync-alt janus-update-icon';
-                    updateIcon.style.color = '';
-                }, 3000);
-            }
-        }
+        switchTab: switchTab
     };
     
     // 菜单栏布局的HTML内容
     const html = `
         <div class="janus-simple-container">
-            <!-- 版本和更新信息行 -->
+            <!-- 版本信息行 -->
             <div class="janus-header-row">
                 <div class="janus-version-display">版本: ${extensionVersion}</div>
-                <div class="janus-update-btn" onclick="window.janusHandlers.update()" title="检查并更新到最新版本">
-                    <i class="fa-solid fa-sync-alt janus-update-icon"></i>
-                </div>
             </div>
             
             <!-- 菜单栏标签页 -->
@@ -321,11 +254,11 @@ jQuery(() => {
             padding: 5px 0;
         }
         
-        /* 版本和更新信息行 - 减小间距 */
+        /* 版本信息行 */
         .janus-header-row {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
             padding: 3px 0;
             margin-bottom: 5px;
             border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
@@ -335,27 +268,7 @@ jQuery(() => {
             font-size: 11px;
             color: var(--SmartThemeTextColor);
             opacity: 0.8;
-        }
-        
-        .janus-update-btn {
-            cursor: pointer;
-            padding: 2px;
-            border-radius: 4px;
-            transition: all 0.3s ease;
-        }
-        
-        .janus-update-btn:hover {
-            background-color: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
-        }
-        
-        .janus-update-icon {
-            font-size: 12px;
-            color: var(--SmartThemeTextColor, #666);
-            transition: all 0.3s ease;
-        }
-        
-        .janus-update-icon:hover {
-            color: var(--SmartThemeQuoteColor, #007bff);
+            text-align: center;
         }
         
         /* 菜单栏标签页 - 减小间距 */
@@ -432,7 +345,9 @@ jQuery(() => {
         setTimeout(() => {
             getVersionFromManifest();
             setTimeout(() => {
-                checkForUpdates();
+                updateVersionDisplay();
+                // 启动自动版本检查，每1分钟检查一次
+                startVersionCheckInterval();
             }, 1000);
         }, 500);
         
@@ -441,5 +356,4 @@ jQuery(() => {
     
 
     window.getJanusVersion = getJanusVersion;
-    window.updateJanus = updateJanus;
 });
