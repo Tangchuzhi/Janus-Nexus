@@ -99,6 +99,17 @@ jQuery(() => {
         }
     }
     
+    // 定期检查版本更新（每5分钟）
+    function startVersionCheckInterval() {
+        // 立即执行一次
+        updateVersionDisplay();
+        
+        // 每5分钟检查一次
+        setInterval(() => {
+            updateVersionDisplay();
+        }, 5 * 60 * 1000);
+    }
+    
     // 加载预设打包助手内容
     async function loadPresetHelperContent() {
         try {
@@ -148,7 +159,7 @@ jQuery(() => {
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.8);
             z-index: 10000;
             display: flex;
             justify-content: center;
@@ -157,27 +168,31 @@ jQuery(() => {
         
         modal.innerHTML = `
             <div style="
-                background: white;
-                border-radius: 8px;
-                padding: 20px;
-                max-width: 90%;
-                max-height: 90%;
+                background: #f8f9fa;
+                border: 2px solid #dee2e6;
+                padding: 15px;
+                width: 95%;
+                height: 95%;
                 overflow: auto;
                 position: relative;
+                font-family: monospace;
+                font-size: 12px;
             ">
                 <button onclick="closePackModal()" style="
                     position: absolute;
-                    top: 10px;
-                    right: 10px;
-                    background: none;
+                    top: 5px;
+                    right: 5px;
+                    background: #dc3545;
+                    color: white;
                     border: none;
-                    font-size: 20px;
+                    width: 25px;
+                    height: 25px;
                     cursor: pointer;
+                    font-size: 14px;
                 ">×</button>
                 <div id="pack-modal-content">
                     <div style="text-align: center; padding: 20px;">
-                        <i class="fa-solid fa-spinner fa-spin"></i>
-                        <p>正在加载打包界面...</p>
+                        <div>正在加载打包界面...</div>
                     </div>
                 </div>
             </div>
@@ -200,7 +215,7 @@ jQuery(() => {
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.8);
             z-index: 10000;
             display: flex;
             justify-content: center;
@@ -209,27 +224,31 @@ jQuery(() => {
         
         modal.innerHTML = `
             <div style="
-                background: white;
-                border-radius: 8px;
-                padding: 20px;
-                max-width: 90%;
-                max-height: 90%;
+                background: #f8f9fa;
+                border: 2px solid #dee2e6;
+                padding: 15px;
+                width: 95%;
+                height: 95%;
                 overflow: auto;
                 position: relative;
+                font-family: monospace;
+                font-size: 12px;
             ">
                 <button onclick="closeImportModal()" style="
                     position: absolute;
-                    top: 10px;
-                    right: 10px;
-                    background: none;
+                    top: 5px;
+                    right: 5px;
+                    background: #dc3545;
+                    color: white;
                     border: none;
-                    font-size: 20px;
+                    width: 25px;
+                    height: 25px;
                     cursor: pointer;
+                    font-size: 14px;
                 ">×</button>
                 <div id="import-modal-content">
                     <div style="text-align: center; padding: 20px;">
-                        <i class="fa-solid fa-spinner fa-spin"></i>
-                        <p>正在加载导入界面...</p>
+                        <div>正在加载导入界面...</div>
                     </div>
                 </div>
             </div>
@@ -555,7 +574,7 @@ jQuery(() => {
         setTimeout(() => {
             getVersionFromManifest();
             setTimeout(() => {
-                updateVersionDisplay();
+                startVersionCheckInterval();
             }, 1000);
         }, 500);
         
