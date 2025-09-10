@@ -77,24 +77,33 @@
         try {
             debugLog('开始加载预设...');
             
-            // 使用 SillyTavern 的上下文获取预设列表
+            // 使用 SillyTavern 的预设管理器获取预设列表
             const context = SillyTavern.getContext();
-            const chatCompletionSettings = context.chatCompletionSettings || {};
-            const presets = Object.keys(chatCompletionSettings).filter(name => name !== 'in_use');
+            const presetManager = context.getPresetManager();
             
-            debugLog(`找到 ${presets.length} 个预设`);
+            if (!presetManager) {
+                debugLog('预设管理器未找到');
+                const container = document.getElementById('presets-list');
+                if (container) {
+                    container.innerHTML = '<div class="empty-state">预设管理器未找到</div>';
+                }
+                return;
+            }
+            
+            const allPresets = presetManager.getAllPresets();
+            debugLog(`找到 ${allPresets.length} 个预设`);
             
             const container = document.getElementById('presets-list');
             if (!container) return;
             
             container.innerHTML = '';
             
-            if (presets.length === 0) {
+            if (allPresets.length === 0) {
                 container.innerHTML = '<div class="empty-state">未找到预设</div>';
                 return;
             }
             
-            presets.forEach(preset => {
+            allPresets.forEach(preset => {
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'resource-item';
                 itemDiv.innerHTML = `
@@ -121,30 +130,31 @@
         try {
             debugLog('开始加载正则...');
             
-            // 使用 SillyTavern 的扩展设置获取正则
-            const regexSettings = SillyTavern.getContext().extensionSettings?.regex || {};
-            const regexes = Object.values(regexSettings);
+            // 使用 SillyTavern 的正则扩展获取正则脚本
+            const context = SillyTavern.getContext();
+            const extensionSettings = context.extensionSettings || {};
+            const regexScripts = extensionSettings.regex || [];
             
-            debugLog(`找到 ${regexes.length} 个正则`);
+            debugLog(`找到 ${regexScripts.length} 个正则脚本`);
             
             const container = document.getElementById('regexes-list');
             if (!container) return;
             
             container.innerHTML = '';
             
-            if (regexes.length === 0) {
-                container.innerHTML = '<div class="empty-state">未找到正则</div>';
+            if (regexScripts.length === 0) {
+                container.innerHTML = '<div class="empty-state">未找到正则脚本</div>';
                 return;
             }
             
-            regexes.forEach((regex, index) => {
+            regexScripts.forEach((script, index) => {
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'resource-item';
                 itemDiv.innerHTML = `
                     <input type="checkbox" id="regex-${index}" onchange="toggleRegex('${index}')">
                     <div class="resource-item-info">
-                        <div class="resource-item-name">${regex.name || `正则 ${index + 1}`}</div>
-                        <div class="resource-item-desc">${regex.pattern ? regex.pattern.substring(0, 30) + '...' : '正则表达式'}</div>
+                        <div class="resource-item-name">${script.scriptName || `正则脚本 ${index + 1}`}</div>
+                        <div class="resource-item-desc">${script.findRegex ? script.findRegex.substring(0, 30) + '...' : '正则表达式'}</div>
                     </div>
                 `;
                 container.appendChild(itemDiv);
@@ -164,41 +174,53 @@
         try {
             debugLog('开始加载快速回复...');
             
-            // 使用 SillyTavern 的上下文获取快速回复设置
+            // 使用 SillyTavern 的快速回复扩展获取QR集
             const context = SillyTavern.getContext();
-            const quickReplySettings = context.extensionSettings?.quickReplyV2 || {};
-            const qrSetNames = Object.keys(quickReplySettings);
+            const extensionSettings = context.extensionSettings || {};
             
-            debugLog(`找到 ${qrSetNames.length} 个快速回复集`);
+            // 尝试从不同的QR设置中获取数据
+            let qrSets = [];
+            
+            // 检查新的QR V2设置
+            if (extensionSettings.quickReplyV2 && extensionSettings.quickReplyV2.config && extensionSettings.quickReplyV2.config.setList) {
+                qrSets = extensionSettings.quickReplyV2.config.setList.map(set => ({
+                    name: set.set,
+                    visible: set.isVisible,
+                    qrCount: 0 // 需要从其他地方获取QR数量
+                }));
+            }
+            // 检查旧的QR设置
+            else if (extensionSettings.quickReply) {
+                qrSets = [{
+                    name: extensionSettings.quickReply.selectedPreset || extensionSettings.quickReply.name || 'Default',
+                    visible: true,
+                    qrCount: 0
+                }];
+            }
+            
+            debugLog(`找到 ${qrSets.length} 个快速回复集`);
             
             const container = document.getElementById('quickreplies-list');
             if (!container) return;
             
             container.innerHTML = '';
             
-            if (qrSetNames.length === 0) {
+            if (qrSets.length === 0) {
                 container.innerHTML = '<div class="empty-state">未找到快速回复集</div>';
                 return;
             }
             
-            qrSetNames.forEach(setName => {
-                try {
-                    const qrSet = quickReplySettings[setName];
-                    const qrCount = qrSet && qrSet.buttons ? Object.keys(qrSet.buttons).length : 0;
-                    
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'resource-item';
-                    itemDiv.innerHTML = `
-                        <input type="checkbox" id="qrset-${setName}" onchange="toggleQuickReply('${setName}')">
-                        <div class="resource-item-info">
-                            <div class="resource-item-name">${setName}</div>
-                            <div class="resource-item-desc">${qrCount} 个回复</div>
-                        </div>
-                    `;
-                    container.appendChild(itemDiv);
-                } catch (error) {
-                    debugLog(`快速回复集 ${setName} 加载失败: ${error.message}`);
-                }
+            qrSets.forEach(set => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'resource-item';
+                itemDiv.innerHTML = `
+                    <input type="checkbox" id="qrset-${set.name}" onchange="toggleQuickReply('${set.name}')">
+                    <div class="resource-item-info">
+                        <div class="resource-item-name">${set.name}</div>
+                        <div class="resource-item-desc">快速回复集</div>
+                    </div>
+                `;
+                container.appendChild(itemDiv);
             });
             
         } catch (error) {
@@ -271,30 +293,33 @@
             
             // 打包预设
             const context = SillyTavern.getContext();
-            const chatCompletionSettings = context.chatCompletionSettings || {};
+            const presetManager = context.getPresetManager();
             
-            for (const presetName of selectedPresets) {
-                try {
-                    const preset = chatCompletionSettings[presetName];
-                    if (preset) {
-                        const finalName = tagPrefix ? `${tagPrefix}${presetName}` : presetName;
-                        packageObj.presets[finalName] = preset;
-                        debugLog(`已打包预设: ${finalName}`);
+            if (presetManager) {
+                for (const presetName of selectedPresets) {
+                    try {
+                        const preset = presetManager.getPresetSettings(presetName);
+                        if (preset) {
+                            const finalName = tagPrefix ? `${tagPrefix}${presetName}` : presetName;
+                            packageObj.presets[finalName] = preset;
+                            debugLog(`已打包预设: ${finalName}`);
+                        }
+                    } catch (error) {
+                        debugLog(`预设 ${presetName} 打包失败: ${error.message}`);
                     }
-                } catch (error) {
-                    debugLog(`预设 ${presetName} 打包失败: ${error.message}`);
                 }
+            } else {
+                debugLog('预设管理器未找到，跳过预设打包');
             }
             showProgress(30);
             
             // 打包正则
-            const regexSettings = SillyTavern.getContext().extensionSettings?.regex || {};
-            const regexes = Object.values(regexSettings);
+            const regexSettings = SillyTavern.getContext().extensionSettings?.regex || [];
             
             for (const regexIndex of selectedRegexes) {
-                const regex = regexes[regexIndex];
+                const regex = regexSettings[regexIndex];
                 if (regex) {
-                    let finalName = regex.name || `正则 ${regexIndex + 1}`;
+                    let finalName = regex.scriptName || `正则脚本 ${regexIndex + 1}`;
                     if (tagPrefix) {
                         finalName = `${tagPrefix}${finalName}`;
                     }
@@ -304,7 +329,7 @@
                     
                     packageObj.regexes[finalName] = {
                         ...regex,
-                        name: finalName
+                        scriptName: finalName
                     };
                     debugLog(`已打包正则: ${finalName}`);
                 }
@@ -312,17 +337,37 @@
             showProgress(60);
             
             // 打包快速回复
-            const quickReplySettings = context.extensionSettings?.quickReplyV2 || {};
+            const extensionSettings = context.extensionSettings || {};
+            const quickReplySettings = extensionSettings.quickReplyV2 || {};
             
             for (const setName of selectedQuickReplies) {
                 try {
                     const finalSetName = tagPrefix ? `${tagPrefix}${setName}` : setName;
-                    const qrSet = quickReplySettings[setName];
                     
-                    if (qrSet) {
-                        packageObj.quick_reply_sets[finalSetName] = qrSet;
-                        debugLog(`已打包快速回复集: ${finalSetName}`);
+                    // 尝试从QR V2设置中获取QR集
+                    let qrSet = null;
+                    if (quickReplySettings.config && quickReplySettings.config.setList) {
+                        const setConfig = quickReplySettings.config.setList.find(set => set.set === setName);
+                        if (setConfig) {
+                            qrSet = {
+                                name: finalSetName,
+                                isVisible: setConfig.isVisible,
+                                qrList: [] // QR列表需要从其他地方获取
+                            };
+                        }
                     }
+                    
+                    // 如果没有找到，创建一个基本的QR集结构
+                    if (!qrSet) {
+                        qrSet = {
+                            name: finalSetName,
+                            isVisible: true,
+                            qrList: []
+                        };
+                    }
+                    
+                    packageObj.quick_reply_sets[finalSetName] = qrSet;
+                    debugLog(`已打包快速回复集: ${finalSetName}`);
                 } catch (error) {
                     debugLog(`快速回复集 ${setName} 打包失败: ${error.message}`);
                 }
@@ -428,45 +473,75 @@
             // 导入预设
             if (packageData.presets) {
                 const context = SillyTavern.getContext();
-                const chatCompletionSettings = context.chatCompletionSettings || {};
+                const presetManager = context.getPresetManager();
                 
-                for (const [name, preset] of Object.entries(packageData.presets)) {
-                    try {
-                        chatCompletionSettings[name] = preset;
-                        debugLog(`预设导入: ${name}`);
-                        importedCount++;
-                    } catch (error) {
-                        debugLog(`预设 ${name} 导入失败: ${error.message}`);
+                if (presetManager) {
+                    for (const [name, preset] of Object.entries(packageData.presets)) {
+                        try {
+                            await presetManager.savePreset(name, preset, { skipUpdate: true });
+                            debugLog(`预设导入: ${name}`);
+                            importedCount++;
+                        } catch (error) {
+                            debugLog(`预设 ${name} 导入失败: ${error.message}`);
+                        }
                     }
+                } else {
+                    debugLog('预设管理器未找到，跳过预设导入');
                 }
-                
-                // 更新预设设置
-                context.chatCompletionSettings = chatCompletionSettings;
             }
             
             // 导入正则
             if (packageData.regexes && Object.keys(packageData.regexes).length > 0) {
-                const regexSettings = SillyTavern.getContext().extensionSettings?.regex || {};
-                const newRegexSettings = { ...regexSettings };
+                const context = SillyTavern.getContext();
+                const regexSettings = context.extensionSettings?.regex || [];
+                const newRegexSettings = [...regexSettings];
                 
                 for (const [name, regex] of Object.entries(packageData.regexes)) {
-                    newRegexSettings[name] = regex;
+                    // 检查是否已存在相同名称的正则
+                    const existingIndex = newRegexSettings.findIndex(r => r.scriptName === name);
+                    if (existingIndex >= 0) {
+                        newRegexSettings[existingIndex] = regex;
+                    } else {
+                        newRegexSettings.push(regex);
+                    }
                     debugLog(`正则导入: ${name}`);
                     importedCount++;
                 }
                 
                 // 更新正则设置
-                SillyTavern.getContext().extensionSettings.regex = newRegexSettings;
+                context.extensionSettings.regex = newRegexSettings;
             }
             
             // 导入快速回复
             if (packageData.quick_reply_sets) {
                 const context = SillyTavern.getContext();
-                const quickReplySettings = context.extensionSettings?.quickReplyV2 || {};
+                const extensionSettings = context.extensionSettings || {};
+                let quickReplySettings = extensionSettings.quickReplyV2 || {};
+                
+                // 确保QR V2设置结构存在
+                if (!quickReplySettings.config) {
+                    quickReplySettings.config = { setList: [] };
+                }
+                if (!quickReplySettings.config.setList) {
+                    quickReplySettings.config.setList = [];
+                }
                 
                 for (const [setName, qrSet] of Object.entries(packageData.quick_reply_sets)) {
                     try {
-                        quickReplySettings[setName] = qrSet;
+                        // 检查是否已存在相同名称的QR集
+                        const existingIndex = quickReplySettings.config.setList.findIndex(set => set.set === setName);
+                        if (existingIndex >= 0) {
+                            quickReplySettings.config.setList[existingIndex] = {
+                                set: setName,
+                                isVisible: qrSet.isVisible !== undefined ? qrSet.isVisible : true
+                            };
+                        } else {
+                            quickReplySettings.config.setList.push({
+                                set: setName,
+                                isVisible: qrSet.isVisible !== undefined ? qrSet.isVisible : true
+                            });
+                        }
+                        
                         debugLog(`快速回复集导入: ${setName}`);
                         importedCount++;
                     } catch (error) {
