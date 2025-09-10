@@ -77,9 +77,10 @@
         try {
             debugLog('开始加载预设...');
             
-            // 使用 SillyTavern 的 slash 命令获取预设列表
-            const presetListResult = await SillyTavern.triggerSlash('/preset');
-            const presets = JSON.parse(presetListResult || '[]');
+            // 使用 SillyTavern 的上下文获取预设列表
+            const context = SillyTavern.getContext();
+            const chatCompletionSettings = context.chatCompletionSettings || {};
+            const presets = Object.keys(chatCompletionSettings).filter(name => name !== 'in_use');
             
             debugLog(`找到 ${presets.length} 个预设`);
             
@@ -94,8 +95,6 @@
             }
             
             presets.forEach(preset => {
-                if (preset === 'in_use') return;
-                
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'resource-item';
                 itemDiv.innerHTML = `
@@ -122,14 +121,9 @@
         try {
             debugLog('开始加载正则...');
             
-            // 使用 SillyTavern 的 slash 命令获取正则列表
-            const regexListResult = await SillyTavern.triggerSlash('/regex-toggle');
-            debugLog('正则命令结果:', regexListResult);
-            
-            // 尝试从扩展设置获取正则
-            const context = SillyTavern.getContext();
-            const regexSettings = context.extensionSettings?.regex || {};
-            const regexes = Object.keys(regexSettings);
+            // 使用 SillyTavern 的扩展设置获取正则
+            const regexSettings = SillyTavern.getContext().extensionSettings?.regex || {};
+            const regexes = Object.values(regexSettings);
             
             debugLog(`找到 ${regexes.length} 个正则`);
             
@@ -143,14 +137,13 @@
                 return;
             }
             
-            regexes.forEach((regexName, index) => {
-                const regex = regexSettings[regexName];
+            regexes.forEach((regex, index) => {
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'resource-item';
                 itemDiv.innerHTML = `
                     <input type="checkbox" id="regex-${index}" onchange="toggleRegex('${index}')">
                     <div class="resource-item-info">
-                        <div class="resource-item-name">${regexName}</div>
+                        <div class="resource-item-name">${regex.name || `正则 ${index + 1}`}</div>
                         <div class="resource-item-desc">${regex.pattern ? regex.pattern.substring(0, 30) + '...' : '正则表达式'}</div>
                     </div>
                 `;
@@ -171,9 +164,10 @@
         try {
             debugLog('开始加载快速回复...');
             
-            // 使用 SillyTavern 的 slash 命令获取快速回复集列表
-            const qrSetListResult = await SillyTavern.triggerSlash('/qr-set-list all');
-            const qrSetNames = JSON.parse(qrSetListResult || '[]');
+            // 使用 SillyTavern 的上下文获取快速回复设置
+            const context = SillyTavern.getContext();
+            const quickReplySettings = context.extensionSettings?.quickReplyV2 || {};
+            const qrSetNames = Object.keys(quickReplySettings);
             
             debugLog(`找到 ${qrSetNames.length} 个快速回复集`);
             
@@ -187,10 +181,10 @@
                 return;
             }
             
-            for (const setName of qrSetNames) {
+            qrSetNames.forEach(setName => {
                 try {
-                    const qrListResult = await SillyTavern.triggerSlash(`/qr-list "${setName}"`);
-                    const qrList = JSON.parse(qrListResult || '[]');
+                    const qrSet = quickReplySettings[setName];
+                    const qrCount = qrSet && qrSet.buttons ? Object.keys(qrSet.buttons).length : 0;
                     
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'resource-item';
@@ -198,14 +192,14 @@
                         <input type="checkbox" id="qrset-${setName}" onchange="toggleQuickReply('${setName}')">
                         <div class="resource-item-info">
                             <div class="resource-item-name">${setName}</div>
-                            <div class="resource-item-desc">${qrList.length} 个回复</div>
+                            <div class="resource-item-desc">${qrCount} 个回复</div>
                         </div>
                     `;
                     container.appendChild(itemDiv);
                 } catch (error) {
                     debugLog(`快速回复集 ${setName} 加载失败: ${error.message}`);
                 }
-            }
+            });
             
         } catch (error) {
             debugLog('快速回复加载错误: ' + error.message);
@@ -276,14 +270,17 @@
             };
             
             // 打包预设
+            const context = SillyTavern.getContext();
+            const chatCompletionSettings = context.chatCompletionSettings || {};
+            
             for (const presetName of selectedPresets) {
                 try {
-                    const presetResult = await SillyTavern.triggerSlash(`/preset "${presetName}"`);
-                    const preset = JSON.parse(presetResult || '{}');
-                    
-                    const finalName = tagPrefix ? `${tagPrefix}${presetName}` : presetName;
-                    packageObj.presets[finalName] = preset;
-                    debugLog(`已打包预设: ${finalName}`);
+                    const preset = chatCompletionSettings[presetName];
+                    if (preset) {
+                        const finalName = tagPrefix ? `${tagPrefix}${presetName}` : presetName;
+                        packageObj.presets[finalName] = preset;
+                        debugLog(`已打包预设: ${finalName}`);
+                    }
                 } catch (error) {
                     debugLog(`预设 ${presetName} 打包失败: ${error.message}`);
                 }
@@ -291,15 +288,13 @@
             showProgress(30);
             
             // 打包正则
-            const context = SillyTavern.getContext();
-            const regexSettings = context.extensionSettings?.regex || {};
-            const regexNames = Object.keys(regexSettings);
+            const regexSettings = SillyTavern.getContext().extensionSettings?.regex || {};
+            const regexes = Object.values(regexSettings);
             
             for (const regexIndex of selectedRegexes) {
-                const regexName = regexNames[regexIndex];
-                const regex = regexSettings[regexName];
+                const regex = regexes[regexIndex];
                 if (regex) {
-                    let finalName = regexName;
+                    let finalName = regex.name || `正则 ${regexIndex + 1}`;
                     if (tagPrefix) {
                         finalName = `${tagPrefix}${finalName}`;
                     }
@@ -317,25 +312,17 @@
             showProgress(60);
             
             // 打包快速回复
+            const quickReplySettings = context.extensionSettings?.quickReplyV2 || {};
+            
             for (const setName of selectedQuickReplies) {
                 try {
                     const finalSetName = tagPrefix ? `${tagPrefix}${setName}` : setName;
-                    const qrListResult = await SillyTavern.triggerSlash(`/qr-list "${setName}"`);
-                    const qrList = JSON.parse(qrListResult || '[]');
+                    const qrSet = quickReplySettings[setName];
                     
-                    const repliesArray = [];
-                    for (const qrLabel of qrList) {
-                        try {
-                            const qrDataResult = await SillyTavern.triggerSlash(`/qr-get set="${setName}" label="${qrLabel}"`);
-                            const qrData = JSON.parse(qrDataResult || '{}');
-                            repliesArray.push(qrData);
-                        } catch (error) {
-                            debugLog(`快速回复 ${qrLabel} 获取失败: ${error.message}`);
-                        }
+                    if (qrSet) {
+                        packageObj.quick_reply_sets[finalSetName] = qrSet;
+                        debugLog(`已打包快速回复集: ${finalSetName}`);
                     }
-                    
-                    packageObj.quick_reply_sets[finalSetName] = repliesArray;
-                    debugLog(`已打包快速回复集: ${finalSetName}`);
                 } catch (error) {
                     debugLog(`快速回复集 ${setName} 打包失败: ${error.message}`);
                 }
@@ -440,15 +427,21 @@
             
             // 导入预设
             if (packageData.presets) {
+                const context = SillyTavern.getContext();
+                const chatCompletionSettings = context.chatCompletionSettings || {};
+                
                 for (const [name, preset] of Object.entries(packageData.presets)) {
                     try {
-                        await SillyTavern.triggerSlash(`/preset "${name}" ${JSON.stringify(preset)}`);
+                        chatCompletionSettings[name] = preset;
                         debugLog(`预设导入: ${name}`);
                         importedCount++;
                     } catch (error) {
                         debugLog(`预设 ${name} 导入失败: ${error.message}`);
                     }
                 }
+                
+                // 更新预设设置
+                context.chatCompletionSettings = chatCompletionSettings;
             }
             
             // 导入正则
@@ -468,28 +461,21 @@
             
             // 导入快速回复
             if (packageData.quick_reply_sets) {
-                for (const [setName, repliesArray] of Object.entries(packageData.quick_reply_sets)) {
+                const context = SillyTavern.getContext();
+                const quickReplySettings = context.extensionSettings?.quickReplyV2 || {};
+                
+                for (const [setName, qrSet] of Object.entries(packageData.quick_reply_sets)) {
                     try {
-                        await SillyTavern.triggerSlash(`/qr-set-create "${setName}"`);
-                        
-                        for (const reply of repliesArray) {
-                            try {
-                                const args = Object.entries(reply)
-                                    .filter(([key, value]) => key !== 'command' && value !== null && value !== undefined)
-                                    .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
-                                    .join(' ');
-                                const command = reply.command || '';
-                                await SillyTavern.triggerSlash(`/qr-create set="${setName}" ${args} ${command}`);
-                            } catch (error) {
-                                debugLog(`快速回复导入失败: ${error.message}`);
-                            }
-                        }
+                        quickReplySettings[setName] = qrSet;
                         debugLog(`快速回复集导入: ${setName}`);
                         importedCount++;
                     } catch (error) {
                         debugLog(`快速回复集 ${setName} 导入失败: ${error.message}`);
                     }
                 }
+                
+                // 更新快速回复设置
+                context.extensionSettings.quickReplyV2 = quickReplySettings;
             }
             
             showProgress(100);
