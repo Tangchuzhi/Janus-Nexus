@@ -104,11 +104,12 @@ jQuery(() => {
         // 立即执行一次
         updateVersionDisplay();
         
-        // 每5分钟检查一次
+        // 每1分钟检查一次
         setInterval(() => {
             updateVersionDisplay();
-        }, 5 * 60 * 1000);
+        }, 1 * 60 * 1000);
     }
+    
     
     // 加载预设打包助手内容
     async function loadPresetHelperContent() {
@@ -148,193 +149,6 @@ jQuery(() => {
         }
     }
     
-    // 打开打包弹窗
-    function openPackModal() {
-        // 创建模态框
-        const modal = document.createElement('div');
-        modal.id = 'preset-pack-modal';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 10000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        `;
-        
-        modal.innerHTML = `
-            <div style="
-                background: #f8f9fa;
-                border: 2px solid #dee2e6;
-                padding: 15px;
-                width: 95%;
-                height: 95%;
-                overflow: auto;
-                position: relative;
-                font-family: monospace;
-                font-size: 12px;
-            ">
-                <button onclick="closePackModal()" style="
-                    position: absolute;
-                    top: 5px;
-                    right: 5px;
-                    background: #dc3545;
-                    color: white;
-                    border: none;
-                    width: 25px;
-                    height: 25px;
-                    cursor: pointer;
-                    font-size: 14px;
-                ">×</button>
-                <div id="pack-modal-content">
-                    <div style="text-align: center; padding: 20px;">
-                        <div>正在加载打包界面...</div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // 加载打包内容
-        loadPackContent();
-    }
-    
-    // 打开导入弹窗
-    function openImportModal() {
-        // 创建模态框
-        const modal = document.createElement('div');
-        modal.id = 'preset-import-modal';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 10000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        `;
-        
-        modal.innerHTML = `
-            <div style="
-                background: #f8f9fa;
-                border: 2px solid #dee2e6;
-                padding: 15px;
-                width: 95%;
-                height: 95%;
-                overflow: auto;
-                position: relative;
-                font-family: monospace;
-                font-size: 12px;
-            ">
-                <button onclick="closeImportModal()" style="
-                    position: absolute;
-                    top: 5px;
-                    right: 5px;
-                    background: #dc3545;
-                    color: white;
-                    border: none;
-                    width: 25px;
-                    height: 25px;
-                    cursor: pointer;
-                    font-size: 14px;
-                ">×</button>
-                <div id="import-modal-content">
-                    <div style="text-align: center; padding: 20px;">
-                        <div>正在加载导入界面...</div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // 加载导入内容
-        loadImportContent();
-    }
-    
-    // 关闭弹窗
-    function closePackModal() {
-        const modal = document.getElementById('preset-pack-modal');
-        if (modal) {
-            modal.remove();
-        }
-    }
-    
-    function closeImportModal() {
-        const modal = document.getElementById('preset-import-modal');
-        if (modal) {
-            modal.remove();
-        }
-    }
-    
-    // 加载打包内容
-    async function loadPackContent() {
-        try {
-            const response = await fetch('scripts/extensions/third-party/Janus-Treasure-chest/预设打包助手/index.html');
-            if (response.ok) {
-                const html = await response.text();
-                const contentDiv = document.getElementById('pack-modal-content');
-                if (contentDiv) {
-                    // 只显示打包部分
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const packTab = doc.querySelector('#pack-tab');
-                    if (packTab) {
-                        contentDiv.innerHTML = packTab.innerHTML;
-                        
-                        // 加载JavaScript
-                        const script = document.createElement('script');
-                        script.src = 'scripts/extensions/third-party/Janus-Treasure-chest/预设打包助手/index.js';
-                        script.onload = () => {
-                            console.log('[Janusの百宝箱] 打包界面脚本加载完成');
-                        };
-                        document.head.appendChild(script);
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('[Janusの百宝箱] 加载打包界面失败:', error);
-        }
-    }
-    
-    // 加载导入内容
-    async function loadImportContent() {
-        try {
-            const response = await fetch('scripts/extensions/third-party/Janus-Treasure-chest/预设打包助手/index.html');
-            if (response.ok) {
-                const html = await response.text();
-                const contentDiv = document.getElementById('import-modal-content');
-                if (contentDiv) {
-                    // 只显示导入部分
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const importTab = doc.querySelector('#import-tab');
-                    if (importTab) {
-                        contentDiv.innerHTML = importTab.innerHTML;
-                        
-                        // 加载JavaScript
-                        const script = document.createElement('script');
-                        script.src = 'scripts/extensions/third-party/Janus-Treasure-chest/预设打包助手/index.js';
-                        script.onload = () => {
-                            console.log('[Janusの百宝箱] 导入界面脚本加载完成');
-                        };
-                        document.head.appendChild(script);
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('[Janusの百宝箱] 加载导入界面失败:', error);
-        }
-    }
-    
     // 切换标签页
     function switchTab(tabName) {
         currentActiveTab = tabName;
@@ -367,14 +181,11 @@ jQuery(() => {
             case 'presetHelper':
                 content = `
                     <div class="janus-tab-content">
-                        <h4><i class="fa-solid fa-box"></i> 预设打包助手</h4>
-                        <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
-                            <button onclick="openPackModal()" class="preset-helper-btn preset-helper-btn-pack">
-                                <i class="fa-solid fa-box"></i> 打包
-                            </button>
-                            <button onclick="openImportModal()" class="preset-helper-btn preset-helper-btn-import">
-                                <i class="fa-solid fa-download"></i> 导入
-                            </button>
+                        <div id="preset-helper-content">
+                            <div style="text-align: center; padding: 20px;">
+                                <i class="fa-solid fa-spinner fa-spin"></i>
+                                <p>正在加载预设打包助手...</p>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -391,29 +202,93 @@ jQuery(() => {
         
         contentArea.innerHTML = content;
         console.log(`[Janusの百宝箱] 切换到标签页: ${tabName}`);
+        
+        // 如果是预设打包助手标签页，加载内容
+        if (tabName === 'presetHelper') {
+            setTimeout(() => {
+                loadPresetHelperContent();
+            }, 100);
+        }
     }
     
     // 模块功能处理函数
     window.janusHandlers = {
         switchTab: switchTab,
-        openPackModal: openPackModal,
-        openImportModal: openImportModal,
-        closePackModal: closePackModal,
-        closeImportModal: closeImportModal
+        
+        update: async () => {
+            try {
+                const updateIcon = document.querySelector('.janus-update-icon');
+                updateIcon.className = 'fa-solid fa-spinner fa-spin janus-update-icon';
+                
+                // 使用我们自定义的更新函数
+                const result = await updateJanus();
+                
+                if (result.success) {
+                    if (result.isUpToDate) {
+                        console.log('[Janusの百宝箱] 已是最新版本');
+                        // 显示已是最新版本的消息
+                        if (typeof toastr !== 'undefined') {
+                            toastr.success('Janusの百宝箱已是最新版本');
+                        }
+                        updateIcon.className = 'fa-solid fa-check janus-update-icon';
+                        updateIcon.style.color = '#28a745';
+                        // 3秒后恢复原样
+                        setTimeout(() => {
+                            updateIcon.className = 'fa-solid fa-sync-alt janus-update-icon';
+                            updateIcon.style.color = '';
+                        }, 3000);
+                    } else {
+                        console.log('[Janusの百宝箱] 更新成功，准备刷新页面...');
+                        // 显示更新成功消息
+                        if (typeof toastr !== 'undefined') {
+                            toastr.success('Janusの百宝箱更新成功，页面即将刷新...');
+                        }
+                        updateIcon.className = 'fa-solid fa-check janus-update-icon';
+                        updateIcon.style.color = '#28a745';
+                        // 2秒后刷新页面
+                        setTimeout(() => location.reload(), 2000);
+                    }
+                } else {
+                    console.log('[Janusの百宝箱] 更新失败:', result.error);
+                    // 显示更新失败消息
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(`更新失败: ${result.error}`);
+                    }
+                    updateIcon.className = 'fa-solid fa-exclamation-triangle janus-update-icon';
+                    updateIcon.style.color = '#dc3545';
+                    // 3秒后恢复原样
+                    setTimeout(() => {
+                        updateIcon.className = 'fa-solid fa-sync-alt janus-update-icon';
+                        updateIcon.style.color = '';
+                    }, 3000);
+                }
+            } catch (error) {
+                console.error('[Janusの百宝箱] 更新过程出错:', error);
+                const updateIcon = document.querySelector('.janus-update-icon');
+                updateIcon.className = 'fa-solid fa-exclamation-triangle janus-update-icon';
+                updateIcon.style.color = '#dc3545';
+                // 显示错误消息
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(`更新过程出错: ${error.message}`);
+                }
+                // 3秒后恢复原样
+                setTimeout(() => {
+                    updateIcon.className = 'fa-solid fa-sync-alt janus-update-icon';
+                    updateIcon.style.color = '';
+                }, 3000);
+            }
+        }
     };
-    
-    // 将函数暴露到全局作用域
-    window.openPackModal = openPackModal;
-    window.openImportModal = openImportModal;
-    window.closePackModal = closePackModal;
-    window.closeImportModal = closeImportModal;
     
     // 菜单栏布局的HTML内容
     const html = `
         <div class="janus-simple-container">
-            <!-- 版本信息行 -->
+            <!-- 版本和更新信息行 -->
             <div class="janus-header-row">
-                <div class="janus-version-display">当前版: v${extensionVersion.replace('v', '')} | 最新版: 检查中...</div>
+                <div class="janus-version-display">版本: ${extensionVersion}</div>
+                <div class="janus-update-btn" onclick="window.janusHandlers.update()" title="检查并更新到最新版本">
+                    <i class="fa-solid fa-sync-alt janus-update-icon"></i>
+                </div>
             </div>
             
             <!-- 菜单栏标签页 -->
@@ -446,11 +321,11 @@ jQuery(() => {
             padding: 5px 0;
         }
         
-        /* 版本信息行 */
+        /* 版本和更新信息行 - 减小间距 */
         .janus-header-row {
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: space-between;
             padding: 3px 0;
             margin-bottom: 5px;
             border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
@@ -462,7 +337,28 @@ jQuery(() => {
             opacity: 0.8;
         }
         
-        /* 菜单栏标签页 */
+        .janus-update-btn {
+            cursor: pointer;
+            padding: 2px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .janus-update-btn:hover {
+            background-color: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
+        }
+        
+        .janus-update-icon {
+            font-size: 12px;
+            color: var(--SmartThemeTextColor, #666);
+            transition: all 0.3s ease;
+        }
+        
+        .janus-update-icon:hover {
+            color: var(--SmartThemeQuoteColor, #007bff);
+        }
+        
+        /* 菜单栏标签页 - 减小间距 */
         .janus-tab-bar {
             display: flex;
             gap: 3px;
@@ -509,44 +405,6 @@ jQuery(() => {
             opacity: 0.8;
         }
         
-        /* 预设打包助手按钮样式 */
-        .preset-helper-btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            min-width: 120px;
-            justify-content: center;
-        }
-        
-        .preset-helper-btn-pack {
-            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-            color: white;
-        }
-        
-        .preset-helper-btn-pack:hover {
-            background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
-        }
-        
-        .preset-helper-btn-import {
-            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
-            color: white;
-        }
-        
-        .preset-helper-btn-import:hover {
-            background: linear-gradient(135deg, #1e7e34 0%, #155724 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
-        }
-        
         /* 减小整体内联抽屉的内边距 */
         #janus-treasure-chest-settings .inline-drawer-content {
             padding: 5px;
@@ -574,7 +432,7 @@ jQuery(() => {
         setTimeout(() => {
             getVersionFromManifest();
             setTimeout(() => {
-                startVersionCheckInterval();
+                checkForUpdates();
             }, 1000);
         }, 500);
         
