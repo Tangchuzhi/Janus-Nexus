@@ -727,8 +727,26 @@
                         
                         // 2. 导入实际的快速回复内容
                         if (qrSet.qrList && qrSet.qrList.length > 0) {
-                            quickReplySettings.quickReplyPresets[setName] = qrSet.qrList;
-                            debugLog(`快速回复集导入: ${setName} (${qrSet.qrList.length} 个回复)`);
+                            // 将qrList转换为SillyTavern期望的格式
+                            const formattedQrList = qrSet.qrList.map(qr => ({
+                                id: qr.id || Date.now() + Math.random().toString(36).substr(2, 9),
+                                label: qr.label || '',
+                                title: qr.title || '',
+                                message: qr.message || '',
+                                isHidden: qr.isHidden || false,
+                                executeOnStartup: qr.executeOnStartup || false,
+                                executeOnUser: qr.executeOnUser || false,
+                                executeOnAi: qr.executeOnAi || false,
+                                executeOnChatChange: qr.executeOnChatChange || false,
+                                executeOnGroupMemberDraft: qr.executeOnGroupMemberDraft || false,
+                                executeOnNewChat: qr.executeOnNewChat || false,
+                                executeBeforeGeneration: qr.executeBeforeGeneration || false,
+                                automationId: qr.automationId || '',
+                                contextList: qr.contextList || []
+                            }));
+                            
+                            quickReplySettings.quickReplyPresets[setName] = formattedQrList;
+                            debugLog(`快速回复集导入: ${setName} (${formattedQrList.length} 个回复)`);
                         } else {
                             debugLog(`快速回复集导入: ${setName} (无回复内容)`);
                         }
@@ -741,11 +759,48 @@
                 
                 // 更新快速回复设置并保存
                 context.extensionSettings.quickReplyV2 = quickReplySettings;
+                
                 // 调用保存函数
                 if (context.saveSettingsDebounced) {
                     context.saveSettingsDebounced();
                 }
                 debugLog(`快速回复设置已更新并保存`);
+                
+                // 尝试触发快速回复扩展的重新加载
+                try {
+                    // 方法1: 清空现有列表，强制重新加载
+                    if (window.QuickReplySet && window.QuickReplySet.list) {
+                        window.QuickReplySet.list.length = 0;
+                        debugLog('已清空QuickReplySet.list');
+                    }
+                    
+                    // 方法2: 尝试调用快速回复扩展的loadSets函数
+                    if (window.loadSets && typeof window.loadSets === 'function') {
+                        await window.loadSets();
+                        debugLog('已调用loadSets重新加载快速回复');
+                    }
+                    
+                    // 方法3: 触发快速回复按钮的刷新
+                    if (window.buttons && window.buttons.refresh && typeof window.buttons.refresh === 'function') {
+                        window.buttons.refresh();
+                        debugLog('已调用buttons.refresh刷新快速回复按钮');
+                    }
+                    
+                    // 方法4: 延迟刷新页面，确保快速回复正确加载
+                    setTimeout(() => {
+                        debugLog('准备刷新页面以加载快速回复...');
+                        showStatus('页面即将刷新以加载快速回复...', 'info');
+                        window.location.reload();
+                    }, 3000); // 3秒后刷新，让用户看到成功消息
+                    
+                } catch (reloadError) {
+                    debugLog(`快速回复重新加载失败: ${reloadError.message}`);
+                    // 如果重新加载失败，仍然刷新页面
+                    setTimeout(() => {
+                        debugLog('快速回复重新加载失败，强制刷新页面...');
+                        window.location.reload();
+                    }, 2000);
+                }
             }
             
             showProgress(100);
