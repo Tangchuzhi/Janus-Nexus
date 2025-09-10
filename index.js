@@ -163,12 +163,12 @@ jQuery(() => {
             padding: 10px 0;
         }
         
-        /* 功能按钮布局 - 所有设备都4个一行 */
+        /* 功能按钮布局 - 所有设备都2个一行 */
         .janus-button-row {
             display: grid;
             gap: 8px;
             margin-bottom: 15px;
-            grid-template-columns: repeat(4, 1fr); 
+            grid-template-columns: repeat(2, 1fr); 
         }
         
         .janus-button-row .menu_button {
