@@ -87,9 +87,9 @@
                 <i class="fa-solid fa-upload"></i> 文件导入
             </div>
             
-            <div class="file-upload-area" onclick="console.log('点击了上传区域')">
-                <input type="file" id="package-file" accept=".json" onchange="handleFileSelect(event)" onclick="console.log('点击了文件输入')">
-                <div class="file-upload-btn">
+            <div class="file-upload-area">
+                <input type="file" id="package-file" accept=".json" onchange="handleFileSelect(event)">
+                <div class="file-upload-btn" onclick="triggerFileSelect()">
                     <i class="fa-solid fa-folder-open"></i>
                     选择打包文件
                 </div>
@@ -377,7 +377,7 @@
     height: 100%;
     opacity: 0;
     cursor: pointer;
-    z-index: 10;
+    z-index: 1;
 }
 
 .file-upload-btn {
