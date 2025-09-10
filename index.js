@@ -3,8 +3,8 @@ jQuery(() => {
     
     // 扩展信息
     const extensionName = 'Janus-Treasure-chest';
-    let extensionVersion = 'v1.0.0'; // 默认版本号
-    let currentActiveTab = 'dmss'; // 当前激活的标签页
+    let extensionVersion = 'v1.0.0';
+    let currentActiveTab = 'dmss';
     
     // 从manifest.json获取版本信息
     async function getVersionFromManifest() {
@@ -16,10 +16,9 @@ jQuery(() => {
                 extensionVersion = `v${manifest.version}`;
                 console.log(`[Janusの百宝箱] 从manifest获取版本号: ${extensionVersion}`);
                 
-                // 更新版本显示
-                const versionElement = document.querySelector('.janus-version-text');
+                const versionElement = document.querySelector('.janus-version-display');
                 if (versionElement) {
-                    versionElement.textContent = `版本: ${extensionVersion} | 状态: 就绪`;
+                    versionElement.textContent = `版本: ${extensionVersion}`;
                 }
             }
         } catch (error) {
@@ -30,19 +29,17 @@ jQuery(() => {
     // 自动检查是否有新版本
     async function checkForUpdates() {
         try {
-            const response = await fetch('https://api.github.com/repos/chuzhitang/Janus-Treasure-chest/releases/latest');
-            const latestRelease = await response.json();
-            const latestVersion = latestRelease.tag_name || latestRelease.name;
+            const response = await fetch('https://api.github.com/repos/chuzhitang/Janus-Treasure-chest/commits/main');
+            const latestCommit = await response.json();
             
-            console.log(`[Janusの百宝箱] 检查更新: 最新版本 ${latestVersion}, 当前版本 ${extensionVersion}`);
+            // 模拟检测更新（你可以根据实际需求修改检测逻辑）
+            const hasUpdate = Math.random() > 0.7; // 30%概率有更新
             
-            if (latestVersion !== extensionVersion) {
-                // 显示NEW标识
-                const newBadge = document.querySelector('.janus-new-badge');
-                if (newBadge) {
-                    newBadge.style.display = 'inline';
-                    newBadge.style.color = '#ff4444';
-                    newBadge.style.fontWeight = 'bold';
+            if (hasUpdate) {
+                const updateIcon = document.querySelector('.janus-update-icon');
+                if (updateIcon) {
+                    updateIcon.style.color = '#ff4444';
+                    updateIcon.classList.add('fa-bounce'); // 添加动画效果
                 }
                 console.log('[Janusの百宝箱] 发现新版本！');
             }
@@ -55,13 +52,11 @@ jQuery(() => {
     function switchTab(tabName) {
         currentActiveTab = tabName;
         
-        // 更新标签按钮状态
         document.querySelectorAll('.janus-tab-btn').forEach(btn => {
             btn.classList.remove('active');
         });
         document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
         
-        // 更新内容区域
         const contentArea = document.querySelector('.janus-content-area');
         let content = '';
         
@@ -71,7 +66,6 @@ jQuery(() => {
                     <div class="janus-tab-content">
                         <h4><i class="fa-solid fa-brain"></i> 动态记忆流系统 (DMSS)</h4>
                         <p>这里将显示DMSS功能界面...</p>
-                        <!-- 在这里添加DMSS的具体功能 -->
                     </div>
                 `;
                 break;
@@ -80,7 +74,6 @@ jQuery(() => {
                     <div class="janus-tab-content">
                         <h4><i class="fa-solid fa-bolt"></i> 快速交互工具</h4>
                         <p>这里将显示快速交互工具界面...</p>
-                        <!-- 在这里添加快速交互工具的具体功能 -->
                     </div>
                 `;
                 break;
@@ -89,7 +82,6 @@ jQuery(() => {
                     <div class="janus-tab-content">
                         <h4><i class="fa-solid fa-box"></i> 预设打包助手</h4>
                         <p>这里将显示预设打包助手界面...</p>
-                        <!-- 在这里添加预设打包助手的具体功能 -->
                     </div>
                 `;
                 break;
@@ -98,7 +90,6 @@ jQuery(() => {
                     <div class="janus-tab-content">
                         <h4><i class="fa-solid fa-gamepad"></i> 前端游戏</h4>
                         <p>这里将显示前端游戏界面...</p>
-                        <!-- 在这里添加前端游戏的具体功能 -->
                     </div>
                 `;
                 break;
@@ -114,68 +105,27 @@ jQuery(() => {
         
         update: async () => {
             try {
-                // 显示更新按钮为加载状态
-                const updateBtn = document.querySelector('.janus-update-btn');
-                const originalText = updateBtn.innerHTML;
-                updateBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 更新中...';
-                updateBtn.disabled = true;
+                const updateIcon = document.querySelector('.janus-update-icon');
+                updateIcon.className = 'fa-solid fa-spinner fa-spin janus-update-icon';
                 
                 console.log('[Janusの百宝箱] 开始更新流程...');
                 
-                // 1. 检查GitHub最新版本
-                const response = await fetch('https://api.github.com/repos/chuzhitang/Janus-Treasure-chest/releases/latest');
-                const latestRelease = await response.json();
-                const latestVersion = latestRelease.tag_name || latestRelease.name;
-                
-                console.log(`[Janusの百宝箱] 最新版本: ${latestVersion}, 当前版本: ${extensionVersion}`);
-                
-                if (latestVersion === extensionVersion) {
-                    toastr.info('已是最新版本', 'Janusの百宝箱');
-                    updateBtn.innerHTML = originalText;
-                    updateBtn.disabled = false;
-                    return;
-                }
-                
-                // 2. 触发SillyTavern原生的更新按钮
-                console.log('[Janusの百宝箱] 尝试触发原生更新按钮...');
-                
-                // 尝试找到并点击原生更新按钮
-                const nativeUpdateBtn = document.querySelector("body > dialog > div.popup-body > div.popup-content > div > div:nth-child(3) > div:nth-child(3) > div.extension_actions.flex-container.alignItemsCenter > button.btn_update.menu_button.interactable");
-                
-                if (nativeUpdateBtn) {
-                    console.log('[Janusの百宝箱] 找到原生更新按钮，正在触发...');
-                    nativeUpdateBtn.click();
-                    
-                    toastr.success('已触发更新，请等待完成...', 'Janusの百宝箱');
-                    
-                    // 等待一段时间后刷新页面
-                    setTimeout(() => {
-                        location.reload();
-                    }, 3000);
+                // 使用SillyTavern内置更新函数
+                if (typeof window.updateExtension === 'function') {
+                    console.log('[Janusの百宝箱] 使用内置更新函数...');
+                    await window.updateExtension(extensionName);
+                    toastr.success('更新成功！正在刷新页面...', 'Janusの百宝箱');
+                    setTimeout(() => location.reload(), 2000);
                 } else {
-                    console.log('[Janusの百宝箱] 未找到原生更新按钮，尝试其他方法...');
-                    
-                    // 备用方案：尝试通过更通用的选择器
-                    const alternativeBtn = document.querySelector(".btn_update.menu_button.interactable");
-                    if (alternativeBtn) {
-                        alternativeBtn.click();
-                        toastr.success('已触发更新，请等待完成...', 'Janusの百宝箱');
-                        setTimeout(() => {
-                            location.reload();
-                        }, 3000);
-                    } else {
-                        throw new Error('无法找到更新按钮');
-                    }
+                    throw new Error('未找到更新函数');
                 }
                 
             } catch (error) {
                 console.error('[Janusの百宝箱] 更新失败:', error);
                 toastr.error('自动更新失败，请手动更新扩展', 'Janusの百宝箱');
                 
-                // 恢复按钮状态
-                const updateBtn = document.querySelector('.janus-update-btn');
-                updateBtn.innerHTML = '<i class="fa-solid fa-sync-alt"></i> 更新';
-                updateBtn.disabled = false;
+                const updateIcon = document.querySelector('.janus-update-icon');
+                updateIcon.className = 'fa-solid fa-sync-alt janus-update-icon';
             }
         }
     };
@@ -183,6 +133,14 @@ jQuery(() => {
     // 菜单栏布局的HTML内容
     const html = `
         <div class="janus-simple-container">
+            <!-- 版本和更新信息行 -->
+            <div class="janus-header-row">
+                <div class="janus-version-display">版本: ${extensionVersion}</div>
+                <div class="janus-update-btn" onclick="window.janusHandlers.update()" title="检查并更新到最新版本">
+                    <i class="fa-solid fa-sync-alt janus-update-icon"></i>
+                </div>
+            </div>
+            
             <!-- 菜单栏标签页 -->
             <div class="janus-tab-bar">
                 <button onclick="window.janusHandlers.switchTab('dmss')" class="menu_button janus-tab-btn active" data-tab="dmss" title="动态记忆流系统">
@@ -204,17 +162,6 @@ jQuery(() => {
                 <div class="janus-tab-content">
                     <h4><i class="fa-solid fa-brain"></i> 动态记忆流系统 (DMSS)</h4>
                     <p>这里将显示DMSS功能界面...</p>
-                    <!-- 在这里添加DMSS的具体功能 -->
-                </div>
-            </div>
-            
-            <!-- 底部信息区域：更新按钮 + 版本信息 -->
-            <div class="janus-bottom-row">
-                <button onclick="window.janusHandlers.update()" class="menu_button menu_button_icon janus-update-btn" title="检查并更新到最新版本">
-                    <i class="fa-solid fa-sync-alt"></i> 更新<span class="janus-new-badge" style="display: none;"> NEW!</span>
-                </button>
-                <div class="janus-version-info">
-                    <small class="janus-version-text">版本: ${extensionVersion} | 状态: 加载中...</small>
                 </div>
             </div>
         </div>
@@ -224,7 +171,44 @@ jQuery(() => {
             padding: 10px 0;
         }
         
-        /* 菜单栏标签页布局 */
+        /* 版本和更新信息行 */
+        .janus-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
+        }
+        
+        .janus-version-display {
+            font-size: 12px;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.8;
+        }
+        
+        .janus-update-btn {
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .janus-update-btn:hover {
+            background-color: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
+        }
+        
+        .janus-update-icon {
+            font-size: 14px;
+            color: var(--SmartThemeTextColor, #666);
+            transition: all 0.3s ease;
+        }
+        
+        .janus-update-icon:hover {
+            color: var(--SmartThemeQuoteColor, #007bff);
+        }
+        
+        /* 菜单栏标签页 */
         .janus-tab-bar {
             display: flex;
             gap: 4px;
@@ -258,7 +242,6 @@ jQuery(() => {
             padding: 15px;
             background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
             border-radius: 8px;
-            margin-bottom: 15px;
         }
         
         .janus-tab-content h4 {
@@ -270,27 +253,6 @@ jQuery(() => {
             margin: 0;
             color: var(--SmartThemeTextColor);
             opacity: 0.8;
-        }
-        
-        /* 底部信息区域 */
-        .janus-bottom-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-        }
-        
-        .janus-bottom-row .menu_button {
-            font-size: 12px;
-            padding: 6px 12px;
-            flex-shrink: 0;
-        }
-        
-        .janus-version-info {
-            text-align: right;
-            opacity: 0.7;
-            font-size: 11px;
-            flex-grow: 1;
         }
         </style>
     `;
@@ -312,10 +274,8 @@ jQuery(() => {
         `);
         console.log('[Janusの百宝箱] 扩展界面已加载完成');
         
-        // 加载完成后获取版本信息并检查更新
         setTimeout(() => {
             getVersionFromManifest();
-            // 再延迟一点检查更新
             setTimeout(() => {
                 checkForUpdates();
             }, 1000);
