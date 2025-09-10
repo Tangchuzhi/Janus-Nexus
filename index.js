@@ -9,7 +9,7 @@
     
     // 更新状态显示
     function updateStatus(message) {
-        const statusElement = document.getElementById('status-text');
+        const statusElement = document.getElementById('janus-status-text');
         if (statusElement) {
             statusElement.textContent = message;
         }
@@ -45,14 +45,11 @@
     
     // 绑定按钮事件
     function bindEvents() {
-        const cards = document.querySelectorAll('.janus-card');
-        cards.forEach(card => {
-            card.addEventListener('click', () => {
-                const module = card.dataset.module;
-                if (moduleHandlers[module]) {
-                    moduleHandlers[module]();
-                }
-            });
+        $(document).on('click', '.janus-card', function() {
+            const module = $(this).data('module');
+            if (moduleHandlers[module]) {
+                moduleHandlers[module]();
+            }
         });
     }
     
@@ -76,12 +73,23 @@
         console.log('[Janus百宝箱] 初始化完成');
     }
     
-    // 创建设置面板
-    function createSettingsPanel() {
+    // SillyTavern 扩展注册
+    jQuery(() => {
+        const extensionName = 'janus-treasure-chest';
+        
+        // 注册扩展设置
+        const defaultSettings = {};
+        
+        // 加载设置
+        if (!extension_settings[extensionName]) {
+            extension_settings[extensionName] = defaultSettings;
+        }
+        
+        // 创建设置面板HTML (只在这里定义一次)
         const settingsHtml = `
             <div class="janus-container">
                 <div class="janus-header">
-                    <h2>🎁 Janusの百宝箱</h2>
+                    <h2>🎁 Janus百宝箱</h2>
                     <p class="janus-subtitle">多功能AI助手工具集</p>
                 </div>
                 
@@ -101,47 +109,28 @@
                     <button class="janus-card" data-module="preset-helper">
                         <div class="card-icon">📦</div>
                         <h3>预设打包助手</h3>
-                        <p>一键打包，一次导入</p>
+                        <p>角色预设管理</p>
                     </button>
                     
                     <button class="janus-card" data-module="games">
                         <div class="card-icon">🎮</div>
-                        <h3>复古小游戏</h3>
-                        <p>波利大冒险</p>
+                        <h3>前端游戏</h3>
+                        <p>波利大冒险等游戏</p>
                     </button>
                 </div>
                 
                 <div class="janus-status">
-                    <span id="status-text">就绪</span>
+                    <span id="janus-status-text">就绪</span>
                 </div>
             </div>
         `;
-        
-        return settingsHtml;
-    }
-    
-    // SillyTavern 扩展注册
-    jQuery(() => {
-        const extensionName = 'janus-treasure-chest';
-        const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
-        
-        // 注册扩展设置
-        const defaultSettings = {};
-        
-        // 加载设置
-        if (!extension_settings[extensionName]) {
-            extension_settings[extensionName] = defaultSettings;
-        }
-        
-        // 创建设置面板HTML
-        const settingsHtml = createSettingsPanel();
         
         // 添加到扩展设置页面
         $('#extensions_settings').append(`
             <div id="${extensionName}_settings">
                 <div class="inline-drawer">
                     <div class="inline-drawer-toggle inline-drawer-header">
-                        <b>🎁 Janusの百宝箱</b>
+                        <b>🎁 Janus百宝箱</b>
                         <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                     </div>
                     <div class="inline-drawer-content">
