@@ -5,8 +5,8 @@
     "optional": [],
     "js": "index.js",
     "css": "style.css",
-    "author": "唐初稚",
+    "author": "chuzhitang",
     "version": "1.0.0",
     "homePage": "https://github.com/chuzhitang/Janus-Treasure-chest",
-    "description": "Janusの百宝箱"
+    "description": "Janusの百宝箱 - 集成DMSS动态记忆流系统、快速交互工具、预设打包助手和前端游戏的多功能扩展"
 }
