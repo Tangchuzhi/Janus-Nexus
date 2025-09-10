@@ -6,23 +6,80 @@ jQuery(() => {
     let extensionVersion = 'v1.0.0';
     let currentActiveTab = 'dmss';
     
-    // 从manifest.json获取版本信息
-    async function getVersionFromManifest() {
+    // 获取百宝箱版本号
+    async function getJanusVersion() {
         try {
             const manifestPath = `scripts/extensions/third-party/${extensionName}/manifest.json`;
             const response = await fetch(manifestPath);
             if (response.ok) {
                 const manifest = await response.json();
-                extensionVersion = `v${manifest.version}`;
-                console.log(`[Janusの百宝箱] 从manifest获取版本号: ${extensionVersion}`);
-                
-                const versionElement = document.querySelector('.janus-version-display');
-                if (versionElement) {
-                    versionElement.textContent = `版本: ${extensionVersion}`;
-                }
+                return `v${manifest.version}`;
             }
         } catch (error) {
-            console.log('[Janusの百宝箱] 无法读取manifest版本信息，使用默认版本');
+            console.log('[Janusの百宝箱] 无法读取manifest版本信息');
+        }
+        return 'v1.0.0'; // 默认版本
+    }
+    
+    // 更新百宝箱扩展
+    async function updateJanus() {
+        try {
+            console.log('[Janusの百宝箱] 开始更新流程...');
+            
+            // 检查是否存在第三方扩展更新函数
+            if (typeof extensionManager !== 'undefined' && 
+                typeof extensionManager.updateExtension === 'function') {
+                
+                console.log('[Janusの百宝箱] 使用扩展管理器更新...');
+                await extensionManager.updateExtension(extensionName);
+                return true;
+            }
+            
+            // 尝试使用第三方扩展API
+            if (typeof extension_settings !== 'undefined' && 
+                extension_settings.third_party && 
+                typeof extension_settings.third_party.updateExtension === 'function') {
+                
+                console.log('[Janusの百宝箱] 使用第三方扩展API更新...');
+                await extension_settings.third_party.updateExtension(extensionName);
+                return true;
+            }
+            
+            // 尝试模拟点击
+            const thirdPartyTab = document.querySelector('a[href="#third-party-extensions"]');
+            if (thirdPartyTab) {
+                thirdPartyTab.click();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                const extensionRows = document.querySelectorAll('.extension-row');
+                for (const row of extensionRows) {
+                    if (row.textContent.includes('Janusの百宝箱') || 
+                        row.textContent.includes(extensionName)) {
+                        
+                        const updateBtn = row.querySelector('.update-extension-button');
+                        if (updateBtn) {
+                            updateBtn.click();
+                            return true;
+                        }
+                    }
+                }
+            }
+            
+            return false;
+        } catch (error) {
+            console.error('[Janusの百宝箱] 更新失败:', error);
+            return false;
+        }
+    }
+    
+    // 从manifest.json获取版本信息
+    async function getVersionFromManifest() {
+        extensionVersion = await getJanusVersion();
+        console.log(`[Janusの百宝箱] 获取版本号: ${extensionVersion}`);
+        
+        const versionElement = document.querySelector('.janus-version-display');
+        if (versionElement) {
+            versionElement.textContent = `版本: ${extensionVersion}`;
         }
     }
     
@@ -117,23 +174,18 @@ jQuery(() => {
                 const updateIcon = document.querySelector('.janus-update-icon');
                 updateIcon.className = 'fa-solid fa-spinner fa-spin janus-update-icon';
                 
-                console.log('[Janusの百宝箱] 开始更新流程...');
+                // 使用我们自定义的更新函数
+                const success = await updateJanus();
                 
-                // 尝试点击更新按钮
-                const updateButton = document.querySelector("body > dialog > div.popup-body > div.popup-controls > div.popup-button-ok.menu_button.result-control.menu_button_default.interactable");
-                
-                if (updateButton) {
-                    console.log('[Janusの百宝箱] 找到更新按钮，正在点击...');
-                    updateButton.click();
-                    
+                if (success) {
+                    console.log('[Janusの百宝箱] 更新成功，准备刷新页面...');
                     setTimeout(() => location.reload(), 2000);
                 } else {
-                    console.log('[Janusの百宝箱] 未找到更新按钮');
+                    console.log('[Janusの百宝箱] 更新失败或未找到更新方法');
                     updateIcon.className = 'fa-solid fa-sync-alt janus-update-icon';
                 }
             } catch (error) {
-                console.error('[Janusの百宝箱] 更新失败:', error);
-                
+                console.error('[Janusの百宝箱] 更新过程出错:', error);
                 const updateIcon = document.querySelector('.janus-update-icon');
                 updateIcon.className = 'fa-solid fa-sync-alt janus-update-icon';
             }
@@ -298,4 +350,9 @@ jQuery(() => {
         
         // 不显示加载成功通知
     }, 2000);
+    
+    // 暴露API方法（类似酒馆助手）
+    // 这些方法只供内部使用，不是给其他扩展调用的
+    window.getJanusVersion = getJanusVersion;
+    window.updateJanus = updateJanus;
 });
