@@ -3,7 +3,7 @@ jQuery(() => {
     
     // 扩展信息
     const extensionName = 'Janus-Treasure-chest';
-    let extensionVersion = 'v1.0.0';
+    let extensionVersion = 'v1.0.0'; // 默认版本号
     
     // 从manifest.json获取版本信息
     async function getVersionFromManifest() {
@@ -16,7 +16,7 @@ jQuery(() => {
                 console.log(`[Janusの百宝箱] 从manifest获取版本号: ${extensionVersion}`);
                 
                 // 更新版本显示
-                const versionElement = document.querySelector('.janus-version-info small');
+                const versionElement = document.querySelector('.janus-version-text');
                 if (versionElement) {
                     versionElement.textContent = `版本: ${extensionVersion} | 状态: 就绪`;
                 }
@@ -44,16 +44,17 @@ jQuery(() => {
         },
         
         games: () => {
-            toastr.info('前端小游戏功能正在开发中，敬请期待！', 'Janusの百宝箱');
-            console.log('[Janusの百宝箱] 前端小游戏模块被点击');
+            toastr.info('前端游戏功能正在开发中，敬请期待！', 'Janusの百宝箱');
+            console.log('[Janusの百宝箱] 前端游戏模块被点击');
         },
         
         update: async () => {
             toastr.info('正在检查更新...', 'Janusの百宝箱');
-            console.log('[Janus百宝箱] 检查更新中...');
+            console.log('[Janusの百宝箱] 检查更新中...');
             
             // 模拟检查更新
             setTimeout(() => {
+                // 这里可以实际检查GitHub的最新版本
                 const hasUpdate = Math.random() > 0.7; // 30%概率有更新
                 
                 if (hasUpdate) {
@@ -66,6 +67,7 @@ jQuery(() => {
         }
     };
     
+    // 简洁的HTML内容 - 符合SillyTavern原生风格
     const html = `
         <div class="janus-simple-container">
             <!-- 功能按钮区域 -->
@@ -79,21 +81,19 @@ jQuery(() => {
                 <button onclick="window.janusHandlers.presetHelper()" class="menu_button" title="预设打包助手">
                     预设打包助手
                 </button>
-                <button onclick="window.janusHandlers.games()" class="menu_button" title="前端小游戏">
-                    前端小游戏
+                <button onclick="window.janusHandlers.games()" class="menu_button" title="前端游戏">
+                    前端游戏
                 </button>
             </div>
             
-            <!-- 更新按钮区域 -->
-            <div class="janus-update-row">
+            <!-- 底部信息区域：更新按钮 + 版本信息 -->
+            <div class="janus-bottom-row">
                 <button onclick="window.janusHandlers.update()" class="menu_button menu_button_icon" title="检查更新">
                     <i class="fa-solid fa-sync-alt"></i> 更新
                 </button>
-            </div>
-            
-            <!-- 版本信息 -->
-            <div class="janus-version-info">
-                <small>版本: ${extensionVersion} | 状态: 加载中...</small>
+                <div class="janus-version-info">
+                    <small class="janus-version-text">版本: ${extensionVersion} | 状态: 加载中...</small>
+                </div>
             </div>
         </div>
         
@@ -102,57 +102,68 @@ jQuery(() => {
             padding: 10px 0;
         }
         
+        /* 功能按钮布局 */
         .janus-button-row {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
             gap: 8px;
             margin-bottom: 15px;
+            grid-template-columns: repeat(4, 1fr); /* 电脑端：4个一排 */
         }
         
         .janus-button-row .menu_button {
-            flex: 1;
-            min-width: 120px;
             font-size: 12px;
-            padding: 8px 12px;
+            padding: 8px 6px;
             white-space: nowrap;
+            min-width: 0;
         }
         
-        .janus-update-row {
+        /* 底部信息区域 */
+        .janus-bottom-row {
             display: flex;
-            justify-content: center;
-            margin-bottom: 10px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
         }
         
-        .janus-update-row .menu_button {
-            min-width: 100px;
+        .janus-bottom-row .menu_button {
             font-size: 12px;
+            padding: 6px 12px;
+            flex-shrink: 0;
         }
         
         .janus-version-info {
-            text-align: center;
+            text-align: right;
             opacity: 0.7;
             font-size: 11px;
-            margin-top: 5px;
+            flex-grow: 1;
         }
         
-        /* 移动端适配 */
-        @media (max-width: 768px) {
+        /* 平板端适配 */
+        @media (max-width: 768px) and (min-width: 481px) {
             .janus-button-row {
-                flex-direction: column;
+                grid-template-columns: repeat(2, 1fr); /* 平板端：2个一排 */
+            }
+        }
+        
+        /* 手机端适配 */
+        @media (max-width: 480px) {
+            .janus-button-row {
+                grid-template-columns: repeat(2, 1fr); /* 手机端：2个一排 */
             }
             
             .janus-button-row .menu_button {
-                flex: none;
-                width: 100%;
-                min-width: auto;
-            }
-        }
-        
-        /* 小屏幕适配 */
-        @media (max-width: 480px) {
-            .janus-button-row .menu_button {
                 font-size: 11px;
-                padding: 6px 8px;
+                padding: 6px 4px;
+            }
+            
+            .janus-bottom-row {
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+            }
+            
+            .janus-version-info {
+                text-align: center;
             }
         }
         </style>
