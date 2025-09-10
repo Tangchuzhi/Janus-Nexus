@@ -629,6 +629,11 @@
                 
                 // 更新正则设置
                 context.extensionSettings.regex = newRegexSettings;
+                
+                // 保存设置
+                if (context.saveSettingsDebounced) {
+                    context.saveSettingsDebounced();
+                }
             }
             
             // 导入快速回复
@@ -670,6 +675,11 @@
                 
                 // 更新快速回复设置
                 context.extensionSettings.quickReplyV2 = quickReplySettings;
+                
+                // 保存设置
+                if (context.saveSettingsDebounced) {
+                    context.saveSettingsDebounced();
+                }
             }
             
             showProgress(100);
@@ -706,6 +716,63 @@
         showStatus('资源加载完成', 'success');
     }
     
+    // 处理拖拽导入
+    function handleDragOver(event) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+        const uploadArea = event.currentTarget;
+        uploadArea.classList.add('drag-over');
+    }
+    
+    function handleDragLeave(event) {
+        const uploadArea = event.currentTarget;
+        uploadArea.classList.remove('drag-over');
+    }
+    
+    function handleDrop(event) {
+        event.preventDefault();
+        const uploadArea = event.currentTarget;
+        uploadArea.classList.remove('drag-over');
+        
+        const files = event.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.type === 'application/json' || file.name.endsWith('.json')) {
+                debugLog(`拖拽文件: ${file.name}`);
+                handleFileContent(file);
+            } else {
+                showStatus('请拖拽JSON文件', 'error');
+            }
+        }
+    }
+    
+    // 处理文件内容
+    function handleFileContent(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                packageData = JSON.parse(e.target.result);
+                debugLog('文件解析成功');
+                displayPackageInfo(packageData);
+            } catch (error) {
+                showStatus('文件格式错误', 'error');
+                debugLog('解析错误: ' + error.message);
+                packageData = null;
+                const packageInfo = document.getElementById('package-info');
+                if (packageInfo) {
+                    packageInfo.style.display = 'none';
+                }
+            }
+        };
+        
+        reader.onerror = function() {
+            showStatus('文件读取失败', 'error');
+            debugLog('读取错误');
+        };
+        
+        reader.readAsText(file);
+    }
+    
     // 初始化函数
     function initializePresetHelper() {
         debugLog('预设打包助手初始化完成');
@@ -719,6 +786,14 @@
         window.createPackage = createPackage;
         window.handleFileSelect = handleFileSelect;
         window.importPackage = importPackage;
+        
+        // 设置拖拽事件
+        const uploadArea = document.querySelector('.file-upload-area');
+        if (uploadArea) {
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('dragleave', handleDragLeave);
+            uploadArea.addEventListener('drop', handleDrop);
+        }
         
         // 加载资源
         loadAllResources();
