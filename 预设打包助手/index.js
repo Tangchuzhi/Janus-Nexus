@@ -696,7 +696,7 @@
                 
                 for (const [setName, qrSet] of Object.entries(packageData.quick_reply_sets)) {
                     try {
-                        // 使用API保存快速回复集
+                        // 使用SillyTavern的API保存快速回复集
                         const response = await fetch('/api/quick-replies/save', {
                             method: 'POST',
                             headers: context.getRequestHeaders(),
@@ -707,14 +707,14 @@
                             debugLog(`快速回复集导入成功: ${setName} (${qrSet.qrList ? qrSet.qrList.length : 0} 个回复)`);
                             importedCount++;
                         } else {
-                            debugLog(`快速回复集导入失败: ${setName} - HTTP ${response.status}`);
+                            debugLog(`快速回复集 ${setName} 导入失败: HTTP ${response.status}`);
                         }
                     } catch (error) {
                         debugLog(`快速回复集 ${setName} 导入失败: ${error.message}`);
                     }
                 }
                 
-                debugLog(`快速回复导入完成，共处理 ${Object.keys(packageData.quick_reply_sets).length} 个集合`);
+                debugLog(`快速回复导入完成，共导入 ${importedCount} 个集合`);
             }
             
             showProgress(100);
