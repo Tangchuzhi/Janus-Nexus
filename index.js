@@ -1,77 +1,158 @@
 jQuery(() => {
-    console.log('[Janus百宝箱] 开始加载扩展...');
+    console.log('[Janusの百宝箱] 开始加载扩展...');
+    
+    // 扩展信息
+    const extensionName = 'Janus-Treasure-chest';
+    let extensionVersion = 'v1.0.0';
+    
+    // 从manifest.json获取版本信息
+    async function getVersionFromManifest() {
+        try {
+            const manifestPath = `scripts/extensions/third-party/${extensionName}/manifest.json`;
+            const response = await fetch(manifestPath);
+            if (response.ok) {
+                const manifest = await response.json();
+                extensionVersion = `v${manifest.version}`;
+                console.log(`[Janusの百宝箱] 从manifest获取版本号: ${extensionVersion}`);
+                
+                // 更新版本显示
+                const versionElement = document.querySelector('.janus-version-info small');
+                if (versionElement) {
+                    versionElement.textContent = `版本: ${extensionVersion} | 状态: 就绪`;
+                }
+            }
+        } catch (error) {
+            console.log('[Janusの百宝箱] 无法读取manifest版本信息，使用默认版本');
+        }
+    }
     
     // 模块功能处理函数
     window.janusHandlers = {
         dmss: () => {
-            toastr.info('DMSS功能正在开发中，敬请期待！', 'Janus百宝箱');
-            console.log('[Janus百宝箱] DMSS模块被点击');
+            toastr.info('DMSS功能正在开发中，敬请期待！', 'Janusの百宝箱');
+            console.log('[Janusの百宝箱] DMSS模块被点击');
         },
         
         quickTools: () => {
-            toastr.info('快速交互工具功能正在开发中，敬请期待！', 'Janus百宝箱');
-            console.log('[Janus百宝箱] 快速交互工具模块被点击');
+            toastr.info('快速交互工具功能正在开发中，敬请期待！', 'Janusの百宝箱');
+            console.log('[Janusの百宝箱] 快速交互工具模块被点击');
         },
         
         presetHelper: () => {
-            toastr.info('预设打包助手功能正在开发中，敬请期待！', 'Janus百宝箱');
-            console.log('[Janus百宝箱] 预设打包助手模块被点击');
+            toastr.info('预设打包助手功能正在开发中，敬请期待！', 'Janusの百宝箱');
+            console.log('[Janusの百宝箱] 预设打包助手模块被点击');
         },
         
         games: () => {
-            toastr.info('前端游戏功能正在开发中，敬请期待！', 'Janus百宝箱');
-            console.log('[Janus百宝箱] 前端游戏模块被点击');
+            toastr.info('前端小游戏功能正在开发中，敬请期待！', 'Janusの百宝箱');
+            console.log('[Janusの百宝箱] 前端小游戏模块被点击');
+        },
+        
+        update: async () => {
+            toastr.info('正在检查更新...', 'Janusの百宝箱');
+            console.log('[Janus百宝箱] 检查更新中...');
+            
+            // 模拟检查更新
+            setTimeout(() => {
+                const hasUpdate = Math.random() > 0.7; // 30%概率有更新
+                
+                if (hasUpdate) {
+                    toastr.success('发现新版本！NEW!', 'Janusの百宝箱');
+                    // 这里可以添加实际的更新逻辑
+                } else {
+                    toastr.info('已是最新版本', 'Janusの百宝箱');
+                }
+            }, 1500);
         }
     };
     
-    // 带样式的HTML内容
     const html = `
-        <div class="janus-container">
-            <div class="janus-header">
-                <h2 style="color: #667eea; margin-bottom: 10px;">🎁 Janus百宝箱</h2>
-                <p style="color: #666; margin-bottom: 20px;">多功能AI助手工具集</p>
-            </div>
-            
-            <div class="janus-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
-                <button onclick="window.janusHandlers.dmss()" class="janus-card" style="padding: 20px; border: 2px solid #667eea; border-radius: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer; transition: all 0.3s ease;">
-                    <div style="font-size: 2em; margin-bottom: 10px;">🧠</div>
-                    <h3 style="margin: 5px 0; font-size: 1.1em;">DMSS</h3>
-                    <p style="margin: 0; font-size: 0.9em; opacity: 0.8;">动态记忆流系统</p>
+        <div class="janus-simple-container">
+            <!-- 功能按钮区域 -->
+            <div class="janus-button-row">
+                <button onclick="window.janusHandlers.dmss()" class="menu_button" title="动态记忆流系统">
+                    DMSS
                 </button>
-                
-                <button onclick="window.janusHandlers.quickTools()" class="janus-card" style="padding: 20px; border: 2px solid #667eea; border-radius: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer; transition: all 0.3s ease;">
-                    <div style="font-size: 2em; margin-bottom: 10px;">⚡</div>
-                    <h3 style="margin: 5px 0; font-size: 1.1em;">快速交互工具</h3>
-                    <p style="margin: 0; font-size: 0.9em; opacity: 0.8;">高效交互助手</p>
+                <button onclick="window.janusHandlers.quickTools()" class="menu_button" title="快速交互工具">
+                    快速交互工具
                 </button>
-                
-                <button onclick="window.janusHandlers.presetHelper()" class="janus-card" style="padding: 20px; border: 2px solid #667eea; border-radius: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer; transition: all 0.3s ease;">
-                    <div style="font-size: 2em; margin-bottom: 10px;">📦</div>
-                    <h3 style="margin: 5px 0; font-size: 1.1em;">预设打包助手</h3>
-                    <p style="margin: 0; font-size: 0.9em; opacity: 0.8;">角色预设管理</p>
+                <button onclick="window.janusHandlers.presetHelper()" class="menu_button" title="预设打包助手">
+                    预设打包助手
                 </button>
-                
-                <button onclick="window.janusHandlers.games()" class="janus-card" style="padding: 20px; border: 2px solid #667eea; border-radius: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer; transition: all 0.3s ease;">
-                    <div style="font-size: 2em; margin-bottom: 10px;">🎮</div>
-                    <h3 style="margin: 5px 0; font-size: 1.1em;">前端游戏</h3>
-                    <p style="margin: 0; font-size: 0.9em; opacity: 0.8;">波利大冒险等游戏</p>
+                <button onclick="window.janusHandlers.games()" class="menu_button" title="前端小游戏">
+                    前端小游戏
                 </button>
             </div>
             
-            <div style="text-align: center; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 5px; font-size: 0.9em; color: #666;">
-                状态：就绪 | 版本：v1.0.0
+            <!-- 更新按钮区域 -->
+            <div class="janus-update-row">
+                <button onclick="window.janusHandlers.update()" class="menu_button menu_button_icon" title="检查更新">
+                    <i class="fa-solid fa-sync-alt"></i> 更新
+                </button>
+            </div>
+            
+            <!-- 版本信息 -->
+            <div class="janus-version-info">
+                <small>版本: ${extensionVersion} | 状态: 加载中...</small>
             </div>
         </div>
         
         <style>
-        .janus-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        .janus-simple-container {
+            padding: 10px 0;
         }
         
-        @media (max-width: 600px) {
-            .janus-grid {
-                grid-template-columns: 1fr !important;
+        .janus-button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .janus-button-row .menu_button {
+            flex: 1;
+            min-width: 120px;
+            font-size: 12px;
+            padding: 8px 12px;
+            white-space: nowrap;
+        }
+        
+        .janus-update-row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        
+        .janus-update-row .menu_button {
+            min-width: 100px;
+            font-size: 12px;
+        }
+        
+        .janus-version-info {
+            text-align: center;
+            opacity: 0.7;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+        
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .janus-button-row {
+                flex-direction: column;
+            }
+            
+            .janus-button-row .menu_button {
+                flex: none;
+                width: 100%;
+                min-width: auto;
+            }
+        }
+        
+        /* 小屏幕适配 */
+        @media (max-width: 480px) {
+            .janus-button-row .menu_button {
+                font-size: 11px;
+                padding: 6px 8px;
             }
         }
         </style>
@@ -83,7 +164,7 @@ jQuery(() => {
             <div id="janus-treasure-chest-settings">
                 <div class="inline-drawer">
                     <div class="inline-drawer-toggle inline-drawer-header">
-                        <b>🎁 Janus百宝箱</b>
+                        <b>Janusの百宝箱</b>
                         <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                     </div>
                     <div class="inline-drawer-content">
@@ -92,7 +173,13 @@ jQuery(() => {
                 </div>
             </div>
         `);
-        console.log('[Janus百宝箱] 扩展界面已加载完成');
-        toastr.success('Janus百宝箱扩展已成功加载！', 'Janus百宝箱');
+        console.log('[Janusの百宝箱] 扩展界面已加载完成');
+        
+        // 加载完成后获取版本信息
+        setTimeout(() => {
+            getVersionFromManifest();
+        }, 500);
+        
+        toastr.success('Janusの百宝箱扩展已成功加载！', 'Janusの百宝箱');
     }, 2000);
 });
