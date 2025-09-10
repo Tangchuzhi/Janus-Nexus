@@ -5,6 +5,7 @@ jQuery(() => {
     const extensionName = 'Janus-Treasure-chest';
     let extensionVersion = 'v1.0.0';
     let currentActiveTab = 'dmss';
+    let isFirstLoad = true; // 标记是否首次加载
     
     // 从manifest.json获取版本信息
     async function getVersionFromManifest() {
@@ -110,19 +111,58 @@ jQuery(() => {
                 
                 console.log('[Janusの百宝箱] 开始更新流程...');
                 
-                // 使用SillyTavern内置更新函数
+                // 查找可能的更新函数
+                let updateFunction = null;
+                
+                // 方法1: 全局更新函数
                 if (typeof window.updateExtension === 'function') {
-                    console.log('[Janusの百宝箱] 使用内置更新函数...');
-                    await window.updateExtension(extensionName);
+                    updateFunction = window.updateExtension;
+                }
+                // 方法2: 扩展管理器方法
+                else if (window.extensionManager && typeof window.extensionManager.updateExtension === 'function') {
+                    updateFunction = window.extensionManager.updateExtension;
+                }
+                // 方法3: 第三方扩展更新方法
+                else if (window.extension_settings && window.extension_settings.third_party && typeof window.extension_settings.third_party.updateExtension === 'function') {
+                    updateFunction = window.extension_settings.third_party.updateExtension;
+                }
+                
+                if (updateFunction) {
+                    console.log('[Janusの百宝箱] 找到更新函数，开始更新...');
+                    await updateFunction(extensionName);
                     toastr.success('更新成功！正在刷新页面...', 'Janusの百宝箱');
                     setTimeout(() => location.reload(), 2000);
                 } else {
-                    throw new Error('未找到更新函数');
+                    // 如果找不到更新函数，尝试手动更新
+                    console.log('[Janusの百宝箱] 未找到更新函数，尝试手动模拟更新...');
+                    
+                    // 模拟点击第三方扩展界面的更新按钮
+                    const thirdPartyTab = document.querySelector('a[href="#third-party-extensions"]');
+                    if (thirdPartyTab) {
+                        thirdPartyTab.click();
+                        setTimeout(() => {
+                            const extensionRows = document.querySelectorAll('.extension-row');
+                            for (const row of extensionRows) {
+                                if (row.textContent.includes('Janusの百宝箱') || row.textContent.includes('Janus-Treasure-chest')) {
+                                    const updateBtn = row.querySelector('.update-extension-button');
+                                    if (updateBtn) {
+                                        updateBtn.click();
+                                        toastr.success('更新成功！正在刷新页面...', 'Janusの百宝箱');
+                                        setTimeout(() => location.reload(), 2000);
+                                        return;
+                                    }
+                                }
+                            }
+                            throw new Error('未找到扩展的更新按钮');
+                        }, 500);
+                    } else {
+                        throw new Error('无法打开第三方扩展页面');
+                    }
                 }
                 
             } catch (error) {
                 console.error('[Janusの百宝箱] 更新失败:', error);
-                toastr.error('自动更新失败，请手动更新扩展', 'Janusの百宝箱');
+                toastr.warning('请手动更新：设置→扩展→第三方→找到本扩展点击更新', 'Janusの百宝箱');
                 
                 const updateIcon = document.querySelector('.janus-update-icon');
                 updateIcon.className = 'fa-solid fa-sync-alt janus-update-icon';
@@ -168,28 +208,28 @@ jQuery(() => {
         
         <style>
         .janus-simple-container {
-            padding: 10px 0;
+            padding: 5px 0;
         }
         
-        /* 版本和更新信息行 */
+        /* 版本和更新信息行 - 减小间距 */
         .janus-header-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 8px 0;
-            margin-bottom: 10px;
+            padding: 3px 0;
+            margin-bottom: 5px;
             border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
         }
         
         .janus-version-display {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--SmartThemeTextColor);
             opacity: 0.8;
         }
         
         .janus-update-btn {
             cursor: pointer;
-            padding: 4px;
+            padding: 2px;
             border-radius: 4px;
             transition: all 0.3s ease;
         }
@@ -199,7 +239,7 @@ jQuery(() => {
         }
         
         .janus-update-icon {
-            font-size: 14px;
+            font-size: 12px;
             color: var(--SmartThemeTextColor, #666);
             transition: all 0.3s ease;
         }
@@ -208,18 +248,18 @@ jQuery(() => {
             color: var(--SmartThemeQuoteColor, #007bff);
         }
         
-        /* 菜单栏标签页 */
+        /* 菜单栏标签页 - 减小间距 */
         .janus-tab-bar {
             display: flex;
-            gap: 4px;
-            margin-bottom: 15px;
+            gap: 3px;
+            margin-bottom: 8px;
             border-bottom: 1px solid var(--SmartThemeBorderColor, #ccc);
-            padding-bottom: 8px;
+            padding-bottom: 5px;
         }
         
         .janus-tab-btn {
             font-size: 12px;
-            padding: 6px 12px;
+            padding: 5px 10px;
             flex: 1;
             min-width: 0;
             border-bottom: 2px solid transparent;
@@ -238,14 +278,14 @@ jQuery(() => {
         
         /* 内容区域 */
         .janus-content-area {
-            min-height: 200px;
-            padding: 15px;
+            min-height: 180px;
+            padding: 12px;
             background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
             border-radius: 8px;
         }
         
         .janus-tab-content h4 {
-            margin: 0 0 10px 0;
+            margin: 0 0 8px 0;
             color: var(--SmartThemeTextColor);
         }
         
@@ -253,6 +293,11 @@ jQuery(() => {
             margin: 0;
             color: var(--SmartThemeTextColor);
             opacity: 0.8;
+        }
+        
+        /* 减小整体内联抽屉的内边距 */
+        #janus-treasure-chest-settings .inline-drawer-content {
+            padding: 5px;
         }
         </style>
     `;
@@ -281,6 +326,10 @@ jQuery(() => {
             }, 1000);
         }, 500);
         
-        toastr.success('Janusの百宝箱扩展已成功加载！', 'Janusの百宝箱');
+        // 只有首次加载才显示通知
+        if (isFirstLoad) {
+            toastr.success('Janusの百宝箱扩展已加载', 'Janusの百宝箱', {timeOut: 2000});
+            isFirstLoad = false;
+        }
     }, 2000);
 });
