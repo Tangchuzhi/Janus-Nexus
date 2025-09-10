@@ -107,7 +107,7 @@ jQuery(() => {
             display: grid;
             gap: 8px;
             margin-bottom: 15px;
-            grid-template-columns: repeat(4, 1fr); /* 电脑端：4个一排 */
+            grid-template-columns: repeat(4, 1fr); 
         }
         
         .janus-button-row .menu_button {
@@ -141,29 +141,19 @@ jQuery(() => {
         /* 平板端适配 */
         @media (max-width: 768px) and (min-width: 481px) {
             .janus-button-row {
-                grid-template-columns: repeat(2, 1fr); /* 平板端：2个一排 */
+                grid-template-columns: repeat(4, 1fr); 
             }
         }
         
         /* 手机端适配 */
         @media (max-width: 480px) {
             .janus-button-row {
-                grid-template-columns: repeat(2, 1fr); /* 手机端：2个一排 */
+                grid-template-columns: repeat(4, 1fr); 
             }
             
             .janus-button-row .menu_button {
                 font-size: 11px;
                 padding: 6px 4px;
-            }
-            
-            .janus-bottom-row {
-                flex-direction: column;
-                align-items: center;
-                gap: 8px;
-            }
-            
-            .janus-version-info {
-                text-align: center;
             }
         }
         </style>
