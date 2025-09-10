@@ -357,7 +357,8 @@
                                 'featherless_model', 'max_tokens_second', 'openrouter_providers',
                                 'openrouter_allow_fallbacks', 'tabby_model', 'derived', 'generic_model',
                                 'include_reasoning', 'global_banned_tokens', 'send_banned_tokens',
-                                'auto_parse', 'add_to_prompts', 'auto_expand', 'show_hidden', 'max_additions'
+                                'auto_parse', 'add_to_prompts', 'auto_expand', 'show_hidden', 'max_additions',
+                                'custom_url', 'api_url', 'base_url', 'endpoint_url', 'server_url'
                             ];
                             
                             // 删除API相关的键
@@ -628,19 +629,28 @@
                 const newRegexSettings = [...regexSettings];
                 
                 for (const [name, regex] of Object.entries(packageData.regexes)) {
-                    // 检查是否已存在相同名称的正则
-                    const existingIndex = newRegexSettings.findIndex(r => r.scriptName === name);
-                    if (existingIndex >= 0) {
-                        newRegexSettings[existingIndex] = regex;
-                    } else {
-                        newRegexSettings.push(regex);
+                    try {
+                        // 检查是否已存在相同名称的正则
+                        const existingIndex = newRegexSettings.findIndex(r => r.scriptName === name);
+                        if (existingIndex >= 0) {
+                            newRegexSettings[existingIndex] = regex;
+                        } else {
+                            newRegexSettings.push(regex);
+                        }
+                        debugLog(`正则导入: ${name}`);
+                        importedCount++;
+                    } catch (error) {
+                        debugLog(`正则 ${name} 导入失败: ${error.message}`);
                     }
-                    debugLog(`正则导入: ${name}`);
-                    importedCount++;
                 }
                 
-                // 更新正则设置
+                // 更新正则设置并保存
                 context.extensionSettings.regex = newRegexSettings;
+                // 调用保存函数
+                if (context.saveSettingsDebounced) {
+                    context.saveSettingsDebounced();
+                }
+                debugLog(`正则设置已更新并保存`);
             }
             
             // 导入快速回复
@@ -680,8 +690,13 @@
                     }
                 }
                 
-                // 更新快速回复设置
+                // 更新快速回复设置并保存
                 context.extensionSettings.quickReplyV2 = quickReplySettings;
+                // 调用保存函数
+                if (context.saveSettingsDebounced) {
+                    context.saveSettingsDebounced();
+                }
+                debugLog(`快速回复设置已更新并保存`);
             }
             
             showProgress(100);
@@ -740,7 +755,9 @@
         window.triggerFileSelect = triggerFileSelect;
         window.importPackage = importPackage;
         
-        // 添加文件选择按钮的事件监听器
+        // 移除重复的事件监听器，只使用onclick属性
+        // 注释掉addEventListener以避免重复触发
+        /*
         const fileUploadBtn = document.querySelector('.file-upload-btn');
         if (fileUploadBtn) {
             fileUploadBtn.addEventListener('click', function(e) {
@@ -749,6 +766,7 @@
                 triggerFileSelect();
             });
         }
+        */
         
         // 加载资源
         loadAllResources();
