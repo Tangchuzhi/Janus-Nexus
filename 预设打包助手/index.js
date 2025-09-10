@@ -692,29 +692,50 @@
             
             // 导入快速回复
             if (packageData.quick_reply_sets) {
-                const context = SillyTavern.getContext();
-                
                 for (const [setName, qrSet] of Object.entries(packageData.quick_reply_sets)) {
                     try {
-                        // 使用SillyTavern的API保存快速回复集
-                        const response = await fetch('/api/quick-replies/save', {
-                            method: 'POST',
-                            headers: context.getRequestHeaders(),
-                            body: JSON.stringify(qrSet),
-                        });
-                        
-                        if (response.ok) {
-                            debugLog(`快速回复集导入成功: ${setName} (${qrSet.qrList ? qrSet.qrList.length : 0} 个回复)`);
+                        // 使用SillyTavern的快速回复API创建集合
+                        if (window.QuickReplyApi && window.QuickReplyApi.createSet) {
+                            await window.QuickReplyApi.createSet(setName, {
+                                disableSend: qrSet.disableSend || false,
+                                placeBeforeInput: qrSet.placeBeforeInput || false,
+                                injectInput: qrSet.injectInput || false
+                            });
+                            
+                            // 创建快速回复
+                            if (qrSet.qrList && qrSet.qrList.length > 0) {
+                                for (const qr of qrSet.qrList) {
+                                    try {
+                                        window.QuickReplyApi.createQuickReply(setName, qr.label, {
+                                            icon: qr.icon,
+                                            showLabel: qr.showLabel,
+                                            message: qr.message,
+                                            title: qr.title,
+                                            isHidden: qr.isHidden || false,
+                                            executeOnStartup: qr.executeOnStartup || false,
+                                            executeOnUser: qr.executeOnUser || false,
+                                            executeOnAi: qr.executeOnAi || false,
+                                            executeOnChatChange: qr.executeOnChatChange || false,
+                                            executeOnGroupMemberDraft: qr.executeOnGroupMemberDraft || false,
+                                            executeOnNewChat: qr.executeOnNewChat || false,
+                                            executeBeforeGeneration: qr.executeBeforeGeneration || false,
+                                            automationId: qr.automationId || ''
+                                        });
+                                    } catch (qrError) {
+                                        debugLog(`快速回复 ${qr.label} 创建失败: ${qrError.message}`);
+                                    }
+                                }
+                            }
+                            
+                            debugLog(`快速回复集导入: ${setName} (${qrSet.qrList ? qrSet.qrList.length : 0} 个回复)`);
                             importedCount++;
                         } else {
-                            debugLog(`快速回复集 ${setName} 导入失败: HTTP ${response.status}`);
+                            debugLog(`快速回复API不可用，跳过快速回复集: ${setName}`);
                         }
                     } catch (error) {
                         debugLog(`快速回复集 ${setName} 导入失败: ${error.message}`);
                     }
                 }
-                
-                debugLog(`快速回复导入完成，共导入 ${importedCount} 个集合`);
             }
             
             showProgress(100);
@@ -773,18 +794,7 @@
         window.triggerFileSelect = triggerFileSelect;
         window.importPackage = importPackage;
         
-        // 移除重复的事件监听器，只使用onclick属性
-        // 注释掉addEventListener以避免重复触发
-        /*
-        const fileUploadBtn = document.querySelector('.file-upload-btn');
-        if (fileUploadBtn) {
-            fileUploadBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                debugLog('文件上传按钮被点击');
-                triggerFileSelect();
-            });
-        }
-        */
+
         
         // 加载资源
         loadAllResources();
