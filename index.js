@@ -36,12 +36,21 @@ jQuery(() => {
         }
     }
     
-    // 使用SillyTavern的扩展更新API
-    async function updateExtensionViaAPI() {
+    // 更新扩展
+    async function updateExtension() {
         try {
             // 检查是否在SillyTavern环境中
             if (typeof fetch === 'undefined') {
                 throw new Error('当前环境不支持fetch API');
+            }
+            
+            // 获取CSRF令牌
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
+                             document.querySelector('input[name="_token"]')?.value ||
+                             window.csrfToken;
+            
+            if (!csrfToken) {
+                throw new Error('无法获取CSRF令牌，请刷新页面后重试');
             }
             
             // 使用SillyTavern内置的扩展更新API
@@ -49,6 +58,7 @@ jQuery(() => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
                     'Cache-Control': 'no-cache'
                 },
                 body: JSON.stringify({ 
@@ -59,46 +69,15 @@ jQuery(() => {
             
             if (response.ok) {
                 const result = await response.json();
-                console.log('[Janusの百宝箱] API更新响应:', result);
+                console.log('[Janusの百宝箱] 更新响应:', result);
                 return result;
             } else {
                 const errorText = await response.text();
-                console.error('[Janusの百宝箱] API更新失败:', response.status, errorText);
+                console.error('[Janusの百宝箱] 更新失败:', response.status, errorText);
                 throw new Error(`更新失败: ${response.status} ${errorText}`);
             }
         } catch (error) {
-            console.error('[Janusの百宝箱] API更新过程出错:', error);
-            throw error;
-        }
-    }
-    
-    // 备用更新方法：通过重新安装扩展
-    async function fallbackUpdateMethod() {
-        try {
-            console.log('[Janusの百宝箱] 尝试备用更新方法...');
-            
-            // 尝试通过重新安装来更新
-            const installResponse = await fetch('/api/extensions/install', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache'
-                },
-                body: JSON.stringify({ 
-                    url: 'https://github.com/chuzhitang/Janus-Treasure-chest', 
-                    global: false 
-                })
-            });
-            
-            if (installResponse.ok) {
-                console.log('[Janusの百宝箱] 备用更新方法成功');
-                return { success: true, isUpToDate: false };
-            } else {
-                const errorText = await installResponse.text();
-                throw new Error(`备用更新失败: ${installResponse.status} ${errorText}`);
-            }
-        } catch (error) {
-            console.error('[Janusの百宝箱] 备用更新方法失败:', error);
+            console.error('[Janusの百宝箱] 更新过程出错:', error);
             throw error;
         }
     }
@@ -119,23 +98,15 @@ jQuery(() => {
                 return { success: true, isUpToDate: true };
             }
             
-            try {
-                // 首先尝试使用SillyTavern的扩展更新API
-                const updateResult = await updateExtensionViaAPI();
-                
-                if (updateResult.isUpToDate) {
-                    console.log('[Janusの百宝箱] 已是最新版本');
-                    return { success: true, isUpToDate: true };
-                } else {
-                    console.log('[Janusの百宝箱] 更新成功，准备刷新页面');
-                    return { success: true, isUpToDate: false };
-                }
-            } catch (apiError) {
-                console.log('[Janusの百宝箱] API更新失败，尝试备用方法:', apiError.message);
-                
-                // 如果API更新失败，尝试备用方法
-                const fallbackResult = await fallbackUpdateMethod();
-                return fallbackResult;
+            // 执行更新
+            const updateResult = await updateExtension();
+            
+            if (updateResult.isUpToDate) {
+                console.log('[Janusの百宝箱] 已是最新版本');
+                return { success: true, isUpToDate: true };
+            } else {
+                console.log('[Janusの百宝箱] 更新成功，准备刷新页面');
+                return { success: true, isUpToDate: false };
             }
             
         } catch (error) {
@@ -191,6 +162,44 @@ jQuery(() => {
         }
     }
     
+    // 加载预设打包助手内容
+    async function loadPresetHelperContent() {
+        try {
+            const response = await fetch('scripts/extensions/third-party/Janus-Treasure-chest/预设打包助手/index.html');
+            if (response.ok) {
+                const html = await response.text();
+                const contentDiv = document.getElementById('preset-helper-content');
+                if (contentDiv) {
+                    contentDiv.innerHTML = html;
+                    
+                    // 加载JavaScript
+                    const script = document.createElement('script');
+                    script.src = 'scripts/extensions/third-party/Janus-Treasure-chest/预设打包助手/index.js';
+                    script.onload = () => {
+                        console.log('[Janusの百宝箱] 预设打包助手脚本加载完成');
+                    };
+                    script.onerror = () => {
+                        console.error('[Janusの百宝箱] 预设打包助手脚本加载失败');
+                    };
+                    document.head.appendChild(script);
+                }
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        } catch (error) {
+            console.error('[Janusの百宝箱] 加载预设打包助手失败:', error);
+            const contentDiv = document.getElementById('preset-helper-content');
+            if (contentDiv) {
+                contentDiv.innerHTML = `
+                    <div class="janus-tab-content">
+                        <h4><i class="fa-solid fa-box"></i> 预设打包助手</h4>
+                        <p style="color: #dc3545;">加载失败: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    }
+    
     // 切换标签页
     function switchTab(tabName) {
         currentActiveTab = tabName;
@@ -223,8 +232,12 @@ jQuery(() => {
             case 'presetHelper':
                 content = `
                     <div class="janus-tab-content">
-                        <h4><i class="fa-solid fa-box"></i> 预设打包助手</h4>
-                        <p>这里将显示预设打包助手界面...</p>
+                        <div id="preset-helper-content">
+                            <div style="text-align: center; padding: 20px;">
+                                <i class="fa-solid fa-spinner fa-spin"></i>
+                                <p>正在加载预设打包助手...</p>
+                            </div>
+                        </div>
                     </div>
                 `;
                 break;
@@ -240,6 +253,13 @@ jQuery(() => {
         
         contentArea.innerHTML = content;
         console.log(`[Janusの百宝箱] 切换到标签页: ${tabName}`);
+        
+        // 如果是预设打包助手标签页，加载内容
+        if (tabName === 'presetHelper') {
+            setTimeout(() => {
+                loadPresetHelperContent();
+            }, 100);
+        }
     }
     
     // 模块功能处理函数
@@ -470,8 +490,7 @@ jQuery(() => {
         // 不显示加载成功通知
     }, 2000);
     
-    // 暴露API方法（类似酒馆助手）
-    // 这些方法只供内部使用，不是给其他扩展调用的
+
     window.getJanusVersion = getJanusVersion;
     window.updateJanus = updateJanus;
 });
