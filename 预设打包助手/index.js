@@ -445,26 +445,55 @@
                                     contextList: qr.contextList || []
                                 })) : []
                             };
+                            debugLog(`从QuickReplySet.list获取快速回复集: ${setName} (${qrSet.qrList.length} 个回复)`);
                         }
                     }
                     
-                    // 如果没有找到，尝试从扩展设置创建基本结构
+                    // 如果没有找到，尝试从API获取数据
                     if (!qrSet) {
-                        const quickReplySettings = extensionSettings.quickReplyV2 || {};
-                        if (quickReplySettings.config && quickReplySettings.config.setList) {
-                            const setConfig = quickReplySettings.config.setList.find(set => set.set === setName);
-                            if (setConfig) {
-                                qrSet = {
-                                    name: finalSetName,
-                                    scope: 'global',
-                                    disableSend: false,
-                                    placeBeforeInput: false,
-                                    injectInput: false,
-                                    color: 'transparent',
-                                    onlyBorderColor: false,
-                                    qrList: []
-                                };
+                        try {
+                            const response = await fetch('/api/settings/get', {
+                                method: 'POST',
+                                headers: context.getRequestHeaders(),
+                                body: JSON.stringify({}),
+                            });
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                const quickReplyPresets = data.quickReplyPresets || [];
+                                const presetData = quickReplyPresets.find(preset => preset.name === setName);
+                                
+                                if (presetData) {
+                                    qrSet = {
+                                        name: finalSetName,
+                                        scope: presetData.scope || 'global',
+                                        disableSend: presetData.disableSend || false,
+                                        placeBeforeInput: presetData.placeBeforeInput || false,
+                                        injectInput: presetData.injectInput || false,
+                                        color: presetData.color || 'transparent',
+                                        onlyBorderColor: presetData.onlyBorderColor || false,
+                                        qrList: presetData.qrList ? presetData.qrList.map(qr => ({
+                                            id: qr.id,
+                                            label: qr.label,
+                                            title: qr.title,
+                                            message: qr.message,
+                                            isHidden: qr.isHidden || false,
+                                            executeOnStartup: qr.executeOnStartup || false,
+                                            executeOnUser: qr.executeOnUser || false,
+                                            executeOnAi: qr.executeOnAi || false,
+                                            executeOnChatChange: qr.executeOnChatChange || false,
+                                            executeOnGroupMemberDraft: qr.executeOnGroupMemberDraft || false,
+                                            executeOnNewChat: qr.executeOnNewChat || false,
+                                            executeBeforeGeneration: qr.executeBeforeGeneration || false,
+                                            automationId: qr.automationId || '',
+                                            contextList: qr.contextList || []
+                                        })) : []
+                                    };
+                                    debugLog(`从API获取快速回复集: ${setName} (${qrSet.qrList.length} 个回复)`);
+                                }
                             }
+                        } catch (apiError) {
+                            debugLog(`从API获取快速回复集失败: ${apiError.message}`);
                         }
                     }
                     
@@ -480,6 +509,7 @@
                             onlyBorderColor: false,
                             qrList: []
                         };
+                        debugLog(`创建空快速回复集: ${setName}`);
                     }
                     
                     packageObj.quick_reply_sets[finalSetName] = qrSet;
@@ -630,14 +660,21 @@
                 
                 for (const [name, regex] of Object.entries(packageData.regexes)) {
                     try {
+                        // 为导入的正则生成新的唯一ID，避免与现有正则冲突
+                        const regexWithNewId = {
+                            ...regex,
+                            id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+                        };
+                        
                         // 检查是否已存在相同名称的正则
                         const existingIndex = newRegexSettings.findIndex(r => r.scriptName === name);
                         if (existingIndex >= 0) {
-                            newRegexSettings[existingIndex] = regex;
+                            newRegexSettings[existingIndex] = regexWithNewId;
+                            debugLog(`正则更新: ${name} (新ID: ${regexWithNewId.id})`);
                         } else {
-                            newRegexSettings.push(regex);
+                            newRegexSettings.push(regexWithNewId);
+                            debugLog(`正则导入: ${name} (新ID: ${regexWithNewId.id})`);
                         }
-                        debugLog(`正则导入: ${name}`);
                         importedCount++;
                     } catch (error) {
                         debugLog(`正则 ${name} 导入失败: ${error.message}`);
@@ -667,9 +704,14 @@
                     quickReplySettings.config.setList = [];
                 }
                 
+                // 确保quickReplyPresets存在
+                if (!quickReplySettings.quickReplyPresets) {
+                    quickReplySettings.quickReplyPresets = {};
+                }
+                
                 for (const [setName, qrSet] of Object.entries(packageData.quick_reply_sets)) {
                     try {
-                        // 检查是否已存在相同名称的QR集
+                        // 1. 更新配置列表
                         const existingIndex = quickReplySettings.config.setList.findIndex(set => set.set === setName);
                         if (existingIndex >= 0) {
                             quickReplySettings.config.setList[existingIndex] = {
@@ -683,7 +725,14 @@
                             });
                         }
                         
-                        debugLog(`快速回复集导入: ${setName}`);
+                        // 2. 导入实际的快速回复内容
+                        if (qrSet.qrList && qrSet.qrList.length > 0) {
+                            quickReplySettings.quickReplyPresets[setName] = qrSet.qrList;
+                            debugLog(`快速回复集导入: ${setName} (${qrSet.qrList.length} 个回复)`);
+                        } else {
+                            debugLog(`快速回复集导入: ${setName} (无回复内容)`);
+                        }
+                        
                         importedCount++;
                     } catch (error) {
                         debugLog(`快速回复集 ${setName} 导入失败: ${error.message}`);
