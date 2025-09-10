@@ -1,0 +1,42 @@
+{
+  "name": "Janus Treasure Chest",
+  "display_name": "Janusの宝藏箱",
+  "version": "1.0.0",
+  "author": "唐初稚",
+  "homepage": "https://github.com/chuzhitang/Janus-Treasure-chest",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chuzhitang/Janus-Treasure-chest.git"
+  },
+  "main": "index.js",
+  "css": "style.css",
+  "dependencies": [],
+  "optional_dependencies": [],
+  "js": [
+    "index.js"
+  ],
+  "css_files": [
+    "style.css"
+  ],
+  "manifest_version": 1,
+  "auto_update": true,
+  "update_url": "https://raw.githubusercontent.com/chuzhitang/Janus-Treasure-chest/main/manifest.json",
+  "permissions": [
+    "read",
+    "write"
+  ],
+  "settings": {
+    "enable_feature_1": {
+      "type": "boolean",
+      "default": true,
+      "name": "启用功能1",
+      "description": "启用或禁用主要功能"
+    },
+    "custom_setting": {
+      "type": "string",
+      "default": "",
+      "name": "自定义设置",
+      "description": "输入自定义配置"
+    }
+  }
+}
