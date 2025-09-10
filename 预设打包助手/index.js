@@ -176,29 +176,69 @@
             
             // 使用 SillyTavern 的快速回复扩展获取QR集
             const context = SillyTavern.getContext();
-            const extensionSettings = context.extensionSettings || {};
-            
-            // 尝试从不同的QR设置中获取数据
             let qrSets = [];
             
-            // 检查新的QR V2设置
-            if (extensionSettings.quickReplyV2 && extensionSettings.quickReplyV2.config && extensionSettings.quickReplyV2.config.setList) {
-                qrSets = extensionSettings.quickReplyV2.config.setList.map(set => ({
-                    name: set.set,
-                    visible: set.isVisible,
-                    qrCount: 0 // 需要从其他地方获取QR数量
-                }));
-            }
-            // 检查旧的QR设置
-            else if (extensionSettings.quickReply) {
-                qrSets = [{
-                    name: extensionSettings.quickReply.selectedPreset || extensionSettings.quickReply.name || 'Default',
-                    visible: true,
-                    qrCount: 0
-                }];
+            // 方法1: 尝试从API获取QR集数据
+            try {
+                const response = await fetch('/api/settings/get', {
+                    method: 'POST',
+                    headers: context.getRequestHeaders(),
+                    body: JSON.stringify({}),
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const quickReplyPresets = data.quickReplyPresets || [];
+                    
+                    qrSets = quickReplyPresets.map(set => ({
+                        name: set.name || '未命名',
+                        qrCount: set.qrList ? set.qrList.length : 0,
+                        isDeleted: set.isDeleted || false,
+                        version: set.version || 1
+                    })).filter(set => !set.isDeleted);
+                    
+                    debugLog(`从API获取到 ${qrSets.length} 个快速回复集`);
+                }
+            } catch (apiError) {
+                debugLog('API获取失败，尝试其他方法: ' + apiError.message);
             }
             
-            debugLog(`找到 ${qrSets.length} 个快速回复集`);
+            // 方法2: 如果API失败，尝试从QuickReplySet全局对象获取
+            if (qrSets.length === 0 && window.QuickReplySet && window.QuickReplySet.list) {
+                qrSets = window.QuickReplySet.list.map(set => ({
+                    name: set.name,
+                    qrCount: set.qrList ? set.qrList.length : 0,
+                    isDeleted: set.isDeleted || false
+                })).filter(set => !set.isDeleted);
+                
+                debugLog(`从全局对象获取到 ${qrSets.length} 个快速回复集`);
+            }
+            
+            // 方法3: 如果仍然没有，尝试从扩展设置获取
+            if (qrSets.length === 0) {
+                const extensionSettings = context.extensionSettings || {};
+                
+                // 检查新的QR V2设置
+                if (extensionSettings.quickReplyV2 && extensionSettings.quickReplyV2.config && extensionSettings.quickReplyV2.config.setList) {
+                    qrSets = extensionSettings.quickReplyV2.config.setList.map(set => ({
+                        name: set.set,
+                        qrCount: 0, // 无法从配置中获取QR数量
+                        visible: set.isVisible
+                    }));
+                }
+                // 检查旧的QR设置
+                else if (extensionSettings.quickReply) {
+                    qrSets = [{
+                        name: extensionSettings.quickReply.selectedPreset || extensionSettings.quickReply.name || 'Default',
+                        qrCount: 0,
+                        visible: true
+                    }];
+                }
+                
+                debugLog(`从扩展设置获取到 ${qrSets.length} 个快速回复集`);
+            }
+            
+            debugLog(`最终找到 ${qrSets.length} 个快速回复集`);
             
             const container = document.getElementById('quickreplies-list');
             if (!container) return;
@@ -217,7 +257,7 @@
                     <input type="checkbox" id="qrset-${set.name}" onchange="toggleQuickReply('${set.name}')">
                     <div class="resource-item-info">
                         <div class="resource-item-name">${set.name}</div>
-                        <div class="resource-item-desc">快速回复集</div>
+                        <div class="resource-item-desc">${set.qrCount} 个回复</div>
                     </div>
                 `;
                 container.appendChild(itemDiv);
@@ -338,36 +378,80 @@
             
             // 打包快速回复
             const extensionSettings = context.extensionSettings || {};
-            const quickReplySettings = extensionSettings.quickReplyV2 || {};
             
             for (const setName of selectedQuickReplies) {
                 try {
                     const finalSetName = tagPrefix ? `${tagPrefix}${setName}` : setName;
                     
-                    // 尝试从QR V2设置中获取QR集
+                    // 尝试从QuickReplySet.list获取完整的QR集数据
                     let qrSet = null;
-                    if (quickReplySettings.config && quickReplySettings.config.setList) {
-                        const setConfig = quickReplySettings.config.setList.find(set => set.set === setName);
-                        if (setConfig) {
+                    if (window.QuickReplySet && window.QuickReplySet.list) {
+                        const originalSet = window.QuickReplySet.list.find(set => set.name === setName);
+                        if (originalSet) {
                             qrSet = {
                                 name: finalSetName,
-                                isVisible: setConfig.isVisible,
-                                qrList: [] // QR列表需要从其他地方获取
+                                scope: originalSet.scope || 'global',
+                                disableSend: originalSet.disableSend || false,
+                                placeBeforeInput: originalSet.placeBeforeInput || false,
+                                injectInput: originalSet.injectInput || false,
+                                color: originalSet.color || 'transparent',
+                                onlyBorderColor: originalSet.onlyBorderColor || false,
+                                qrList: originalSet.qrList ? originalSet.qrList.map(qr => ({
+                                    id: qr.id,
+                                    label: qr.label,
+                                    title: qr.title,
+                                    message: qr.message,
+                                    isHidden: qr.isHidden || false,
+                                    executeOnStartup: qr.executeOnStartup || false,
+                                    executeOnUser: qr.executeOnUser || false,
+                                    executeOnAi: qr.executeOnAi || false,
+                                    executeOnChatChange: qr.executeOnChatChange || false,
+                                    executeOnGroupMemberDraft: qr.executeOnGroupMemberDraft || false,
+                                    executeOnNewChat: qr.executeOnNewChat || false,
+                                    executeBeforeGeneration: qr.executeBeforeGeneration || false,
+                                    automationId: qr.automationId || '',
+                                    contextList: qr.contextList || []
+                                })) : []
                             };
                         }
                     }
                     
-                    // 如果没有找到，创建一个基本的QR集结构
+                    // 如果没有找到，尝试从扩展设置创建基本结构
+                    if (!qrSet) {
+                        const quickReplySettings = extensionSettings.quickReplyV2 || {};
+                        if (quickReplySettings.config && quickReplySettings.config.setList) {
+                            const setConfig = quickReplySettings.config.setList.find(set => set.set === setName);
+                            if (setConfig) {
+                                qrSet = {
+                                    name: finalSetName,
+                                    scope: 'global',
+                                    disableSend: false,
+                                    placeBeforeInput: false,
+                                    injectInput: false,
+                                    color: 'transparent',
+                                    onlyBorderColor: false,
+                                    qrList: []
+                                };
+                            }
+                        }
+                    }
+                    
+                    // 如果仍然没有找到，创建一个基本的QR集结构
                     if (!qrSet) {
                         qrSet = {
                             name: finalSetName,
-                            isVisible: true,
+                            scope: 'global',
+                            disableSend: false,
+                            placeBeforeInput: false,
+                            injectInput: false,
+                            color: 'transparent',
+                            onlyBorderColor: false,
                             qrList: []
                         };
                     }
                     
                     packageObj.quick_reply_sets[finalSetName] = qrSet;
-                    debugLog(`已打包快速回复集: ${finalSetName}`);
+                    debugLog(`已打包快速回复集: ${finalSetName} (${qrSet.qrList.length} 个回复)`);
                 } catch (error) {
                     debugLog(`快速回复集 ${setName} 打包失败: ${error.message}`);
                 }
