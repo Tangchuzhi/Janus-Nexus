@@ -96,29 +96,38 @@ jQuery(() => {
                     return;
                 }
                 
-                // 2. 执行更新
-                const updateResponse = await fetch('/api/extensions/update', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        url: 'https://github.com/chuzhitang/Janus-Treasure-chest.git'
-                    })
-                });
+                // 2. 触发SillyTavern原生的更新按钮
+                console.log('[Janusの百宝箱] 触发原生更新按钮...');
                 
-                if (updateResponse.ok) {
-                    toastr.success('更新成功！正在刷新页面...', 'Janusの百宝箱');
+                // 找到百宝箱扩展的原生更新按钮
+                const nativeUpdateBtn = document.querySelector("body > dialog > div.popup-body > div.popup-content > div > div:nth-child(3) > div:nth-child(3) > div.extension_actions.flex-container.alignItemsCenter > button.btn_update.menu_button.interactable");
+                
+                if (nativeUpdateBtn) {
+                    // 直接触发原生更新按钮的点击事件
+                    nativeUpdateBtn.click();
+                    console.log('[Janusの百宝箱] 已触发原生更新按钮');
+                    
+                    // 显示成功消息
+                    toastr.success('正在使用原生更新功能更新...', 'Janusの百宝箱');
+                    
+                    // 延迟一段时间后刷新页面（给更新过程一些时间）
                     setTimeout(() => {
-                        location.reload(); // 刷新页面
-                    }, 1500);
+                        location.reload();
+                    }, 3000);
+                    
                 } else {
-                    throw new Error('更新失败');
+                    // 如果找不到原生按钮，提示用户手动更新
+                    console.log('[Janusの百宝箱] 未找到原生更新按钮，可能需要先打开扩展管理页面');
+                    toastr.warning('请先打开扩展管理页面，然后再尝试更新', 'Janusの百宝箱');
+                    
+                    // 恢复按钮状态
+                    updateBtn.innerHTML = originalText;
+                    updateBtn.disabled = false;
                 }
                 
             } catch (error) {
                 console.error('[Janusの百宝箱] 更新失败:', error);
-                toastr.error('更新失败，请手动更新', 'Janusの百宝箱');
+                toastr.error('更新过程出错，请手动更新', 'Janusの百宝箱');
                 
                 // 恢复按钮状态
                 const updateBtn = document.querySelector('.janus-update-btn');
@@ -163,7 +172,7 @@ jQuery(() => {
             padding: 10px 0;
         }
         
-        /* 功能按钮布局 - 所有设备都2个一行 */
+        /* 功能按钮布局 - 2个一行 */
         .janus-button-row {
             display: grid;
             gap: 8px;
