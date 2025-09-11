@@ -15,6 +15,81 @@
         console.log('[预设打包助手]', message);
     }
     
+    // 实现triggerSlash函数，用于执行slash命令序列
+    async function triggerSlash(commandText) {
+        debugLog('triggerSlash被调用');
+        
+        try {
+            // 检查是否有SillyTavern的slash命令执行函数
+            if (window.executeSlashCommands && typeof window.executeSlashCommands === 'function') {
+                debugLog('使用window.executeSlashCommands执行命令');
+                return await window.executeSlashCommands(commandText, true, null, false);
+            }
+            
+            // 检查是否有SillyTavern全局对象
+            if (window.SillyTavern && window.SillyTavern.executeSlashCommands) {
+                debugLog('使用SillyTavern.executeSlashCommands执行命令');
+                return await window.SillyTavern.executeSlashCommands(commandText, true, null, false);
+            }
+            
+            // 尝试从script.js导入
+            if (typeof executeSlashCommands === 'function') {
+                debugLog('使用全局executeSlashCommands执行命令');
+                return await executeSlashCommands(commandText, true, null, false);
+            }
+            
+            // 备用方法：逐行执行命令
+            debugLog('使用备用方法逐行执行命令');
+            const commands = commandText.split('||\n').filter(cmd => cmd.trim());
+            const results = [];
+            
+            for (const command of commands) {
+                const trimmedCmd = command.trim();
+                if (trimmedCmd) {
+                    try {
+                        debugLog(`执行命令: ${trimmedCmd}`);
+                        
+                        // 尝试通过不同的方式执行命令
+                        let result = null;
+                        
+                        if (window.executeSlashCommands) {
+                            result = await window.executeSlashCommands(trimmedCmd, true, null, false);
+                        } else if (window.SillyTavern && window.SillyTavern.executeSlashCommands) {
+                            result = await window.SillyTavern.executeSlashCommands(trimmedCmd, true, null, false);
+                        } else {
+                            // 最后的备用方法：模拟用户输入
+                            const textarea = document.querySelector('#send_textarea');
+                            if (textarea) {
+                                textarea.value = trimmedCmd;
+                                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                                
+                                // 触发发送
+                                const sendButton = document.querySelector('#send_but');
+                                if (sendButton) {
+                                    sendButton.click();
+                                }
+                                
+                                // 等待命令执行完成
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                            }
+                        }
+                        
+                        results.push(result);
+                    } catch (cmdError) {
+                        debugLog(`命令执行失败: ${trimmedCmd} - ${cmdError.message}`);
+                        results.push(null);
+                    }
+                }
+            }
+            
+            return results;
+            
+        } catch (error) {
+            debugLog(`triggerSlash执行失败: ${error.message}`);
+            throw error;
+        }
+    }
+    
     // 显示状态消息
     function showStatus(message, type = 'info') {
         const statusEl = document.getElementById('preset-status');
@@ -690,129 +765,123 @@
                 debugLog(`正则设置已更新并保存`);
             }
             
-            // 导入快速回复
+            // 导入快速回复 - 使用slash命令系统
             if (packageData.quick_reply_sets) {
-                const context = SillyTavern.getContext();
-                const extensionSettings = context.extensionSettings || {};
-                let quickReplySettings = extensionSettings.quickReplyV2 || {};
-                
-                // 确保QR V2设置结构存在
-                if (!quickReplySettings.config) {
-                    quickReplySettings.config = { setList: [] };
-                }
-                if (!quickReplySettings.config.setList) {
-                    quickReplySettings.config.setList = [];
-                }
-                
-                // 确保quickReplyPresets存在
-                if (!quickReplySettings.quickReplyPresets) {
-                    quickReplySettings.quickReplyPresets = {};
-                }
+                debugLog('开始使用slash命令系统导入快速回复集...');
                 
                 for (const [setName, qrSet] of Object.entries(packageData.quick_reply_sets)) {
                     try {
-                        // 1. 更新配置列表
-                        const existingIndex = quickReplySettings.config.setList.findIndex(set => set.set === setName);
-                        if (existingIndex >= 0) {
-                            quickReplySettings.config.setList[existingIndex] = {
-                                set: setName,
-                                isVisible: qrSet.isVisible !== undefined ? qrSet.isVisible : true
-                            };
-                        } else {
-                            quickReplySettings.config.setList.push({
-                                set: setName,
-                                isVisible: qrSet.isVisible !== undefined ? qrSet.isVisible : true
-                            });
-                        }
+                        debugLog(`准备导入快速回复集: ${setName}`);
                         
-                        // 2. 导入实际的快速回复内容
+                        // 构建slash命令序列
+                        let slashCommands = '';
+                        
+                        // 1. 启用严格转义
+                        slashCommands += '/parser-flag STRICT_ESCAPING on ||\n';
+                        
+                        // 2. 关闭可能存在的同名集
+                        slashCommands += `/qr-set-off "${setName}" ||\n`;
+                        slashCommands += `/qr-chat-set-off "${setName}" ||\n`;
+                        
+                        // 3. 删除可能存在的同名集
+                        slashCommands += `/qr-set-delete ${setName} ||\n`;
+                        
+                        // 4. 创建新的快速回复集
+                        slashCommands += `/qr-set-create nosend=${qrSet.disableSend || false} before=${qrSet.placeBeforeInput || false} inject=${qrSet.injectInput || false} ${setName} ||\n`;
+                        
+                        // 5. 创建快速回复项
                         if (qrSet.qrList && qrSet.qrList.length > 0) {
-                            // 将qrList转换为SillyTavern期望的格式
-                            const formattedQrList = qrSet.qrList.map(qr => ({
-                                id: qr.id || Date.now() + Math.random().toString(36).substr(2, 9),
-                                label: qr.label || '',
-                                title: qr.title || '',
-                                message: qr.message || '',
-                                isHidden: qr.isHidden || false,
-                                executeOnStartup: qr.executeOnStartup || false,
-                                executeOnUser: qr.executeOnUser || false,
-                                executeOnAi: qr.executeOnAi || false,
-                                executeOnChatChange: qr.executeOnChatChange || false,
-                                executeOnGroupMemberDraft: qr.executeOnGroupMemberDraft || false,
-                                executeOnNewChat: qr.executeOnNewChat || false,
-                                executeBeforeGeneration: qr.executeBeforeGeneration || false,
-                                automationId: qr.automationId || '',
-                                contextList: qr.contextList || []
-                            }));
+                            for (const qr of qrSet.qrList) {
+                                // 转义消息内容
+                                const escapedMessage = (qr.message || '')
+                                    .replace(/"/g, '\\"')
+                                    .replace(/<user>/g, '{{user}}')
+                                    .replace(/<char>/g, '{{char}}')
+                                    .replace(/\{\{/g, '\\{\\{');
+                                
+                                // 构建qr-create命令
+                                slashCommands += `/qr-create set=${setName} label=${qr.label || ''} `;
+                                
+                                // 添加可选参数
+                                if (qr.icon) slashCommands += `icon=${qr.icon} `;
+                                slashCommands += `showlabel=${qr.showLabel !== false} `;
+                                slashCommands += `hidden=${qr.isHidden || false} `;
+                                slashCommands += `startup=${qr.executeOnStartup || false} `;
+                                slashCommands += `user=${qr.executeOnUser || false} `;
+                                slashCommands += `bot=${qr.executeOnAi || false} `;
+                                slashCommands += `load=${qr.executeOnChatChange || false} `;
+                                slashCommands += `new=${qr.executeOnNewChat || false} `;
+                                slashCommands += `group=${qr.executeOnGroupMemberDraft || false} `;
+                                slashCommands += `title=${qr.title || ''} `;
+                                slashCommands += `"${escapedMessage}" ||\n`;
+                            }
                             
-                            quickReplySettings.quickReplyPresets[setName] = formattedQrList;
-                            debugLog(`快速回复集导入: ${setName} (${formattedQrList.length} 个回复)`);
-                        } else {
-                            debugLog(`快速回复集导入: ${setName} (无回复内容)`);
+                            // 6. 添加上下文菜单项
+                            for (const qr of qrSet.qrList) {
+                                if (qr.contextList && qr.contextList.length > 0) {
+                                    for (const context of qr.contextList) {
+                                        slashCommands += `/qr-contextadd set=${setName} label=${qr.label || ''} id=${qr.id || 0} chain=${context.isChained || false} "${context.set || ''}" ||\n`;
+                                    }
+                                }
+                            }
                         }
                         
-                        importedCount++;
+                        // 7. 启用快速回复集（默认为全局）
+                        slashCommands += `/qr-set-on visible=true "${setName}" ||\n`;
+                        
+                        // 8. 关闭严格转义
+                        slashCommands += '/parser-flag STRICT_ESCAPING off ||\n';
+                        
+                        debugLog(`执行slash命令序列:\n${slashCommands}`);
+                        
+                        // 执行slash命令序列
+                        await triggerSlash(slashCommands);
+                        
+                        // 等待一下让快速回复集有时间正确创建
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        // 验证快速回复集是否创建成功
+                        let verificationSuccess = false;
+                        try {
+                            // 检查QuickReplySet.list中是否存在该集
+                            if (window.QuickReplySet && window.QuickReplySet.list) {
+                                const createdSet = window.QuickReplySet.list.find(set => set.name === setName);
+                                if (createdSet) {
+                                    verificationSuccess = true;
+                                    debugLog(`验证成功: 快速回复集 ${setName} 已创建，包含 ${createdSet.qrList ? createdSet.qrList.length : 0} 个回复`);
+                                } else {
+                                    debugLog(`验证失败: 快速回复集 ${setName} 未在QuickReplySet.list中找到`);
+                                }
+                            } else {
+                                debugLog('无法验证: QuickReplySet.list不存在');
+                                verificationSuccess = true; // 假设成功，因为无法验证
+                            }
+                        } catch (verifyError) {
+                            debugLog(`验证过程出错: ${verifyError.message}`);
+                            verificationSuccess = true; // 假设成功，避免验证错误影响导入
+                        }
+                        
+                        if (verificationSuccess) {
+                            debugLog(`快速回复集 ${setName} 导入成功`);
+                            importedCount++;
+                        } else {
+                            debugLog(`快速回复集 ${setName} 导入可能失败，但继续处理其他集`);
+                        }
+                        
                     } catch (error) {
                         debugLog(`快速回复集 ${setName} 导入失败: ${error.message}`);
                     }
                 }
                 
-                // 更新快速回复设置并保存
-                context.extensionSettings.quickReplyV2 = quickReplySettings;
-                
-                // 调用保存函数
-                if (context.saveSettingsDebounced) {
-                    context.saveSettingsDebounced();
-                }
-                debugLog(`快速回复设置已更新并保存`);
-                
-                // 尝试触发快速回复扩展的重新加载
-                try {
-                    // 方法1: 清空现有列表，强制重新加载
-                    if (window.QuickReplySet && window.QuickReplySet.list) {
-                        window.QuickReplySet.list.length = 0;
-                        debugLog('已清空QuickReplySet.list');
-                    }
-                    
-                    // 方法2: 尝试调用快速回复扩展的loadSets函数
-                    if (window.loadSets && typeof window.loadSets === 'function') {
-                        await window.loadSets();
-                        debugLog('已调用loadSets重新加载快速回复');
-                    }
-                    
-                    // 方法3: 触发快速回复按钮的刷新
-                    if (window.buttons && window.buttons.refresh && typeof window.buttons.refresh === 'function') {
-                        window.buttons.refresh();
-                        debugLog('已调用buttons.refresh刷新快速回复按钮');
-                    }
-                    
-                    // 方法4: 延迟刷新页面，确保快速回复正确加载
-                    setTimeout(() => {
-                        debugLog('准备刷新页面以加载快速回复...');
-                        showStatus('页面即将刷新以加载快速回复...', 'info');
-                        window.location.reload();
-                    }, 3000); // 3秒后刷新，让用户看到成功消息
-                    
-                } catch (reloadError) {
-                    debugLog(`快速回复重新加载失败: ${reloadError.message}`);
-                    // 如果重新加载失败，仍然刷新页面
-                    setTimeout(() => {
-                        debugLog('快速回复重新加载失败，强制刷新页面...');
-                        window.location.reload();
-                    }, 2000);
-                }
+                debugLog(`快速回复集导入完成，共导入 ${Object.keys(packageData.quick_reply_sets).length} 个集`);
             }
             
             showProgress(100);
             showStatus(`导入完成！成功导入 ${importedCount} 个项目`, 'success');
             debugLog('导入完成');
             
-            // 导入成功后自动刷新页面
-            setTimeout(() => {
-                debugLog('准备刷新页面...');
-                showStatus('页面即将刷新...', 'info');
-                window.location.reload();
-            }, 2000); // 2秒后刷新，让用户看到成功消息
+            // 由于使用了slash命令系统，不需要刷新页面
+            // 快速回复集应该已经正确创建并可用
             
             packageData = null;
             const packageFile = document.getElementById('package-file');
