@@ -470,12 +470,53 @@
     }
     
     .resource-tabs {
-        flex-direction: column;
-        gap: 4px;
+        flex-direction: row;
+        gap: 2px;
+    }
+    
+    .resource-tab-btn {
+        flex: 1;
+        padding: 6px 4px;
+        font-size: 11px;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .resource-tab-btn i {
+        font-size: 10px;
+        margin-right: 2px;
     }
     
     .preset-btn {
         padding: 12px 20px;
+    }
+}
+
+/* 超小屏幕优化 */
+@media (max-width: 360px) {
+    .resource-tab-btn {
+        padding: 4px 2px;
+        font-size: 10px;
+    }
+    
+    .resource-tab-btn i {
+        font-size: 9px;
+        margin-right: 1px;
+    }
+    
+    /* 隐藏图标，只显示文字 */
+    .resource-tab-btn i {
+        display: none;
+    }
+}
+
+/* 极小屏幕优化 */
+@media (max-width: 320px) {
+    .resource-tab-btn {
+        padding: 3px 1px;
+        font-size: 9px;
     }
 }
 </style>
