@@ -690,14 +690,12 @@
                 debugLog(`正则设置已更新并保存`);
             }
             
-            // 修复：安全的快速回复导入 - 使用SillyTavern原生API
+            // 导入快速回复 - 使用TavernHelper接口
             if (packageData.quick_reply_sets && Object.keys(packageData.quick_reply_sets).length > 0) {
-                const context = SillyTavern.getContext();
-                
-                // 检查快速回复扩展是否可用
-                if (!window.QuickReplySet || !window.QuickReplyApi) {
-                    debugLog('快速回复扩展未加载，跳过快速回复导入');
-                    showStatus('快速回复扩展未加载，跳过快速回复导入', 'warning');
+                // 检查TavernHelper是否可用
+                if (typeof TavernHelper === 'undefined') {
+                    debugLog('TavernHelper未找到，跳过快速回复导入');
+                    showStatus('TavernHelper未找到，跳过快速回复导入', 'warning');
                 } else {
                     let qrImportCount = 0;
                     
@@ -705,42 +703,32 @@
                         try {
                             debugLog(`开始导入快速回复集: ${setName}`);
                             
-                            // 检查是否已存在同名的QR集
-                            const existingSet = window.QuickReplySet.list.find(set => set.name === setName);
-                            if (existingSet) {
-                                debugLog(`快速回复集 ${setName} 已存在，将覆盖`);
-    // 检查TavernHelper是否可用
-                if (typeof TavernHelper === 'undefined'                        }
+                            // 检查数据格式 - 支持两种格式
+                            let repliesArray = [];
                             
-                            // 创建新的QuickReplySet实例
-                            const newQrSet = new window.QuickReplySet();
-                            
-                            // 设置基本属性
-                            newQrSet.name = setName;
-                            newQrSet.scope = qrSetData.scope || 'global';
-                           let repliesArray = [] newQrSet.disableSend = qrSetData.disableSend || false;
-                    // 新格式：直接是回复数组            newQrSet.placeBeforeInput = qrSetData.placeBeforeInput || false;
-                                repliesArray = qrSetData;newQrSet.injectInput = qrSetData.injectInput || false;
-                            newQrSet.color = qrSetData.color || 'transparent';
-        } else if (qrSetData.qrList && Array.isArray(qrSetData.qrList)) {
+                            if (Array.isArray(qrSetData)) {
+                                // 新格式：直接是回复数组
+                                repliesArray = qrSetData;
+                            } else if (qrSetData.qrList && Array.isArray(qrSetData.qrList)) {
                                 // 旧格式：包含qrList的对象
-                                repliesArray = qrSetData.qrList;                    newQrSet.onlyBorderColor = qrSetData.onlyBorderColor || false;
-                            newQrSet.isVisible = qrSetData.isVisible !== false;
-                            
-                            // 如果创建失败，可能是已存在，继续导入
-                                debugLog(`快速回复集 ${setName} 可能已存在: ${createError.message}`);
-                            } catch (createError) {
-                                
-                            // 导入快速回复项目
-            }                for (const reply of repliesArray) {
-    debugLog(`快速回复集 ${setName} 数据格式不支持，跳过`);
+                                repliesArray = qrSetData.qrList;
+                            } else {
+                                debugLog(`快速回复集 ${setName} 数据格式不支持，跳过`);
                                 continue;
                             }
                             
                             // 创建快速回复集
                             try {
                                 await TavernHelper.triggerSlash(`/qr-set-create "${setName}"`);
-                                debugLog(`创建快速回复集: ${setName}`)                                try {
+                                debugLog(`创建快速回复集: ${setName}`);
+                            } catch (createError) {
+                                // 如果创建失败，可能是已存在，继续导入
+                                debugLog(`快速回复集 ${setName} 可能已存在: ${createError.message}`);
+                            }
+                            
+                            // 导入快速回复项目
+                            for (const reply of repliesArray) {
+                                try {
                                     // 构建QR创建命令的参数
                                     const args = [];
                                     
@@ -754,129 +742,73 @@
                                     if (reply.title) {
                                         args.push(`title="${reply.title}"`);
                                     }
-                                   }
-                            if (reply.executeOnStartup) {
+                                    
+                                    // 布尔参数
                                     if (reply.isHidden) {
-                          }          args.push('hidden=true');
-                                    ;
-                                        
-                                        // 添加到QR集
-                                        args.push('startup=true');
-                          }
-                                            
-                                    if (reply.executeOnUser) {
-                                       args.push('user=true');
-                     }
-                                             args.push('load=true');
-                                            if (reply.executeOnAi) {
-                           args.push('bot=true');
+                                        args.push('hidden=true');
                                     }
                                     
-                                   if (reply.executeOnChatChange) {
-                        }
-                            
-                            }
-                             if (reply.executeOnGroupMemberDraft) {
-                   args.push('newchat=true');                        args.push('group=true');
+                                    if (reply.executeOnStartup) {
+                                        args.push('startup=true');
                                     }
-                                                        // 使用QuickReplyApi保存QR集
-                            if (window.QuickReplyApi && typeof window.QuickReplyApi.saveSet === 'function') {
-               await window.QuickReplyApi.saveSet(newQrSet);
-                debugLog(`通过API保存快速回复集: ${setName}`);
-                             // 自动化ID
-                                // 备用方法：直接保存到文件
-                                const response = await fetch('/api/quick-reply/save-set', {
-                          if (reply.automationId) {
-                 args.push(`automationId="${reply.automationId}"              method: 'POST',
-                                    headers: context.getRequestHeaders(),
-                                    body: JSON.stringify({
-                           name: setName,
-                 args.push(`context="${contextStr}"`);
+                                    
+                                    if (reply.executeOnUser) {
+                                        args.push('user=true');
                                     }
-                                           set: newQrSet.toJSON()
-                                    })
-                           const fullCommand = `/qr-create ${args.join(' ')} ${command}`;
-                                        
-                                if (response.ok) {
-                  debugLog(`通过API直接保存快速回复集: ${setName}`);
-                                } else {
-                                        await TavernHelper.triggerSlash(fullCommand);
+                                    
+                                    if (reply.executeOnAi) {
+                                        args.push('bot=true');
+                                    }
+                                    
+                                    if (reply.executeOnChatChange) {
+                                        args.push('load=true');
+                                    }
+                                    
+                                    if (reply.executeOnGroupMemberDraft) {
+                                        args.push('group=true');
+                                    }
+                                    
+                                    if (reply.executeOnNewChat) {
+                                        args.push('newchat=true');
+                                    }
+                                    
+                                    if (reply.executeBeforeGeneration) {
+                                        args.push('before=true');
+                                    }
+                                    
+                                    // 自动化ID
+                                    if (reply.automationId) {
+                                        args.push(`automationId="${reply.automationId}"`);
+                                    }
+                                    
+                                    // 上下文列表
+                                    if (reply.contextList && Array.isArray(reply.contextList) && reply.contextList.length > 0) {
+                                        const contextStr = reply.contextList.join(',');
+                                        args.push(`context="${contextStr}"`);
+                                    }
+                                    
+                                    // 构建完整命令
+                                    const command = reply.message || reply.command || '';
+                                    const fullCommand = `/qr-create ${args.join(' ')} ${command}`;
+                                    
+                                    await TavernHelper.triggerSlash(fullCommand);
                                     debugLog(`导入快速回复: ${reply.label || '无标签'}`);
-            throw new Error(`保存快速回复集失败: ${response.statusText}`);
+                                    
+                                } catch (replyError) {
+                                    debugLog(`快速回复项目导入失败: ${replyError.message}`);
                                 }
-                            }
-                                debugLog(`快速回复项目导入失败: ${replyError.message}`);
-                                }
-                            // 更新扩展设置
-                            if (!context.extensionSettings.quickReplyV2) {
-                                context.extensionSettings.quickReplyV2 = { config: { setList: [] } };
-                            }
-                            if (!context.extensionSettings.quickReplyV2.config) {
-                                context.extensionSettings.quickReplyV2.config = { setList: [] };
-                            debugLog(`快速回复导入完成，成功导入 ${qrImportCount} 个QR集`);}
-                            if (!Array.isArray(context.extensionSettings.quickReplyV2.config.setList)) {
-                                context.extensionSettings.quickReplyV2.config.setList = [];
-                            }
-                            
-                            // 添加或更新配置列表中的条目
-                            const configIndex = context.extensionSettings.quickReplyV2.config.setList.findIndex(
-                                item => item.set === setName
-                            setTimeout(() => {
-                debugLog('准备刷新页面...');
-                window.location.reload();
-            }, 2000);
-                            
-                            const configEntry = {
-                                set: setName,
-                                isVisible: newQrSet.isVisible
-                            };
-                            
-                            if (configIndex >= 0) {
-                                context.extensionSettings.quickReplyV2.config.setList[configIndex] = configEntry;
-                            } else {
-                                context.extensionSettings.quickReplyV2.config.setList.push(configEntry);
                             }
                             
                             qrImportCount++;
                             importedCount++;
-                            debugLog(`快速回复集导入成功: ${setName} (${newQrSet.qrList.length} 个回复)`);
+                            debugLog(`快速回复集导入完成: ${setName} (${repliesArray.length} 个回复)`);
                             
                         } catch (setError) {
                             debugLog(`快速回复集 ${setName} 导入失败: ${setError.message}`);
                         }
                     }
                     
-                    // 保存扩展设置
-                    if (context.saveSettingsDebounced) {
-                        context.saveSettingsDebounced();
-                    }
-                    
-                    // 安全地触发UI更新
-                    try {
-                        // 方法1: 触发设置更新事件
-                        if (window.eventSource && typeof window.eventSource.emit === 'function') {
-                            window.eventSource.emit('qr_settingsChanged');
-                            debugLog('已触发QR设置更新事件');
-                        }
-                        
-                        // 方法2: 刷新QR集选择器
-                        if (window.QuickReplyApi && typeof window.QuickReplyApi.updateSetList === 'function') {
-                            window.QuickReplyApi.updateSetList();
-                            debugLog('已更新QR集列表');
-                        }
-                        
-                        // 方法3: 重新渲染QR按钮
-                        if (window.QuickReplyApi && typeof window.QuickReplyApi.redrawQr === 'function') {
-                            window.QuickReplyApi.redrawQr();
-                            debugLog('已重新渲染QR按钮');
-                        }
-                        
-                        debugLog(`快速回复导入完成，成功导入 ${qrImportCount} 个QR集`);
-                        
-                    } catch (uiError) {
-                        debugLog(`QR UI更新失败: ${uiError.message}`);
-                        // UI更新失败不影响导入成功
-                    }
+                    debugLog(`快速回复导入完成，成功导入 ${qrImportCount} 个QR集`);
                 }
             }
             
@@ -891,8 +823,11 @@
             if (packageFile) packageFile.value = '';
             if (packageInfo) packageInfo.style.display = 'none';
             
-            // 成功提示，不自动刷新页面
-            showStatus('导入成功！快速回复集已添加到列表中', 'success');
+            // 导入成功后自动刷新浏览器
+            setTimeout(() => {
+                debugLog('导入成功，准备刷新页面...');
+                window.location.reload();
+            }, 2000); // 2秒后刷新，让用户看到成功消息
             
         } catch (error) {
             showProgress(100);
