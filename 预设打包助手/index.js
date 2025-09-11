@@ -793,7 +793,7 @@
                                     .replace(/\{\{/g, '\\{\\{');
                                 
                                 // 构建qr-create命令
-                                slashCommands += `/qr-create set=${setName} label=${qr.label || ''} `;
+                                slashCommands += `/qr-create set=${setName} label="${qr.label || ''}" `;
                                 
                                 // 添加可选参数
                                 if (qr.icon) slashCommands += `icon=${qr.icon} `;
@@ -805,7 +805,10 @@
                                 slashCommands += `load=${qr.executeOnChatChange || false} `;
                                 slashCommands += `new=${qr.executeOnNewChat || false} `;
                                 slashCommands += `group=${qr.executeOnGroupMemberDraft || false} `;
-                                slashCommands += `title=${qr.title || ''} `;
+                                slashCommands += `generation=${qr.executeBeforeGeneration || false} `;
+                                if (qr.title && qr.title.trim()) {
+                                    slashCommands += `title="${qr.title}" `;
+                                }
                                 slashCommands += `"${escapedMessage}" ||\n`;
                             }
                             
@@ -826,6 +829,12 @@
                         slashCommands += '/parser-flag STRICT_ESCAPING off ||\n';
                         
                         debugLog(`执行slash命令序列:\n${slashCommands}`);
+                        debugLog(`快速回复集 ${setName} 包含 ${qrSet.qrList ? qrSet.qrList.length : 0} 个回复`);
+                        if (qrSet.qrList && qrSet.qrList.length > 0) {
+                            qrSet.qrList.forEach((qr, index) => {
+                                debugLog(`回复 ${index + 1}: label="${qr.label}", title="${qr.title}", message="${qr.message}"`);
+                            });
+                        }
                         
                         // 执行slash命令序列
                         await triggerSlash(slashCommands);
