@@ -933,20 +933,7 @@
         window.handleFileSelect = handleFileSelect;
         window.triggerFileSelect = triggerFileSelect;
         window.importPackage = importPackage;
-        
-        // 移除重复的事件监听器，只使用onclick属性
-        // 注释掉addEventListener以避免重复触发
-        /*
-        const fileUploadBtn = document.querySelector('.file-upload-btn');
-        if (fileUploadBtn) {
-            fileUploadBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                debugLog('文件上传按钮被点击');
-                triggerFileSelect();
-            });
-        }
-        */
-        
+                
         // 加载资源
         loadAllResources();
     }
