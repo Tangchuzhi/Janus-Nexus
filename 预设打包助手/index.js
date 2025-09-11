@@ -779,17 +779,10 @@
                         // 1. 启用严格转义
                         slashCommands += '/parser-flag STRICT_ESCAPING on ||\n';
                         
-                        // 2. 关闭可能存在的同名集
-                        slashCommands += `/qr-set-off "${setName}" ||\n`;
-                        slashCommands += `/qr-chat-set-off "${setName}" ||\n`;
-                        
-                        // 3. 删除可能存在的同名集
-                        slashCommands += `/qr-set-delete ${setName} ||\n`;
-                        
-                        // 4. 创建新的快速回复集
+                        // 2. 创建新的快速回复集（不删除原有的，与预设和正则保持一致）
                         slashCommands += `/qr-set-create nosend=${qrSet.disableSend || false} before=${qrSet.placeBeforeInput || false} inject=${qrSet.injectInput || false} ${setName} ||\n`;
                         
-                        // 5. 创建快速回复项
+                        // 3. 创建快速回复项
                         if (qrSet.qrList && qrSet.qrList.length > 0) {
                             for (const qr of qrSet.qrList) {
                                 // 转义消息内容
@@ -816,7 +809,7 @@
                                 slashCommands += `"${escapedMessage}" ||\n`;
                             }
                             
-                            // 6. 添加上下文菜单项
+                            // 4. 添加上下文菜单项
                             for (const qr of qrSet.qrList) {
                                 if (qr.contextList && qr.contextList.length > 0) {
                                     for (const context of qr.contextList) {
@@ -826,10 +819,10 @@
                             }
                         }
                         
-                        // 7. 启用快速回复集（默认为全局）
+                        // 5. 启用快速回复集（默认为全局）
                         slashCommands += `/qr-set-on visible=true "${setName}" ||\n`;
                         
-                        // 8. 关闭严格转义
+                        // 6. 关闭严格转义
                         slashCommands += '/parser-flag STRICT_ESCAPING off ||\n';
                         
                         debugLog(`执行slash命令序列:\n${slashCommands}`);
@@ -880,9 +873,7 @@
             showStatus(`导入完成！成功导入 ${importedCount} 个项目`, 'success');
             debugLog('导入完成');
             
-            // 由于使用了slash命令系统，不需要刷新页面
-            // 快速回复集应该已经正确创建并可用
-            
+
             packageData = null;
             const packageFile = document.getElementById('package-file');
             const packageInfo = document.getElementById('package-info');
