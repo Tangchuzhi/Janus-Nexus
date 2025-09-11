@@ -822,10 +822,7 @@
                             }
                         }
                         
-                        // 5. 启用快速回复集（默认为全局）
-                        slashCommands += `/qr-set-on visible=true "${setName}" ||\n`;
-                        
-                        // 6. 关闭严格转义
+                        // 5. 关闭严格转义
                         slashCommands += '/parser-flag STRICT_ESCAPING off ||\n';
                         
                         debugLog(`执行slash命令序列:\n${slashCommands}`);
@@ -933,7 +930,8 @@
         window.handleFileSelect = handleFileSelect;
         window.triggerFileSelect = triggerFileSelect;
         window.importPackage = importPackage;
-                
+        
+        
         // 加载资源
         loadAllResources();
     }
