@@ -882,7 +882,13 @@
             showStatus(`导入完成！成功导入 ${importedCount} 个项目`, 'success');
             debugLog('导入完成');
             
-
+            // 导入成功后自动刷新页面
+            setTimeout(() => {
+                debugLog('准备刷新页面...');
+                showStatus('页面即将刷新...', 'info');
+                window.location.reload();
+            }, 5000); // 5秒后刷新，让用户看到成功消息
+            
             packageData = null;
             const packageFile = document.getElementById('package-file');
             const packageInfo = document.getElementById('package-info');
