@@ -690,12 +690,12 @@
                 debugLog(`正则设置已更新并保存`);
             }
             
-            // 导入快速回复 - 使用TavernHelper接口
+            // 导入快速回复 - 使用SillyTavern原生斜杠命令
             if (packageData.quick_reply_sets && Object.keys(packageData.quick_reply_sets).length > 0) {
-                // 检查TavernHelper是否可用
-                if (typeof TavernHelper === 'undefined') {
-                    debugLog('TavernHelper未找到，跳过快速回复导入');
-                    showStatus('TavernHelper未找到，跳过快速回复导入', 'warning');
+                // 检查斜杠命令处理器是否可用
+                if (!window.executeSlashCommands) {
+                    debugLog('斜杠命令处理器未找到，跳过快速回复导入');
+                    showStatus('斜杠命令处理器未找到，跳过快速回复导入', 'warning');
                 } else {
                     let qrImportCount = 0;
                     
@@ -719,7 +719,7 @@
                             
                             // 创建快速回复集
                             try {
-                                await TavernHelper.triggerSlash(`/qr-set-create "${setName}"`);
+                                await window.executeSlashCommands(`/qr-set-create "${setName}"`);
                                 debugLog(`创建快速回复集: ${setName}`);
                             } catch (createError) {
                                 // 如果创建失败，可能是已存在，继续导入
@@ -791,7 +791,7 @@
                                     const command = reply.message || reply.command || '';
                                     const fullCommand = `/qr-create ${args.join(' ')} ${command}`;
                                     
-                                    await TavernHelper.triggerSlash(fullCommand);
+                                    await window.executeSlashCommands(fullCommand);
                                     debugLog(`导入快速回复: ${reply.label || '无标签'}`);
                                     
                                 } catch (replyError) {
@@ -880,3 +880,4 @@
     }
     
 })();
+
