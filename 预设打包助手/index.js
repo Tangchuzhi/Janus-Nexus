@@ -614,186 +614,179 @@
         debugLog(`包信息: ${Object.keys(data.presets || {}).length} 预设, ${Object.keys(data.regexes || {}).length} 正则, ${Object.keys(data.quick_reply_sets || {}).length} 快速回复集`);
     }
     
-    // 导入包
-    async function importPackage() {
-        if (!packageData) {
-            showStatus('请先选择文件', 'error');
-            return;
-        }
+// 导入包
+async function importPackage() {
+    if (!packageData) {
+        showStatus('请先选择文件', 'error');
+        return;
+    }
+    
+    try {
+        showStatus('导入中...', 'info');
+        let totalItems = (packageData.presets ? Object.keys(packageData.presets).length : 0) + 
+                         (packageData.regexes ? Object.keys(packageData.regexes).length : 0) +
+                         (packageData.quick_reply_sets ? Object.keys(packageData.quick_reply_sets).length : 0);
+        let importedCount = 0;
         
-        try {
-            showStatus('导入中...', 'info');
-            let totalItems = (packageData.presets ? Object.keys(packageData.presets).length : 0) + 
-                             (packageData.regexes ? Object.keys(packageData.regexes).length : 0) +
-                             (packageData.quick_reply_sets ? Object.keys(packageData.quick_reply_sets).length : 0);
-            let importedCount = 0;
+        debugLog(`开始导入，总项目数: ${totalItems}`);
+        
+        // 导入预设
+        if (packageData.presets) {
+            const context = SillyTavern.getContext();
+            const presetManager = context.getPresetManager();
             
-            // 导入预设
-            if (packageData.presets) {
-                const context = SillyTavern.getContext();
-                const presetManager = context.getPresetManager();
-                
-                if (presetManager) {
-                    for (const [name, preset] of Object.entries(packageData.presets)) {
-                        try {
-                            // 确保预设名称正确
-                            const presetToSave = { ...preset };
-                            presetToSave.name = name;
-                            
-                            await presetManager.savePreset(name, presetToSave, { skipUpdate: true });
-                            debugLog(`预设导入: ${name} (${Object.keys(presetToSave).length} 个设置项)`);
-                            importedCount++;
-                        } catch (error) {
-                            debugLog(`预设 ${name} 导入失败: ${error.message}`);
-                        }
-                    }
-                } else {
-                    debugLog('预设管理器未找到，跳过预设导入');
-                }
-            }
-            
-            // 导入正则
-            if (packageData.regexes && Object.keys(packageData.regexes).length > 0) {
-                const context = SillyTavern.getContext();
-                const regexSettings = context.extensionSettings?.regex || [];
-                const newRegexSettings = [...regexSettings];
-                
-                for (const [name, regex] of Object.entries(packageData.regexes)) {
+            if (presetManager) {
+                for (const [name, preset] of Object.entries(packageData.presets)) {
                     try {
-                        // 为导入的正则生成新的唯一ID，避免与现有正则冲突
-                        const regexWithNewId = {
-                            ...regex,
-                            id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
-                        };
+                        const presetToSave = { ...preset };
+                        presetToSave.name = name;
                         
-                        // 检查是否已存在相同名称的正则
-                        const existingIndex = newRegexSettings.findIndex(r => r.scriptName === name);
-                        if (existingIndex >= 0) {
-                            newRegexSettings[existingIndex] = regexWithNewId;
-                            debugLog(`正则更新: ${name} (新ID: ${regexWithNewId.id})`);
-                        } else {
-                            newRegexSettings.push(regexWithNewId);
-                            debugLog(`正则导入: ${name} (新ID: ${regexWithNewId.id})`);
-                        }
+                        await presetManager.savePreset(name, presetToSave, { skipUpdate: true });
+                        debugLog(`预设导入成功: ${name}`);
                         importedCount++;
                     } catch (error) {
-                        debugLog(`正则 ${name} 导入失败: ${error.message}`);
+                        debugLog(`预设 ${name} 导入失败: ${error.message}`);
                     }
                 }
-                
-                // 更新正则设置并保存
-                context.extensionSettings.regex = newRegexSettings;
-                // 调用保存函数
-                if (context.saveSettingsDebounced) {
-                    context.saveSettingsDebounced();
+            } else {
+                debugLog('预设管理器未找到，跳过预设导入');
+            }
+        }
+        
+        // 导入正则
+        if (packageData.regexes && Object.keys(packageData.regexes).length > 0) {
+            const context = SillyTavern.getContext();
+            const regexSettings = context.extensionSettings?.regex || [];
+            const newRegexSettings = [...regexSettings];
+            
+            for (const [name, regex] of Object.entries(packageData.regexes)) {
+                try {
+                    const regexWithNewId = {
+                        ...regex,
+                        id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+                    };
+                    
+                    const existingIndex = newRegexSettings.findIndex(r => r.scriptName === name);
+                    if (existingIndex >= 0) {
+                        newRegexSettings[existingIndex] = regexWithNewId;
+                        debugLog(`正则更新: ${name}`);
+                    } else {
+                        newRegexSettings.push(regexWithNewId);
+                        debugLog(`正则导入: ${name}`);
+                    }
+                    importedCount++;
+                } catch (error) {
+                    debugLog(`正则 ${name} 导入失败: ${error.message}`);
                 }
-                debugLog(`正则设置已更新并保存`);
             }
             
-            // 导入快速回复 - 直接保存为文件
-            if (packageData.quick_reply_sets && Object.keys(packageData.quick_reply_sets).length > 0) {
-                let qrImportCount = 0;
+            context.extensionSettings.regex = newRegexSettings;
+            if (context.saveSettingsDebounced) {
+                context.saveSettingsDebounced();
+            }
+            debugLog(`正则设置已更新并保存`);
+        }
+        
+        // 导入快速回复集 - 简化为单一方法
+        if (packageData.quick_reply_sets && Object.keys(packageData.quick_reply_sets).length > 0) {
+            debugLog(`开始导入 ${Object.keys(packageData.quick_reply_sets).length} 个快速回复集`);
+            
+            for (const [setName, qrSetData] of Object.entries(packageData.quick_reply_sets)) {
+                debugLog(`正在处理快速回复集: ${setName}`);
+                debugLog(`原始数据:`, qrSetData);
                 
-                for (const [setName, qrSetData] of Object.entries(packageData.quick_reply_sets)) {
-                    try {
-                        debugLog(`开始导入快速回复集: ${setName}`);
-                        
-                        // 检查数据格式 - 支持两种格式
-                        let qrSetToSave = {};
-                        
-                        if (Array.isArray(qrSetData)) {
-                            // 新格式：直接是回复数组，需要构建完整的QR集结构
-                            qrSetToSave = {
-                                name: setName,
-                                disableSend: false,
-                                placeBeforeInput: false,
-                                injectInput: false,
-                                scope: "global",
-                                color: "transparent",
-                                onlyBorderColor: false,
-                                isVisible: true,
-                                qrList: qrSetData.map(reply => ({
-                                    id: reply.id || Date.now() + Math.random().toString(36).substr(2, 9),
-                                    label: reply.label || '',
-                                    title: reply.title || '',
-                                    message: reply.message || reply.command || '',
-                                    isHidden: reply.isHidden || false,
-                                    executeOnStartup: reply.executeOnStartup || false,
-                                    executeOnUser: reply.executeOnUser || false,
-                                    executeOnAi: reply.executeOnAi || false,
-                                    executeOnChatChange: reply.executeOnChatChange || false,
-                                    executeOnGroupMemberDraft: reply.executeOnGroupMemberDraft || false,
-                                    executeOnNewChat: reply.executeOnNewChat || false,
-                                    executeBeforeGeneration: reply.executeBeforeGeneration || false,
-                                    automationId: reply.automationId || '',
-                                    contextList: reply.contextList || []
-                                }))
-                            };
-                        } else if (qrSetData.qrList && Array.isArray(qrSetData.qrList)) {
-                            // 旧格式：完整的QR集对象
-                            qrSetToSave = {
-                                name: setName,
-                                disableSend: qrSetData.disableSend || false,
-                                placeBeforeInput: qrSetData.placeBeforeInput || false,
-                                injectInput: qrSetData.injectInput || false,
-                                scope: qrSetData.scope || "global",
-                                color: qrSetData.color || "transparent",
-                                onlyBorderColor: qrSetData.onlyBorderColor || false,
-                                isVisible: qrSetData.isVisible !== false,
-                                qrList: qrSetData.qrList.map(qr => ({
-                                    id: qr.id || Date.now() + Math.random().toString(36).substr(2, 9),
-                                    label: qr.label || '',
-                                    title: qr.title || '',
-                                    message: qr.message || '',
-                                    isHidden: qr.isHidden || false,
-                                    executeOnStartup: qr.executeOnStartup || false,
-                                    executeOnUser: qr.executeOnUser || false,
-                                    executeOnAi: qr.executeOnAi || false,
-                                    executeOnChatChange: qr.executeOnChatChange || false,
-                                    executeOnGroupMemberDraft: qr.executeOnGroupMemberDraft || false,
-                                    executeOnNewChat: qr.executeOnNewChat || false,
-                                    executeBeforeGeneration: qr.executeBeforeGeneration || false,
-                                    automationId: qr.automationId || '',
-                                    contextList: qr.contextList || []
-                                }))
-                            };
-                        } else {
-                            debugLog(`快速回复集 ${setName} 数据格式不支持，跳过`);
-                            continue;
-                        }
-                        
-                        // 使用SillyTavern的文件保存API
-                        try {
-                            const response = await fetch('/api/files/write', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                    path: `data/default-user/QuickReplies/${setName}.json`,
-                                    data: JSON.stringify(qrSetToSave, null, 2)
-                                })
-                            });
-                            
-                            if (response.ok) {
-                                qrImportCount++;
-                                importedCount++;
-                                debugLog(`快速回复集文件保存成功: ${setName} (${qrSetToSave.qrList.length} 个回复)`);
-                            } else {
-                                const errorText = await response.text();
-                                throw new Error(`文件保存失败: ${response.status} ${errorText}`);
-                            }
-                        } catch (saveError) {
-                            debugLog(`快速回复集文件保存失败: ${setName} - ${saveError.message}`);
-                        }
-                        
-                    } catch (setError) {
-                        debugLog(`快速回复集 ${setName} 导入失败: ${setError.message}`);
-                    }
-                }
-                
-                // 更新快速回复扩展设置，添加新的QR集到配置中
                 try {
+                    // 构建标准的QR集格式
+                    let qrSetToSave;
+                    
+                    if (Array.isArray(qrSetData)) {
+                        // 如果是数组格式（旧格式）
+                        debugLog(`检测到数组格式，转换为标准格式`);
+                        qrSetToSave = {
+                            name: setName,
+                            disableSend: false,
+                            placeBeforeInput: false,
+                            injectInput: false,
+                            scope: "global",
+                            color: "transparent",
+                            onlyBorderColor: false,
+                            isVisible: true,
+                            qrList: qrSetData.map(reply => ({
+                                id: reply.id || `qr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                                label: reply.label || reply.name || '',
+                                title: reply.title || '',
+                                message: reply.message || reply.command || reply.text || '',
+                                isHidden: reply.isHidden || false,
+                                executeOnStartup: reply.executeOnStartup || false,
+                                executeOnUser: reply.executeOnUser || false,
+                                executeOnAi: reply.executeOnAi || false,
+                                executeOnChatChange: reply.executeOnChatChange || false,
+                                executeOnGroupMemberDraft: reply.executeOnGroupMemberDraft || false,
+                                executeOnNewChat: reply.executeOnNewChat || false,
+                                executeBeforeGeneration: reply.executeBeforeGeneration || false,
+                                automationId: reply.automationId || '',
+                                contextList: reply.contextList || []
+                            }))
+                        };
+                    } else if (qrSetData.qrList && Array.isArray(qrSetData.qrList)) {
+                        // 如果是对象格式（新格式）
+                        debugLog(`检测到对象格式，使用标准格式`);
+                        qrSetToSave = {
+                            name: setName,
+                            disableSend: qrSetData.disableSend || false,
+                            placeBeforeInput: qrSetData.placeBeforeInput || false,
+                            injectInput: qrSetData.injectInput || false,
+                            scope: qrSetData.scope || "global",
+                            color: qrSetData.color || "transparent",
+                            onlyBorderColor: qrSetData.onlyBorderColor || false,
+                            isVisible: qrSetData.isVisible !== false,
+                            qrList: qrSetData.qrList.map(qr => ({
+                                id: qr.id || `qr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                                label: qr.label || '',
+                                title: qr.title || '',
+                                message: qr.message || '',
+                                isHidden: qr.isHidden || false,
+                                executeOnStartup: qr.executeOnStartup || false,
+                                executeOnUser: qr.executeOnUser || false,
+                                executeOnAi: qr.executeOnAi || false,
+                                executeOnChatChange: qr.executeOnChatChange || false,
+                                executeOnGroupMemberDraft: qr.executeOnGroupMemberDraft || false,
+                                executeOnNewChat: qr.executeOnNewChat || false,
+                                executeBeforeGeneration: qr.executeBeforeGeneration || false,
+                                automationId: qr.automationId || '',
+                                contextList: qr.contextList || []
+                            }))
+                        };
+                    } else {
+                        throw new Error(`不支持的数据格式`);
+                    }
+                    
+                    debugLog(`构建的QR集数据:`, qrSetToSave);
+                    debugLog(`QR列表长度: ${qrSetToSave.qrList.length}`);
+                    
+                    // 保存QR集文件
+                    const fileResponse = await fetch('/api/files/write', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            path: `data/default-user/QuickReplies/${setName}.json`,
+                            data: JSON.stringify(qrSetToSave, null, 2)
+                        })
+                    });
+                    
+                    debugLog(`文件写入响应状态: ${fileResponse.status}`);
+                    
+                    if (!fileResponse.ok) {
+                        const errorText = await fileResponse.text();
+                        debugLog(`文件写入失败响应: ${errorText}`);
+                        throw new Error(`文件保存失败: ${fileResponse.status} - ${errorText}`);
+                    }
+                    
+                    debugLog(`快速回复集文件保存成功: ${setName}`);
+                    
+                    // 更新扩展设置
                     const context = SillyTavern.getContext();
                     if (!context.extensionSettings.quickReplyV2) {
                         context.extensionSettings.quickReplyV2 = { config: { setList: [] } };
@@ -805,101 +798,73 @@
                         context.extensionSettings.quickReplyV2.config.setList = [];
                     }
                     
-                    // 为每个导入的QR集添加配置条目
-                    for (const setName of Object.keys(packageData.quick_reply_sets)) {
-                        const existingIndex = context.extensionSettings.quickReplyV2.config.setList.findIndex(
-                            item => item.set === setName
-                        );
-                        
-                        const configEntry = {
-                            set: setName,
-                            isVisible: true
-                        };
-                        
-                        if (existingIndex >= 0) {
-                            context.extensionSettings.quickReplyV2.config.setList[existingIndex] = configEntry;
-                        } else {
-                            context.extensionSettings.quickReplyV2.config.setList.push(configEntry);
-                        }
+                    // 添加或更新配置条目
+                    const existingIndex = context.extensionSettings.quickReplyV2.config.setList.findIndex(
+                        item => item.set === setName
+                    );
+                    
+                    const configEntry = {
+                        set: setName,
+                        isVisible: true
+                    };
+                    
+                    if (existingIndex >= 0) {
+                        context.extensionSettings.quickReplyV2.config.setList[existingIndex] = configEntry;
+                        debugLog(`更新现有QR集配置: ${setName}`);
+                    } else {
+                        context.extensionSettings.quickReplyV2.config.setList.push(configEntry);
+                        debugLog(`添加新QR集配置: ${setName}`);
                     }
                     
-                    // 保存扩展设置
-                    if (context.saveSettingsDebounced) {
-                        context.saveSettingsDebounced();
-                    }
+                    importedCount++;
+                    debugLog(`快速回复集导入成功: ${setName} (${qrSetToSave.qrList.length} 个回复)`);
                     
-                    debugLog(`快速回复配置已更新，成功导入 ${qrImportCount} 个QR集`);
-                } catch (configError) {
-                    debugLog(`快速回复配置更新失败: ${configError.message}`);
+                } catch (setError) {
+                    debugLog(`快速回复集 ${setName} 导入失败: ${setError.message}`);
+                    debugLog(`错误堆栈: ${setError.stack}`);
                 }
             }
             
-            showProgress(100);
-            showStatus(`导入完成！成功导入 ${importedCount} 个项目`, 'success');
-            debugLog('导入完成');
+            // 保存扩展设置
+            try {
+                const context = SillyTavern.getContext();
+                if (context.saveSettingsDebounced) {
+                    context.saveSettingsDebounced();
+                    debugLog(`扩展设置已保存`);
+                } else {
+                    debugLog(`saveSettingsDebounced方法未找到`);
+                }
+            } catch (saveError) {
+                debugLog(`保存扩展设置失败: ${saveError.message}`);
+            }
             
-            // 清理导入数据
-            packageData = null;
-            const packageFile = document.getElementById('package-file');
-            const packageInfo = document.getElementById('package-info');
-            if (packageFile) packageFile.value = '';
-            if (packageInfo) packageInfo.style.display = 'none';
-            
-            // 导入成功后自动刷新浏览器
-            setTimeout(() => {
-                debugLog('导入成功，准备刷新页面...');
-                window.location.reload();
-            }, 2000); // 2秒后刷新，让用户看到成功消息
-            
-        } catch (error) {
-            showProgress(100);
-            showStatus('导入失败: ' + error.message, 'error');
-            debugLog('导入错误: ' + error.stack);
+            debugLog(`快速回复集导入阶段完成`);
+        } else {
+            debugLog(`没有快速回复集需要导入`);
         }
-    }
-    
-    // 加载所有资源
-    async function loadAllResources() {
-        showStatus('正在加载所有资源...', 'info');
-        showProgress(10);
         
-        await loadPresets();
-        showProgress(40);
-        
-        await loadRegexes();
-        showProgress(70);
-        
-        await loadQuickReplies();
         showProgress(100);
+        showStatus(`导入完成！成功导入 ${importedCount} 个项目`, 'success');
+        debugLog(`导入总结: 成功导入 ${importedCount} 个项目`);
         
-        showStatus('资源加载完成', 'success');
-    }
-    
-    // 初始化函数
-    function initializePresetHelper() {
-        debugLog('预设打包助手初始化完成');
+        // 清理导入数据
+        packageData = null;
+        const packageFile = document.getElementById('package-file');
+        const packageInfo = document.getElementById('package-info');
+        if (packageFile) packageFile.value = '';
+        if (packageInfo) packageInfo.style.display = 'none';
         
-        // 将函数暴露到全局作用域
-        window.switchPresetTab = switchPresetTab;
-        window.switchResourceTab = switchResourceTab;
-        window.togglePreset = togglePreset;
-        window.toggleRegex = toggleRegex;
-        window.toggleQuickReply = toggleQuickReply;
-        window.createPackage = createPackage;
-        window.handleFileSelect = handleFileSelect;
-        window.triggerFileSelect = triggerFileSelect;
-        window.importPackage = importPackage;
+        // 延迟刷新页面让快速回复扩展重新加载
+        setTimeout(() => {
+            debugLog('准备刷新页面以重新加载快速回复扩展...');
+            window.location.reload();
+        }, 3000);
         
-        // 加载资源
-        loadAllResources();
+    } catch (error) {
+        showProgress(100);
+        showStatus('导入失败: ' + error.message, 'error');
+        debugLog('导入过程出现严重错误: ' + error.message);
+        debugLog('错误堆栈: ' + error.stack);
     }
-    
-    // 等待 DOM 加载完成
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializePresetHelper);
-    } else {
-        initializePresetHelper();
-    }
-    
-})();
+}
 
