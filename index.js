@@ -844,7 +844,7 @@ jQuery(() => {
         }
         
         .supported-formats p {
-            margin: 0 0 8px 0;
+            margin: 0 0 4px 0;
             font-size: 12px;
             color: var(--SmartThemeTextColor);
             opacity: 0.8;
@@ -852,10 +852,11 @@ jQuery(() => {
         }
         
         .url-types {
-            font-size: 11px;
+            margin: 0;
+            font-size: 12px;
             color: var(--SmartThemeTextColor);
-            opacity: 0.7;
-            line-height: 1.2;
+            opacity: 0.8;
+            line-height: 1.3;
         }
         
         .url-types strong {
