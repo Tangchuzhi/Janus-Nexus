@@ -484,7 +484,7 @@ class SudokuGame {
                         继续欣赏
                     </button>
                 </div>
-            </div>
+        </div>
         `;
         
         document.body.insertAdjacentHTML('beforeend', winHTML);
@@ -509,25 +509,25 @@ class SudokuGame {
                         <div class="sudoku-controls">
                             <button class="sudoku-control-btn" id="sudoku-new-game">新游戏</button>
                             <select class="sudoku-difficulty-select" id="sudoku-difficulty">
-                                <option value="easy" ${this.difficulty === 'easy' ? 'selected' : ''}>简单</option>
-                                <option value="medium" ${this.difficulty === 'medium' ? 'selected' : ''}>中等</option>
-                                <option value="hard" ${this.difficulty === 'hard' ? 'selected' : ''}>困难</option>
-                            </select>
+                        <option value="easy" ${this.difficulty === 'easy' ? 'selected' : ''}>简单</option>
+                        <option value="medium" ${this.difficulty === 'medium' ? 'selected' : ''}>中等</option>
+                        <option value="hard" ${this.difficulty === 'hard' ? 'selected' : ''}>困难</option>
+                    </select>
                             <button class="sudoku-control-btn" id="sudoku-hint">提示</button>
                             <button class="sudoku-control-btn" id="sudoku-check">提交</button>
-                        </div>
+                </div>
                         
                         <div class="sudoku-grid-container">
                             <div class="sudoku-grid" id="sudoku-grid">
                                 <!-- 9x9网格将通过JavaScript生成 -->
-                            </div>
-                        </div>
-                        
+                </div>
+            </div>
+            
                         <div class="sudoku-info">
                             <div class="sudoku-info-item">
                                 <span>⏱️</span>
                                 <span id="sudoku-time">00:00</span>
-                            </div>
+            </div>
                             <div class="sudoku-info-item">
                                 <span>💡</span>
                                 <span id="sudoku-hints">${this.hintsLeft}</span>
@@ -538,8 +538,8 @@ class SudokuGame {
                             </div>
                         </div>
                     </div>
-                </div>
             </div>
+        </div>
         `;
         
         return gameHTML;
@@ -908,7 +908,7 @@ class SudokuGame {
             }
             return;
         }
-
+        
         // 找到所有空的单元格
         const emptyCells = [];
         const cells = document.querySelectorAll('.sudoku-cell');
@@ -970,12 +970,12 @@ class SudokuGame {
 
             if (!value) {
                 hasEmpty = true;
-                return;
-            }
-
+            return;
+        }
+        
             const num = parseInt(value);
-            const correctValue = this.solution[row][col];
-
+        const correctValue = this.solution[row][col];
+        
             if (num !== correctValue) {
                 cell.classList.add('sudoku-cell-error');
                 hasErrors = true;
@@ -1049,13 +1049,13 @@ class SudokuGame {
             styleElement.textContent = this.getSudokuStyles();
             document.head.appendChild(styleElement);
         }
-
+        
         // 渲染游戏界面
         const gameHTML = this.renderGame();
         document.body.insertAdjacentHTML('beforeend', gameHTML);
         
         // 绑定事件监听器
-        this.setupEventListeners();
+            this.setupEventListeners();
 
         // 尝试加载已保存的游戏
         const loaded = await this.loadGameState();
@@ -1655,8 +1655,8 @@ window.sudokuGame = new SudokuGame();
 window.startSudokuGame = async function() {
     try {
         await window.sudokuGame.init();
-        // 返回一个简单的成功消息，因为游戏界面已经直接添加到DOM中
-        return '<div style="text-align: center; padding: 20px; color: #28a745;"><h3>✅ 数独游戏已启动</h3><p>游戏界面已显示在屏幕上</p></div>';
+        // 游戏界面已经直接添加到DOM中，不需要返回任何内容
+        return '';
     } catch (error) {
         console.error('启动数独游戏失败:', error);
         return '<div style="color: red; text-align: center; padding: 20px;">数独游戏启动失败，请检查控制台错误信息。</div>';
