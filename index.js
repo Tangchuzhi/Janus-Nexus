@@ -300,6 +300,14 @@ jQuery(() => {
                             <div class="external-interface">
                                 <h5><i class="fa-solid fa-info-circle"></i> 外接口说明</h5>
                                 <p>通过外接口，您可以导入其他游戏插件到百宝箱中运行。</p>
+                                <div class="supported-formats">
+                                    <h6><i class="fa-solid fa-file-code"></i> 支持的文件类型：</h6>
+                                    <ul>
+                                        <li><strong>.js</strong> - JavaScript游戏文件（需包含startGame函数）</li>
+                                        <li><strong>.html</strong> - HTML游戏文件（完整游戏页面）</li>
+                                        <li><strong>.json</strong> - 游戏配置文件</li>
+                                    </ul>
+                                </div>
                                 
                                 <div class="import-section">
                                     <h6><i class="fa-solid fa-upload"></i> 导入游戏</h6>
@@ -498,7 +506,7 @@ jQuery(() => {
     
     // 从URL导入游戏
     async function importGameFromUrl() {
-        const url = prompt('请输入游戏文件的URL地址:');
+        const url = prompt('请输入游戏文件的URL地址:\n\n支持类型：\n• .js文件（JavaScript游戏）\n• .html文件（HTML游戏）\n• .json文件（游戏配置）\n\n示例：\nhttps://raw.githubusercontent.com/user/repo/main/game.js');
         if (url) {
             try {
                 console.log(`[Janusの百宝箱] 从URL导入游戏: ${url}`);
@@ -809,6 +817,32 @@ jQuery(() => {
         /* 外接口样式 */
         .external-interface {
             margin-top: 10px;
+        }
+        
+        .supported-formats {
+            background: rgba(52, 152, 219, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 10px 0;
+            border-left: 4px solid rgba(52, 152, 219, 0.8);
+        }
+        
+        .supported-formats h6 {
+            margin: 0 0 8px 0;
+            color: rgba(52, 152, 219, 0.9);
+            font-size: 13px;
+        }
+        
+        .supported-formats ul {
+            margin: 0;
+            padding-left: 16px;
+        }
+        
+        .supported-formats li {
+            margin: 4px 0;
+            font-size: 12px;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.8;
         }
         
         .external-interface h5 {
