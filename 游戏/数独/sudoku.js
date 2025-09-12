@@ -1053,7 +1053,7 @@ class SudokuGame {
         // 渲染游戏界面
         const gameHTML = this.renderGame();
         document.body.insertAdjacentHTML('beforeend', gameHTML);
-
+        
         // 绑定事件监听器
         this.setupEventListeners();
 
@@ -1071,7 +1071,7 @@ class SudokuGame {
             }
         }
         
-        return gameHTML;
+        return true;
     }
 
     /**
