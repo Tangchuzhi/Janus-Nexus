@@ -302,10 +302,8 @@ jQuery(() => {
                                 <div class="supported-formats">
                                     <p>通过外接口，您可以导入其他游戏插件到百宝箱中运行。</p>
                                     <div class="url-types">
-                                        <strong>支持的URL和文件类型：</strong><br>
-                                        - .js - JavaScript游戏文件<br>
-                                        - .html - HTML游戏文件<br>
-                                        - .json - 游戏配置文件
+                                        <strong>支持的导入文件/URL类型列表：</strong><br>
+                                        Javascript（需包含startGame函数）/html（完整前端代码）/json（游戏配置）
                                     </div>
                                 </div>
                                 
@@ -822,21 +820,39 @@ jQuery(() => {
         .supported-formats {
             background: rgba(52, 152, 219, 0.1);
             border-radius: 8px;
-            padding: 8px 12px;
+            padding: 12px;
             margin: 10px 0;
             border-left: 4px solid rgba(52, 152, 219, 0.8);
         }
         
+        .supported-formats h6 {
+            margin: 0 0 8px 0;
+            color: rgba(52, 152, 219, 0.9);
+            font-size: 13px;
+        }
+        
+        .supported-formats ul {
+            margin: 0;
+            padding-left: 16px;
+        }
+        
+        .supported-formats li {
+            margin: 4px 0;
+            font-size: 12px;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.8;
+        }
+        
         .supported-formats p {
-            margin: 0 0 6px 0;
-            font-size: 11px;
+            margin: 0 0 8px 0;
+            font-size: 12px;
             color: var(--SmartThemeTextColor);
             opacity: 0.8;
             line-height: 1.3;
         }
         
         .url-types {
-            font-size: 10px;
+            font-size: 11px;
             color: var(--SmartThemeTextColor);
             opacity: 0.7;
             line-height: 1.2;
