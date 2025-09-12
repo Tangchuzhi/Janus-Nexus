@@ -1,0 +1,322 @@
+
+
+#sudoku-game-container {
+    max-width: 600px;
+    margin: 20px auto;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+#sudoku-game-container h2 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.game-controls {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.game-controls label {
+    margin-right: 10px;
+    font-weight: bold;
+    color: #34495e;
+}
+
+.game-controls select {
+    padding: 8px 12px;
+    border: 2px solid #bdc3c7;
+    border-radius: 6px;
+    background: white;
+    color: #2c3e50;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+.game-controls select:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.game-buttons {
+    margin: 15px 0;
+}
+
+.game-btn {
+    padding: 10px 18px;
+    margin: 0 5px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.game-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.game-btn:active {
+    transform: translateY(0);
+}
+
+.new-game-btn {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    color: white;
+}
+
+.save-game-btn {
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+    color: white;
+}
+
+.load-game-btn {
+    background: linear-gradient(135deg, #FF9800, #F57C00);
+    color: white;
+}
+
+.hint-btn {
+    background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+    color: white;
+}
+
+#sudoku-board {
+    display: flex;
+    justify-content: center;
+    margin: 20px auto;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+#sudoku-board table {
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+}
+
+.sudoku-cell {
+    width: 45px;
+    height: 45px;
+    text-align: center;
+    vertical-align: middle;
+    font-size: 18px;
+    font-weight: bold;
+    border: 1px solid #e0e0e0;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.sudoku-cell:hover:not(.initial-cell) {
+    background: #f0f8ff !important;
+    transform: scale(1.05);
+    z-index: 10;
+}
+
+.sudoku-cell:focus {
+    outline: 3px solid #3498db;
+    outline-offset: -3px;
+    z-index: 10;
+}
+
+.sudoku-cell.initial-cell {
+    background: #ecf0f1 !important;
+    color: #2c3e50 !important;
+    cursor: not-allowed !important;
+    font-weight: 900;
+}
+
+.sudoku-cell.error-cell {
+    background: #ffebee !important;
+    color: #d32f2f !important;
+    animation: shake 0.5s ease-in-out;
+}
+
+.sudoku-cell.hint-cell {
+    background: #e8f5e8 !important;
+    animation: pulse 1s ease-in-out;
+}
+
+/* 3x3宫格边界样式 */
+.sudoku-cell.border-top {
+    border-top: 3px solid #2c3e50;
+}
+
+.sudoku-cell.border-bottom {
+    border-bottom: 3px solid #2c3e50;
+}
+
+.sudoku-cell.border-left {
+    border-left: 3px solid #2c3e50;
+}
+
+.sudoku-cell.border-right {
+    border-right: 3px solid #2c3e50;
+}
+
+/* 动画效果 */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+    20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.completion-message {
+    animation: fadeIn 0.5s ease-out;
+    text-align: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    margin: 10px 0;
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+.completion-message h2 {
+    margin: 0 0 10px 0;
+    font-size: 24px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.completion-message p {
+    margin: 0;
+    font-size: 16px;
+    opacity: 0.95;
+}
+
+.game-instructions {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 14px;
+    color: #7f8c8d;
+    line-height: 1.5;
+}
+
+.game-instructions p {
+    margin: 5px 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 600px) {
+    #sudoku-game-container {
+        margin: 10px;
+        padding: 15px;
+    }
+    
+    .sudoku-cell {
+        width: 35px;
+        height: 35px;
+        font-size: 16px;
+    }
+    
+    .game-btn {
+        padding: 8px 12px;
+        margin: 2px;
+        font-size: 12px;
+    }
+    
+    .game-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 5px;
+    }
+}
+
+@media (max-width: 400px) {
+    .sudoku-cell {
+        width: 30px;
+        height: 30px;
+        font-size: 14px;
+    }
+    
+    .game-btn {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+}
+
+/* 深色主题支持 */
+@media (prefers-color-scheme: dark) {
+    #sudoku-game-container {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        color: #ecf0f1;
+    }
+    
+    #sudoku-game-container h2 {
+        color: #ecf0f1;
+    }
+    
+    .game-controls label {
+        color: #bdc3c7;
+    }
+    
+    .game-controls select {
+        background: #34495e;
+        color: #ecf0f1;
+        border-color: #7f8c8d;
+    }
+    
+    #sudoku-board table {
+        background: #2c3e50;
+    }
+    
+    .sudoku-cell {
+        background: #34495e;
+        color: #ecf0f1;
+        border-color: #7f8c8d;
+    }
+    
+    .sudoku-cell.initial-cell {
+        background: #4a5f7a !important;
+        color: #ecf0f1 !important;
+    }
+    
+    .game-instructions {
+        color: #95a5a6;
+    }
+}
+
+/* 打印样式 */
+@media print {
+    #sudoku-game-container {
+        background: white;
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+    
+    .game-controls,
+    .game-buttons,
+    .game-instructions,
+    .completion-message {
+        display: none;
+    }
+    
+    .sudoku-cell {
+        border: 1px solid #000 !important;
+        background: white !important;
+        color: black !important;
+    }
+    
+    .sudoku-cell.initial-cell {
+        font-weight: bold;
+    }
+}
