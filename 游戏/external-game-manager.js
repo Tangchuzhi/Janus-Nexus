@@ -333,7 +333,7 @@ function startHTMLGame() {
     };
     document.addEventListener('keydown', keyHandler);
 
-    return '<div style="text-align: center; padding: 20px; color: #28a745;"><h3>✅ HTML游戏已启动</h3><p>游戏界面已显示在屏幕上</p></div>';
+    return '';
 }
 
 // 导出函数 - 确保startGame函数存在
