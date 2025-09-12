@@ -203,7 +203,7 @@ class ExternalGameManager {
 
             return {
                 name: gameName,
-                entryPoint: 'startHTMLGame',
+                entryPoint: 'startGame', // 使用startGame作为入口点
                 description: description,
                 icon: icon,
                 content: convertedContent,
@@ -292,6 +292,7 @@ function startHTMLGame() {
     \`;
     closeBtn.onclick = () => {
         document.body.removeChild(gameContainer);
+        document.head.removeChild(styleElement);
     };
 
     // 添加游戏HTML内容
@@ -332,11 +333,12 @@ function startHTMLGame() {
     };
     document.addEventListener('keydown', keyHandler);
 
-    return gameContainer.outerHTML;
+    return true;
 }
 
-// 导出函数
+// 导出函数 - 确保startGame函数存在
 window.startHTMLGame = startHTMLGame;
+window.startGame = startHTMLGame; // 添加这个别名以确保兼容性
             `;
 
             return runnableCode;
