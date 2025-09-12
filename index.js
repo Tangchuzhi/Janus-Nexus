@@ -370,7 +370,11 @@ jQuery(() => {
         try {
             // 使用游戏加载器启动游戏
             const result = await window.gameLoader.launchGame(gameType);
-            showGameModal(result.content, result.title);
+            
+            // 如果游戏内容为空，说明游戏已经直接显示在屏幕上，不需要显示模态框
+            if (result.content && result.content.trim() !== '') {
+                showGameModal(result.content, result.title);
+            }
             
         } catch (error) {
             console.error(`[Janusの百宝箱] 启动游戏失败:`, error);
@@ -568,7 +572,11 @@ jQuery(() => {
     async function launchExternalGame(gameId) {
         try {
             const result = await window.externalGameManager.launchExternalGame(gameId);
-            showGameModal(result.content, result.title);
+            
+            // 如果游戏内容为空，说明游戏已经直接显示在屏幕上，不需要显示模态框
+            if (result.content && result.content.trim() !== '') {
+                showGameModal(result.content, result.title);
+            }
         } catch (error) {
             console.error('[Janusの百宝箱] 启动外部游戏失败:', error);
             showGameModal(`
