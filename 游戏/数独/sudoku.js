@@ -1654,8 +1654,9 @@ window.sudokuGame = new SudokuGame();
 // 导出游戏启动函数
 window.startSudokuGame = async function() {
     try {
-        const gameHTML = await window.sudokuGame.init();
-        return gameHTML;
+        await window.sudokuGame.init();
+        // 返回一个简单的成功消息，因为游戏界面已经直接添加到DOM中
+        return '<div style="text-align: center; padding: 20px; color: #28a745;"><h3>✅ 数独游戏已启动</h3><p>游戏界面已显示在屏幕上</p></div>';
     } catch (error) {
         console.error('启动数独游戏失败:', error);
         return '<div style="color: red; text-align: center; padding: 20px;">数独游戏启动失败，请检查控制台错误信息。</div>';
