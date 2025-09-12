@@ -514,7 +514,7 @@ class SudokuGame {
                                 <option value="hard" ${this.difficulty === 'hard' ? 'selected' : ''}>困难</option>
                             </select>
                             <button class="sudoku-control-btn" id="sudoku-hint">提示</button>
-                            <button class="sudoku-control-btn" id="sudoku-check">检查</button>
+                            <button class="sudoku-control-btn" id="sudoku-check">提交</button>
                         </div>
                         
                         <div class="sudoku-grid-container">
@@ -1022,11 +1022,25 @@ class SudokuGame {
      * 初始化游戏
      */
     async init() {
-        // 先关闭可能存在的游戏弹窗
+        // 先关闭可能存在的游戏弹窗和所有相关元素
         const existingPopup = document.getElementById('sudoku-game-popup');
         if (existingPopup) {
             existingPopup.remove();
         }
+        
+        // 清理完成消息弹窗
+        const winDialog = document.getElementById('sudoku-win-dialog');
+        if (winDialog) {
+            winDialog.remove();
+        }
+        
+        // 清理任何可能残留的数独相关弹窗
+        const existingPopups = document.querySelectorAll('[id*="sudoku"]');
+        existingPopups.forEach(popup => {
+            if (popup.id.includes('sudoku')) {
+                popup.remove();
+            }
+        });
 
         // 添加数独游戏专用样式
         if (!document.getElementById('sudoku-game-styles')) {
@@ -1140,15 +1154,31 @@ class SudokuGame {
             document.removeEventListener('keydown', this.keydownHandler);
         }
 
-        // 移除弹窗和样式
+        // 移除所有数独相关的弹窗和元素
         const popup = document.getElementById('sudoku-game-popup');
         if (popup) {
             popup.remove();
         }
+        
+        // 移除完成消息弹窗
+        const winDialog = document.getElementById('sudoku-win-dialog');
+        if (winDialog) {
+            winDialog.remove();
+        }
+        
+        // 移除样式
         const styles = document.getElementById('sudoku-game-styles');
         if (styles) {
             styles.remove();
         }
+        
+        // 清理任何可能残留的弹窗
+        const existingPopups = document.querySelectorAll('[id*="sudoku"]');
+        existingPopups.forEach(popup => {
+            if (popup.id.includes('sudoku')) {
+                popup.remove();
+            }
+        });
     }
 
     /**
