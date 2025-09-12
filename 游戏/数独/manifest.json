@@ -19,9 +19,7 @@
     },
     "files": {
         "main": "sudoku.js",
-        "style": "sudoku.css",
-        "demo": "index.html",
-        "documentation": "README.md"
+        "style": "sudoku.css"
     },
     "compatibility": {
         "tavern_helper": false,
@@ -30,6 +28,4 @@
     },
     "license": "MIT",
     "homepage": "https://github.com/chuzhitang/Janus-Treasure-chest",
-    "created": "2024-09-12",
-    "updated": "2024-09-12"
 }
