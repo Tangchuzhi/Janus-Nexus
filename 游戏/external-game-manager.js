@@ -143,6 +143,11 @@ class ExternalGameManager {
                 return this.extractGameInfoFromJS(content, fileName);
             }
 
+            // 尝试从HTML文件中提取游戏信息
+            if (fileName.endsWith('.html')) {
+                return this.extractGameInfoFromHTML(content, fileName);
+            }
+
             throw new Error('不支持的文件格式');
 
         } catch (error) {
@@ -172,6 +177,174 @@ class ExternalGameManager {
             content: content,
             type: 'javascript'
         };
+    }
+
+    /**
+     * 从HTML文件中提取游戏信息
+     */
+    extractGameInfoFromHTML(content, fileName) {
+        try {
+            // 提取标题
+            const titleMatch = content.match(/<title[^>]*>([^<]+)<\/title>/i);
+            const gameName = titleMatch ? titleMatch[1].trim() : fileName.replace('.html', '');
+
+            // 提取描述（从meta标签或注释中）
+            const descMatch = content.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i) ||
+                             content.match(/<!--\s*description:\s*([^->]+)/i);
+            const description = descMatch ? descMatch[1].trim() : 'HTML游戏';
+
+            // 提取图标（从favicon或emoji）
+            const iconMatch = content.match(/<link[^>]*rel=["']icon["'][^>]*>/i) ||
+                             content.match(/<title[^>]*>([🌾🎮🎯🎲🎪🎨🎭🎸🎺🎻🎼🎵🎶🎤🎧🎬🎭🎨🎪🎯🎲🎮🌾🍀🌱🌿🌳🌲🌴🌵🌶️🌽🌾🌿🍀🍁🍂🍃🍄🍅🍆🍇🍈🍉🍊🍋🍌🍍🍎🍏🍐🍑🍒🍓🍔🍕🍖🍗🍘🍙🍚🍛🍜🍝🍞🍟🍠🍡🍢🍣🍤🍥🍦🍧🍨🍩🍪🍫🍬🍭🍮🍯🍰🍱🍲🍳🍴🍵🍶🍷🍸🍹🍺🍻🍼🍽️🍾🍿🎀🎁🎂🎃🎄🎅🎆🎇🎈🎉🎊🎋🎌🎍🎎🎏🎐🎑🎒🎓🎖🎗🎙🎚🎛🎜🎝🎞🎟🎠🎡🎢🎣🎤🎥🎦🎧🎨🎩🎪🎫🎬🎭🎮🎯🎰🎱🎲🎳🎴🎵🎶🎷🎸🎹🎺🎻🎼🎽🎾🎿🏀🏁🏂🏃🏄🏅🏆🏇🏈🏉🏊🏋🏌🏍🏎🏏🏐🏑🏒🏓🏔🏕🏖🏗🏘🏙🏚🏛🏜🏝🏞🏟🏠🏡🏢🏣🏤🏥🏦🏧🏨🏩🏪🏫🏬🏭🏮🏯🏰🏱🏲🏳🏴🏵🏶🏷🏸🏹🏺🏻🏼🏽🏾🏿])/i);
+            const icon = iconMatch ? iconMatch[1] : '🎮';
+
+            // 转换HTML为可在百宝箱中运行的格式
+            const convertedContent = this.convertHTMLToRunnable(content);
+
+            return {
+                name: gameName,
+                entryPoint: 'startHTMLGame',
+                description: description,
+                icon: icon,
+                content: convertedContent,
+                type: 'html',
+                originalHTML: content
+            };
+
+        } catch (error) {
+            console.error('[ExternalGameManager] 解析HTML文件失败:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 将HTML转换为可在百宝箱中运行的格式
+     */
+    convertHTMLToRunnable(htmlContent) {
+        try {
+            // 提取CSS样式
+            const styleMatch = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+            const styles = styleMatch ? styleMatch[1] : '';
+
+            // 提取JavaScript代码
+            const scriptMatch = htmlContent.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+            const scripts = scriptMatch ? scriptMatch[1] : '';
+
+            // 提取body内容
+            const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+            const bodyContent = bodyMatch ? bodyMatch[1] : '';
+
+            // 创建可运行的JavaScript代码
+            const runnableCode = `
+// HTML游戏转换器生成的代码
+function startHTMLGame() {
+    // 创建游戏容器
+    const gameContainer = document.createElement('div');
+    gameContainer.id = 'html-game-container';
+    gameContainer.style.cssText = \`
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+    \`;
+
+    // 创建游戏内容区域
+    const gameContent = document.createElement('div');
+    gameContent.id = 'html-game-content';
+    gameContent.style.cssText = \`
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        max-width: 90vw;
+        max-height: 90vh;
+        overflow: auto;
+        position: relative;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    \`;
+
+    // 添加关闭按钮
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '✕';
+    closeBtn.style.cssText = \`
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: #ff4757;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+    \`;
+    closeBtn.onclick = () => {
+        document.body.removeChild(gameContainer);
+    };
+
+    // 添加游戏HTML内容
+    gameContent.innerHTML = \`${bodyContent.replace(/`/g, '\\`')}\`;
+
+    // 添加样式
+    const styleElement = document.createElement('style');
+    styleElement.textContent = \`${styles.replace(/`/g, '\\`')}\`;
+
+    // 组装游戏容器
+    gameContainer.appendChild(gameContent);
+    gameContent.appendChild(closeBtn);
+    document.head.appendChild(styleElement);
+    document.body.appendChild(gameContainer);
+
+    // 执行游戏脚本
+    try {
+        ${scripts.replace(/`/g, '\\`')}
+    } catch (error) {
+        console.error('游戏脚本执行失败:', error);
+    }
+
+    // 点击遮罩关闭
+    gameContainer.onclick = (e) => {
+        if (e.target === gameContainer) {
+            document.body.removeChild(gameContainer);
+            document.head.removeChild(styleElement);
+        }
+    };
+
+    // ESC键关闭
+    const keyHandler = (e) => {
+        if (e.key === 'Escape') {
+            document.body.removeChild(gameContainer);
+            document.head.removeChild(styleElement);
+            document.removeEventListener('keydown', keyHandler);
+        }
+    };
+    document.addEventListener('keydown', keyHandler);
+
+    return gameContainer.outerHTML;
+}
+
+// 导出函数
+window.startHTMLGame = startHTMLGame;
+            `;
+
+            return runnableCode;
+
+        } catch (error) {
+            console.error('[ExternalGameManager] HTML转换失败:', error);
+            return null;
+        }
     }
 
     /**
@@ -212,6 +385,9 @@ class ExternalGameManager {
             if (gameInfo.type === 'javascript') {
                 // 执行JavaScript游戏
                 return await this.executeJSGame(gameInfo);
+            } else if (gameInfo.type === 'html') {
+                // 执行HTML游戏
+                return await this.executeHTMLGame(gameInfo);
             } else {
                 throw new Error('不支持的游戏类型');
             }
@@ -264,6 +440,47 @@ class ExternalGameManager {
     }
 
     /**
+     * 执行HTML游戏
+     */
+    async executeHTMLGame(gameInfo) {
+        try {
+            // 创建临时脚本元素
+            const script = document.createElement('script');
+            script.textContent = gameInfo.content;
+            
+            // 临时添加到页面
+            const tempContainer = document.createElement('div');
+            tempContainer.style.display = 'none';
+            tempContainer.appendChild(script);
+            document.body.appendChild(tempContainer);
+
+            // 等待脚本执行
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // 检查入口函数是否存在
+            if (typeof window[gameInfo.entryPoint] !== 'function') {
+                throw new Error(`游戏入口函数不存在: ${gameInfo.entryPoint}`);
+            }
+
+            // 启动游戏
+            const gameContent = await window[gameInfo.entryPoint]();
+
+            // 清理临时元素
+            document.body.removeChild(tempContainer);
+
+            return {
+                success: true,
+                content: gameContent,
+                title: gameInfo.name
+            };
+
+        } catch (error) {
+            console.error('[ExternalGameManager] 执行HTML游戏失败:', error);
+            throw error;
+        }
+    }
+
+    /**
      * 删除已导入的游戏
      */
     removeGame(gameId) {
@@ -298,6 +515,7 @@ class ExternalGameManager {
             },
             byType: {
                 javascript: games.filter(g => g.type === 'javascript').length,
+                html: games.filter(g => g.type === 'html').length,
                 json: games.filter(g => g.type === 'json').length
             }
         };
