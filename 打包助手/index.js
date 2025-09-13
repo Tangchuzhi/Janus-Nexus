@@ -894,7 +894,7 @@
             }
             
             showProgress(100);
-            showStatus(`导入完成！成功导入 ${importedCount} 个项目`, 'success');
+            showStatus(`导入完成！成功导入 ${importedCount} 个项目，即将自动刷新页面`, 'success');
             debugLog('导入完成');
             
             // 导入成功后自动刷新页面
