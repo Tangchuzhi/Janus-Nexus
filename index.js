@@ -301,7 +301,7 @@ jQuery(() => {
                                 <h5><i class="fa-solid fa-info-circle"></i> 外接口说明</h5>
                                 <div class="supported-formats">
                                     <p style="margin-bottom: 0;">通过外接口，您可以导入其他游戏插件到百宝箱中运行。</p>
-                                    <div class="url-types">
+                                    <div class="url-types" style="color: inherit;">
                                         <strong>支持的导入文件/URL类型列表：</strong><br>
                                         Javascript（需包含startGame函数）/html（完整前端代码）/json（游戏配置）
                                     </div>
@@ -561,10 +561,10 @@ jQuery(() => {
                     </div>
                 </div>
                 <div class="game-actions">
-                    <button onclick="window.janusHandlers.launchExternalGame('${game.id}')" class="action-btn play-btn">
+                    <button onclick="event.stopPropagation(); window.janusHandlers.launchExternalGame('${game.id}')" class="action-btn play-btn">
                         <i class="fa-solid fa-play"></i> 启动
                     </button>
-                    <button onclick="window.janusHandlers.removeExternalGame('${game.id}')" class="action-btn delete-btn">
+                    <button onclick="event.stopPropagation(); window.janusHandlers.removeExternalGame('${game.id}')" class="action-btn delete-btn">
                         <i class="fa-solid fa-trash"></i> 删除
                     </button>
                 </div>
@@ -579,18 +579,17 @@ jQuery(() => {
         try {
             const result = await window.externalGameManager.launchExternalGame(gameId);
             
-            // 如果游戏内容为空，说明游戏已经直接显示在屏幕上，不需要显示模态框
+            // 不再使用模态框，直接使用toastr提示
             if (result.content && result.content.trim() !== '') {
-                showGameModal(result.content, result.title);
+                // 如果游戏返回了内容，说明是待施工的游戏
+                toastr.info('该游戏正在开发中，敬请期待！', '待施工');
+            } else {
+                // 如果游戏没有返回内容，说明游戏已经直接显示
+                toastr.success('游戏已启动', '启动成功');
             }
         } catch (error) {
             console.error('[Janusの百宝箱] 启动外部游戏失败:', error);
-            showGameModal(`
-                <div style="text-align: center; padding: 40px; color: #dc3545;">
-                    <h3>❌ 游戏启动失败</h3>
-                    <p>错误信息: ${error.message}</p>
-                </div>
-            `, '错误');
+            toastr.error(`游戏启动失败: ${error.message}`, '启动失败');
         }
     }
     
