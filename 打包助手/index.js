@@ -90,18 +90,39 @@
         }
     }
     
-    // 显示状态消息
+    // 显示状态消息 - 使用toastr系统通知
     function showStatus(message, type = 'info') {
+        // 移除旧的DOM状态显示
         const statusEl = document.getElementById('preset-status');
-        if (!statusEl) return;
-        
-        statusEl.textContent = message;
-        statusEl.className = `preset-status ${type}`;
-        statusEl.style.display = 'block';
-        
-        setTimeout(() => {
+        if (statusEl) {
             statusEl.style.display = 'none';
-        }, 4000);
+        }
+        
+        // 使用toastr显示通知
+        switch(type) {
+            case 'success':
+                toastr.success(message, '操作成功', {
+                    timeOut: 3000,
+                    extendedTimeOut: 1000,
+                    positionClass: 'toast-top-right'
+                });
+                break;
+            case 'error':
+                toastr.error(message, '操作失败', {
+                    timeOut: 5000,
+                    extendedTimeOut: 2000,
+                    positionClass: 'toast-top-right'
+                });
+                break;
+            case 'info':
+            default:
+                toastr.info(message, '提示', {
+                    timeOut: 3000,
+                    extendedTimeOut: 1000,
+                    positionClass: 'toast-top-right'
+                });
+                break;
+        }
         
         debugLog(`状态: ${type.toUpperCase()} - ${message}`);
     }
