@@ -301,8 +301,10 @@ jQuery(() => {
                                 <h5><i class="fa-solid fa-info-circle"></i> 外接口说明</h5>
                                 <div class="supported-formats">
                                     <p>通过外接口，您可以导入其他游戏插件到百宝箱中运行。</p>
+                                    <div class="url-types">
                                         <strong>支持的导入文件/URL类型列表：</strong><br>
                                         Javascript（需包含startGame函数）/html（完整前端代码）/json（游戏配置）
+                                    </div>
                                 </div>
                                 
                                 <div class="import-section">
