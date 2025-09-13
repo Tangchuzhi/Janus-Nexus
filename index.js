@@ -255,7 +255,7 @@ jQuery(() => {
                                 <i class="fa-solid fa-cube"></i> 内置游戏
                             </button>
                             <button onclick="window.janusHandlers.switchGameCategory('external')" class="game-category-btn" data-category="external">
-                                <i class="fa-solid fa-plug"></i> 外接口
+                                <i class="fa-solid fa-plug"></i> 外接游戏
                             </button>
                         </div>
                         
@@ -298,12 +298,13 @@ jQuery(() => {
                         <!-- 外接口区域 -->
                         <div id="external-games" class="game-category-content">
                             <div class="external-interface">
-                                <h5><i class="fa-solid fa-info-circle"></i> 外接口说明</h5>
+                                <h5><i class="fa-solid fa-info-circle"></i> 外接游戏说明</h5>
                                 <div class="supported-formats">
-                                    <p style="margin-bottom: 0;">通过外接口，您可以导入其他游戏插件到百宝箱中运行。</p>
                                     <div class="url-types" style="color: var(--SmartThemeTextColor, inherit);">
-                                        <strong>支持的导入文件/URL类型列表：</strong><br>
-                                        Javascript（需包含startGame函数）/html（完整前端代码）/json（游戏配置）
+                                        <strong>支持导入的游戏文件/URL：</strong><br>
+                                        - Javascript（需包含startGame函数）
+                                        - html（完整前端代码）
+                                        - json（游戏配置）
                                     </div>
                                 </div>
                                 
