@@ -111,10 +111,10 @@ jQuery(() => {
     }
     
     
-    // 加载预设打包助手内容
+    // 加载打包助手内容
     async function loadPresetHelperContent() {
         try {
-            const response = await fetch('scripts/extensions/third-party/Janus-Treasure-chest/预设打包助手/index.html');
+            const response = await fetch('scripts/extensions/third-party/Janus-Treasure-chest/打包助手/index.html');
             if (response.ok) {
                 const html = await response.text();
                 const contentDiv = document.getElementById('preset-helper-content');
@@ -123,12 +123,12 @@ jQuery(() => {
                     
                     // 加载JavaScript
                     const script = document.createElement('script');
-                    script.src = 'scripts/extensions/third-party/Janus-Treasure-chest/预设打包助手/index.js';
+                    script.src = 'scripts/extensions/third-party/Janus-Treasure-chest/打包助手/index.js';
                     script.onload = () => {
-                        console.log('[Janusの百宝箱] 预设打包助手脚本加载完成');
+                        console.log('[Janusの百宝箱] 打包助手脚本加载完成');
                     };
                     script.onerror = () => {
-                        console.error('[Janusの百宝箱] 预设打包助手脚本加载失败');
+                        console.error('[Janusの百宝箱] 打包助手脚本加载失败');
                     };
                     document.head.appendChild(script);
                 }
@@ -136,12 +136,12 @@ jQuery(() => {
                 throw new Error(`HTTP ${response.status}`);
             }
         } catch (error) {
-            console.error('[Janusの百宝箱] 加载预设打包助手失败:', error);
+            console.error('[Janusの百宝箱] 加载打包助手失败:', error);
             const contentDiv = document.getElementById('preset-helper-content');
             if (contentDiv) {
                 contentDiv.innerHTML = `
                     <div class="janus-tab-content">
-                        <h4><i class="fa-solid fa-box"></i> 预设打包助手</h4>
+                        <h4><i class="fa-solid fa-box"></i> 打包助手</h4>
                         <p style="color: #dc3545;">加载失败: ${error.message}</p>
                     </div>
                 `;
@@ -238,7 +238,7 @@ jQuery(() => {
                         <div id="preset-helper-content">
                             <div style="text-align: center; padding: 20px;">
                                 <i class="fa-solid fa-spinner fa-spin"></i>
-                                <p>正在加载预设打包助手...</p>
+                                <p>正在加载打包助手...</p>
                             </div>
                         </div>
                     </div>
@@ -337,7 +337,7 @@ jQuery(() => {
         contentArea.innerHTML = content;
         console.log(`[Janusの百宝箱] 切换到标签页: ${tabName}`);
         
-        // 如果是预设打包助手标签页，加载内容
+        // 如果是打包助手标签页，加载内容
         if (tabName === 'presetHelper') {
             setTimeout(() => {
                 loadPresetHelperContent();
@@ -534,7 +534,7 @@ jQuery(() => {
                 <button onclick="window.janusHandlers.switchTab('quickTools')" class="menu_button janus-tab-btn" data-tab="quickTools" title="快速交互工具">
                     <i class="fa-solid fa-bolt"></i> 快速交互
                 </button>
-                <button onclick="window.janusHandlers.switchTab('presetHelper')" class="menu_button janus-tab-btn" data-tab="presetHelper" title="预设打包助手">
+                <button onclick="window.janusHandlers.switchTab('presetHelper')" class="menu_button janus-tab-btn" data-tab="presetHelper" title="打包助手">
                     <i class="fa-solid fa-box"></i> 打包助手
                 </button>
                 <button onclick="window.janusHandlers.switchTab('games')" class="menu_button janus-tab-btn" data-tab="games" title="前端小游戏">
