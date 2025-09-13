@@ -257,7 +257,8 @@ function startHTMLGame() {
     const gameContent = document.createElement('div');
     gameContent.id = 'html-game-content';
     gameContent.style.cssText = \`
-        background: white;
+        background: var(--SmartThemeBodyColor, white);
+        color: var(--SmartThemeTextColor, black);
         border-radius: 12px;
         padding: 20px;
         max-width: 90vw;
