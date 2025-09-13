@@ -1,8 +1,8 @@
-// 预设打包助手 JavaScript 文件
+// 打包助手 JavaScript 文件
 (function() {
     'use strict';
     
-    console.log('[预设打包助手] 开始加载...');
+    console.log('[打包助手] 开始加载...');
     
     // 全局变量
     let selectedPresets = [];
@@ -12,7 +12,7 @@
     
     // 调试日志函数
     function debugLog(message) {
-        console.log('[预设打包助手]', message);
+        console.log('[打包助手]', message);
     }
     
     // 实现triggerSlash函数，用于执行slash命令序列
@@ -918,7 +918,7 @@
     
     // 初始化函数
     function initializePresetHelper() {
-        debugLog('预设打包助手初始化完成');
+        debugLog('打包助手初始化完成');
         
         // 将函数暴露到全局作用域
         window.switchPresetTab = switchPresetTab;
