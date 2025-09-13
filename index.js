@@ -302,9 +302,9 @@ jQuery(() => {
                                 <div class="supported-formats">
                                     <div class="url-types" style="color: var(--SmartThemeTextColor, inherit);">
                                         <strong>支持导入的游戏文件/URL：</strong><br>
-                                        - Javascript（需包含startGame函数）
-                                        - html（完整前端代码）
-                                        - json（游戏配置）
+                                        <p>- Javascript（需包含startGame函数）</p>
+                                        <p>- html（完整前端代码）</p>
+                                        <p>- json（游戏配置）</p>
                                     </div>
                                 </div>
                                 
@@ -403,102 +403,6 @@ jQuery(() => {
             'sudoku': '数独'
         };
         return gameNames[gameType] || '未知游戏';
-    }
-    
-    // 显示游戏模态框
-    function showGameModal(content, title) {
-        // 创建模态框
-        const modal = document.createElement('div');
-        modal.id = 'janus-game-modal';
-        modal.innerHTML = `
-            <div class="janus-modal-overlay">
-                <div class="janus-modal-content">
-                    <div class="janus-modal-header">
-                        <h3>${title}</h3>
-                        <button class="janus-modal-close" onclick="document.getElementById('janus-game-modal').remove()">
-                            <i class="fa-solid fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="janus-modal-body">
-                        ${content}
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // 添加样式
-        const style = document.createElement('style');
-        style.textContent = `
-            #janus-game-modal {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                z-index: 10000;
-            }
-            
-            .janus-modal-overlay {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            
-            .janus-modal-content {
-                background: var(--SmartThemeBackgroundColor, white);
-                border-radius: 8px;
-                max-width: 90vw;
-                max-height: 90vh;
-                overflow: hidden;
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            }
-            
-            .janus-modal-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 15px 20px;
-                border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
-                background: var(--SmartThemeQuoteColor, #f8f9fa);
-            }
-            
-            .janus-modal-header h3 {
-                margin: 0;
-                color: var(--SmartThemeTextColor);
-            }
-            
-            .janus-modal-close {
-                background: none;
-                border: none;
-                font-size: 18px;
-                cursor: pointer;
-                color: var(--SmartThemeTextColor);
-                padding: 5px;
-            }
-            
-            .janus-modal-body {
-                padding: 20px;
-                max-height: 70vh;
-                overflow-y: auto;
-            }
-        `;
-        
-        document.head.appendChild(style);
-        document.body.appendChild(modal);
-        
-        // 点击背景关闭模态框
-        modal.querySelector('.janus-modal-overlay').addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) {
-                modal.remove();
-                style.remove();
-            }
-        });
     }
     
     // 从URL导入游戏
