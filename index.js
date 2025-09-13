@@ -457,8 +457,8 @@ jQuery(() => {
                     <div class="game-details">
                         <div class="game-name">${game.name}</div>
                         <div class="game-meta" style="font-size: 0.8em; opacity: 0.8; line-height: 1.1; display: block;">
-                            <span>${game.source === 'file' ? '[文件]' : '[URL]'}: ${game.type || ''}</span><br>
-                            <span>[时间]: ${new Date(game.importedAt).toLocaleDateString()}</span>
+                            <span>${game.source === 'file' ? '[文件]' : '[URL]'}${game.type || ''}</span><br>
+                            <span>${new Date(game.importedAt).toLocaleDateString()}</span>
                         </div>
                     </div>
                 </div>
@@ -674,8 +674,8 @@ jQuery(() => {
         }
         
         .game-item {
-            background: var(--SmartThemeBackgroundColor, white);
-            border: 1px solid var(--SmartThemeBorderColor, #ddd);
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
             border-radius: 8px;
             padding: 15px;
             text-align: center;
@@ -685,6 +685,7 @@ jQuery(() => {
             display: flex;
             flex-direction: column;
             justify-content: center;
+            color: var(--SmartThemeTextColor, white);
         }
         
         .game-item:hover {
@@ -798,8 +799,8 @@ jQuery(() => {
         .import-btn {
             flex: 1;
             padding: 8px 12px;
-            border: 1px solid var(--SmartThemeBorderColor, #ddd);
-            background: var(--SmartThemeBackgroundColor, white);
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
             color: var(--SmartThemeTextColor);
             border-radius: 4px;
             cursor: pointer;
@@ -833,11 +834,12 @@ jQuery(() => {
             justify-content: space-between;
             align-items: center;
             padding: 10px;
-            border: 1px solid var(--SmartThemeBorderColor, #ddd);
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
             border-radius: 6px;
             margin-bottom: 8px;
-            background: var(--SmartThemeBackgroundColor, white);
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
             transition: all 0.3s ease;
+            color: var(--SmartThemeTextColor, white);
         }
         
         .imported-game-item:hover {
@@ -889,8 +891,8 @@ jQuery(() => {
         
         .action-btn {
             padding: 4px 8px;
-            border: 1px solid var(--SmartThemeBorderColor, #ddd);
-            background: var(--SmartThemeBackgroundColor, white);
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
             color: var(--SmartThemeTextColor);
             border-radius: 4px;
             cursor: pointer;
