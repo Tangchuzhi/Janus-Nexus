@@ -919,7 +919,6 @@
     
     // 加载所有资源
     async function loadAllResources() {
-        showStatus('正在加载所有资源...', 'info');
         showProgress(10);
         
         await loadPresets();
@@ -930,8 +929,6 @@
         
         await loadQuickReplies();
         showProgress(100);
-        
-        showStatus('资源加载完成', 'success');
     }
     
     // 初始化函数
