@@ -302,9 +302,9 @@ jQuery(() => {
                                 <div class="supported-formats">
                                     <div class="url-types" style="color: var(--SmartThemeTextColor, inherit);">
                                         <strong>支持导入的游戏文件/URL：</strong><br>
-                                        <p>- Javascript（需包含startGame函数）</p>
-                                        <p>- html（完整前端代码）</p>
-                                        <p>- json（游戏配置）</p>
+                                        1. Javascript（需包含startGame函数）<br>
+                                        2. html（完整前端代码）<br>
+                                        3. json（游戏配置）<br>
                                     </div>
                                 </div>
                                 
