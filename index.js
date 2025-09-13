@@ -685,7 +685,7 @@ jQuery(() => {
             display: flex;
             flex-direction: column;
             justify-content: center;
-            color: var(--SmartThemeTextColor, #333);
+            color: var(--SmartThemeTextColor);
         }
         
         .game-item:hover {
@@ -783,8 +783,8 @@ jQuery(() => {
         }
         
         .import-section {
-            background: var(--SmartThemeBackgroundColor, #f8f9fa);
-            border: 1px solid var(--SmartThemeBorderColor, #ddd);
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
             border-radius: 6px;
             padding: 12px;
             margin-bottom: 15px;
@@ -814,8 +814,8 @@ jQuery(() => {
         }
         
         .imported-games {
-            background: var(--SmartThemeBackgroundColor, #f8f9fa);
-            border: 1px solid var(--SmartThemeBorderColor, #ddd);
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
             border-radius: 6px;
             padding: 12px;
         }
@@ -839,7 +839,7 @@ jQuery(() => {
             margin-bottom: 8px;
             background: transparent;
             transition: all 0.3s ease;
-            color: var(--SmartThemeTextColor, #333);
+            color: var(--SmartThemeTextColor);
         }
         
         .imported-game-item:hover {
