@@ -685,7 +685,7 @@ jQuery(() => {
             display: flex;
             flex-direction: column;
             justify-content: center;
-            color: var(--SmartThemeTextColor, white);
+            color: var(--SmartThemeTextColor, #333);
         }
         
         .game-item:hover {
@@ -837,9 +837,9 @@ jQuery(() => {
             border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
             border-radius: 6px;
             margin-bottom: 8px;
-            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            background: transparent;
             transition: all 0.3s ease;
-            color: var(--SmartThemeTextColor, white);
+            color: var(--SmartThemeTextColor, #333);
         }
         
         .imported-game-item:hover {
