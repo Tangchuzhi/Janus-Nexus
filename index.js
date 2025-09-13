@@ -377,19 +377,17 @@ jQuery(() => {
             // 使用游戏加载器启动游戏
             const result = await window.gameLoader.launchGame(gameType);
             
-            // 如果游戏内容为空，说明游戏已经直接显示在屏幕上，不需要显示模态框
-            if (result.content && result.content.trim() !== '') {
-                showGameModal(result.content, result.title);
+            // 内置游戏简化逻辑：直接显示toastr提示
+            if (result.success) {
+                toastr.success('游戏已启动', '启动成功', { timeOut: 2000 });
+            } else {
+                // 如果游戏启动失败，可能是待施工的游戏
+                toastr.info('该游戏正在施工中', '施工中', { timeOut: 2000 });
             }
             
         } catch (error) {
             console.error(`[Janusの百宝箱] 启动游戏失败:`, error);
-            showGameModal(`
-                <div style="text-align: center; padding: 40px; color: #dc3545;">
-                    <h3>❌ 游戏启动失败</h3>
-                    <p>错误信息: ${error.message}</p>
-                </div>
-            `, '错误');
+            toastr.info('该游戏正在施工中', '施工中', { timeOut: 2000 });
         }
     }
     
@@ -509,13 +507,13 @@ jQuery(() => {
             try {
                 console.log(`[Janusの百宝箱] 从URL导入游戏: ${url}`);
                 const gameInfo = await window.externalGameManager.importGameFromUrl(url);
-                toastr.success(`游戏导入成功！\n名称: ${gameInfo.name}\n描述: ${gameInfo.description}`, '导入成功');
+                toastr.success(`游戏导入成功！\n名称: ${gameInfo.name}\n描述: ${gameInfo.description}`, '导入成功', { timeOut: 3000 });
                 
                 // 刷新已导入游戏列表
                 refreshImportedGamesList();
             } catch (error) {
                 console.error('[Janusの百宝箱] 从URL导入游戏失败:', error);
-                toastr.error(`导入失败: ${error.message}`, '导入失败');
+                toastr.error(`导入失败: ${error.message}`, '导入失败', { timeOut: 3000 });
             }
         }
     }
@@ -525,13 +523,13 @@ jQuery(() => {
         try {
             console.log(`[Janusの百宝箱] 从文件导入游戏: ${file.name}`);
             const gameInfo = await window.externalGameManager.importGameFromFile(file);
-            toastr.success(`游戏导入成功！\n名称: ${gameInfo.name}\n描述: ${gameInfo.description}`, '导入成功');
+            toastr.success(`游戏导入成功！\n名称: ${gameInfo.name}\n描述: ${gameInfo.description}`, '导入成功', { timeOut: 3000 });
             
             // 刷新已导入游戏列表
             refreshImportedGamesList();
         } catch (error) {
             console.error('[Janusの百宝箱] 从文件导入游戏失败:', error);
-            toastr.error(`导入失败: ${error.message}`, '导入失败');
+            toastr.error(`导入失败: ${error.message}`, '导入失败', { timeOut: 3000 });
         }
     }
     
@@ -579,17 +577,15 @@ jQuery(() => {
         try {
             const result = await window.externalGameManager.launchExternalGame(gameId);
             
-            // 不再使用模态框，直接使用toastr提示
-            if (result.content && result.content.trim() !== '') {
-                // 如果游戏返回了内容，说明是待施工的游戏
-                toastr.info('该游戏正在开发中，敬请期待！', '待施工');
+            // 外接口游戏只有启动成功/失败两种情况
+            if (result.success) {
+                toastr.success('游戏已启动', '启动成功', { timeOut: 2000 });
             } else {
-                // 如果游戏没有返回内容，说明游戏已经直接显示
-                toastr.success('游戏已启动', '启动成功');
+                toastr.error('游戏启动失败', '启动失败', { timeOut: 3000 });
             }
         } catch (error) {
             console.error('[Janusの百宝箱] 启动外部游戏失败:', error);
-            toastr.error(`游戏启动失败: ${error.message}`, '启动失败');
+            toastr.error(`游戏启动失败: ${error.message}`, '启动失败', { timeOut: 3000 });
         }
     }
     
@@ -598,10 +594,10 @@ jQuery(() => {
         if (confirm('确定要删除这个游戏吗？')) {
             const removed = window.externalGameManager.removeGame(gameId);
             if (removed) {
-                toastr.success('游戏已删除', '删除成功');
+                toastr.success('游戏已删除', '删除成功', { timeOut: 2000 });
                 refreshImportedGamesList();
             } else {
-                toastr.error('删除失败', '删除失败');
+                toastr.error('删除失败', '删除失败', { timeOut: 2000 });
             }
         }
     }
