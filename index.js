@@ -302,9 +302,9 @@ jQuery(() => {
                                 <div class="supported-formats">
                                     <div class="url-types" style="color: var(--SmartThemeTextColor, inherit);">
                                         <strong>支持导入的游戏文件/URL：</strong><br>
-                                        1. Javascript（需包含startGame函数）<br>
-                                        2. Html（完整前端代码）<br>
-                                        3. Json（游戏配置）<br>
+                                        <p>- Javascript（需包含startGame函数）</p>
+                                        <p>- html（完整前端代码）</p>
+                                        <p>- json（游戏配置）</p>
                                     </div>
                                 </div>
                                 
@@ -412,13 +412,13 @@ jQuery(() => {
             try {
                 console.log(`[Janusの百宝箱] 从URL导入游戏: ${url}`);
                 const gameInfo = await window.externalGameManager.importGameFromUrl(url);
-                toastr.success(`游戏导入成功！\n名称: ${gameInfo.name}`, '导入成功', { timeOut: 2000 });
+                toastr.success(`游戏导入成功！\n名称: ${gameInfo.name}`, '导入成功', { timeOut: 3000 });
                 
                 // 刷新已导入游戏列表
                 refreshImportedGamesList();
             } catch (error) {
                 console.error('[Janusの百宝箱] 从URL导入游戏失败:', error);
-                toastr.error(`导入失败: ${error.message}`, '导入失败', { timeOut: 2000 });
+                toastr.error(`导入失败: ${error.message}`, '导入失败', { timeOut: 3000 });
             }
         }
     }
@@ -428,13 +428,13 @@ jQuery(() => {
         try {
             console.log(`[Janusの百宝箱] 从文件导入游戏: ${file.name}`);
             const gameInfo = await window.externalGameManager.importGameFromFile(file);
-            toastr.success(`游戏导入成功！\n名称: ${gameInfo.name}`, '导入成功', { timeOut: 2000 });
+            toastr.success(`游戏导入成功！\n名称: ${gameInfo.name}`, '导入成功', { timeOut: 3000 });
             
             // 刷新已导入游戏列表
             refreshImportedGamesList();
         } catch (error) {
             console.error('[Janusの百宝箱] 从文件导入游戏失败:', error);
-            toastr.error(`导入失败: ${error.message}`, '导入失败', { timeOut: 2000 });
+            toastr.error(`导入失败: ${error.message}`, '导入失败', { timeOut: 3000 });
         }
     }
     
@@ -456,7 +456,7 @@ jQuery(() => {
                     <div class="game-icon">${game.icon || '🎮'}</div>
                     <div class="game-details">
                         <div class="game-name">${game.name}</div>
-                        <div class="game-meta">
+                        <div class="game-meta" style="display: flex; gap: 15px; font-size: 0.85em; opacity: 0.8; flex-wrap: wrap;">
                             <span class="game-source">来源: ${game.source === 'file' ? '文件' : 'URL'}</span>
                             <span class="game-date">导入时间: ${new Date(game.importedAt).toLocaleDateString()}</span>
                         </div>
@@ -485,11 +485,11 @@ jQuery(() => {
             if (result.success) {
                 toastr.success('游戏已启动', '启动成功', { timeOut: 2000 });
             } else {
-                toastr.error('游戏启动失败', '启动失败', { timeOut: 2000 });
+                toastr.error('游戏启动失败', '启动失败', { timeOut: 3000 });
             }
         } catch (error) {
             console.error('[Janusの百宝箱] 启动外部游戏失败:', error);
-            toastr.error(`游戏启动失败: ${error.message}`, '启动失败', { timeOut: 2000 });
+            toastr.error(`游戏启动失败: ${error.message}`, '启动失败', { timeOut: 3000 });
         }
     }
     
