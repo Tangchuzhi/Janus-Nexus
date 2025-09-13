@@ -900,7 +900,6 @@
             // 导入成功后自动刷新页面
             setTimeout(() => {
                 debugLog('准备刷新页面...');
-                showStatus('页面即将刷新...', 'info');
                 window.location.reload();
             }, 5000); // 5秒后刷新，让用户看到成功消息
             
