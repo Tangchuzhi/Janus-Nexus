@@ -126,11 +126,11 @@
     // 切换标签页
     function switchPresetTab(tab) {
         // 移除所有活动状态
-        document.querySelectorAll('.preset-tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.preset-helper-category-btn').forEach(btn => btn.classList.remove('active'));
         document.querySelectorAll('.preset-tab-content').forEach(content => content.classList.remove('active'));
         
         // 激活选中的标签页
-        document.querySelector(`[onclick="switchPresetTab('${tab}')"]`).classList.add('active');
+        document.querySelector(`[data-category="${tab}"]`).classList.add('active');
         document.getElementById(`${tab}-tab`).classList.add('active');
         
         debugLog(`切换到标签页: ${tab}`);

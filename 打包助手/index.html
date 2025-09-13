@@ -1,14 +1,18 @@
-<div id="preset-helper-container">  
+<div id="preset-helper-container">
     <div class="preset-helper-header">
         <h4><i class="fa-solid fa-box"></i> 打包助手</h4>
+        
+        <!-- 打包助手分类标签 -->
+        <div class="preset-helper-category-tabs">
+            <button onclick="switchPresetTab('pack')" class="preset-helper-category-btn active" data-category="pack">
+                <i class="fa-solid fa-box"></i> 打包
+            </button>
+            <button onclick="switchPresetTab('import')" class="preset-helper-category-btn" data-category="import">
+                <i class="fa-solid fa-download"></i> 导入
+            </button>
+        </div>
     </div>
-    <div class="preset-helper-tabs">
-        <button class="preset-tab-btn active" onclick="switchPresetTab('pack')">
-            <i class="fa-solid fa-box"></i> 打包
-        </button>
-        <button class="preset-tab-btn" onclick="switchPresetTab('import')">
-            <i class="fa-solid fa-download"></i> 导入
-        </button>
+    
     </div>
     
     <!-- 打包模式 -->
@@ -126,10 +130,41 @@
     border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
 }
 
-.preset-helper-header h3 {
-    margin: 0 0 5px 0;
+.preset-helper-header h4 {
+    margin: 0 0 15px 0;
     color: var(--SmartThemeTextColor);
-    font-size: 18px;
+    font-size: 16px;
+}
+
+/* 打包助手分类标签样式 - 与游戏中心完全一致 */
+.preset-helper-category-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
+    padding-bottom: 8px;
+}
+
+.preset-helper-category-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: var(--SmartThemeTextColor);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    font-size: 12px;
+}
+
+.preset-helper-category-btn.active {
+    background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
+    color: var(--SmartThemeTextColor);
+    font-weight: bold;
+}
+
+.preset-helper-category-btn:hover {
+    background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.05));
 }
 
 .preset-helper-header p {
@@ -137,37 +172,6 @@
     color: var(--SmartThemeTextColor);
     font-size: 14px;
     opacity: 0.8;
-}
-
-.preset-helper-tabs {
-    display: flex;
-    margin-bottom: 20px;
-    background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
-    border-radius: 8px;
-    padding: 4px;
-}
-
-.preset-tab-btn {
-    flex: 1;
-    padding: 10px 15px;
-    border: none;
-    background: transparent;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    color: var(--SmartThemeTextColor);
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.preset-tab-btn.active {
-    background: var(--SmartThemeQuoteColor, #007bff);
-    color: var(--SmartThemeTextColor);
-    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
-}
-
-.preset-tab-btn:hover:not(.active) {
-    background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
 }
 
 .preset-tab-content {
