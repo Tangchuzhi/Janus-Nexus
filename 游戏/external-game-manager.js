@@ -11,6 +11,145 @@ class ExternalGameManager {
     }
 
     /**
+     * 通用弹窗容器包装器 - 为所有游戏提供统一的响应式支持
+     */
+    wrapGameInUniversalContainer(gameContent, gameTitle) {
+        const container = document.createElement('div');
+        container.id = 'universal-game-container';
+        container.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        `;
+        
+        const content = document.createElement('div');
+        content.style.cssText = `
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: auto;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        `;
+        
+        // 添加标题栏
+        const header = document.createElement('div');
+        header.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        `;
+        
+        const title = document.createElement('h3');
+        title.textContent = gameTitle || '游戏';
+        title.style.cssText = `
+            margin: 0;
+            color: #333;
+            font-size: 18px;
+            font-weight: 600;
+        `;
+        
+        // 添加关闭按钮
+        const closeBtn = document.createElement('button');
+        closeBtn.innerHTML = '✕';
+        closeBtn.style.cssText = `
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        `;
+        
+        closeBtn.onmouseover = () => closeBtn.style.background = '#ff3742';
+        closeBtn.onmouseout = () => closeBtn.style.background = '#ff4757';
+        closeBtn.onclick = () => container.remove();
+        
+        header.appendChild(title);
+        header.appendChild(closeBtn);
+        
+        // 添加响应式样式
+        const style = document.createElement('style');
+        style.textContent = `
+            @media (max-width: 768px) {
+                #universal-game-container {
+                    align-items: center;
+                    justify-content: center;
+                    padding: 10px;
+                }
+                
+                #universal-game-container > div {
+                    width: 95%;
+                    max-width: 95vw;
+                    max-height: 95vh;
+                    padding: 15px;
+                }
+            }
+            
+            @media (max-width: 480px) {
+                #universal-game-container {
+                    align-items: center;
+                    justify-content: center;
+                    padding: 5px;
+                }
+                
+                #universal-game-container > div {
+                    width: 98%;
+                    max-width: 98vw;
+                    max-height: 98vh;
+                    padding: 10px;
+                }
+            }
+        `;
+        
+        content.appendChild(header);
+        content.appendChild(gameContent);
+        container.appendChild(content);
+        document.head.appendChild(style);
+        document.body.appendChild(container);
+        
+        // 点击遮罩关闭
+        container.onclick = (e) => {
+            if (e.target === container) {
+                container.remove();
+                style.remove();
+            }
+        };
+        
+        // ESC键关闭
+        const keyHandler = (e) => {
+            if (e.key === 'Escape') {
+                container.remove();
+                style.remove();
+                document.removeEventListener('keydown', keyHandler);
+            }
+        };
+        document.addEventListener('keydown', keyHandler);
+        
+        return container;
+    }
+
+    /**
      * 从本地存储加载已导入的游戏
      */
     loadImportedGames() {
@@ -28,9 +167,6 @@ class ExternalGameManager {
         }
     }
 
-    /**
-     * 保存已导入的游戏到本地存储
-     */
     saveImportedGames() {
         try {
             const games = Array.from(this.importedGames.values());
@@ -429,9 +565,19 @@ window.startGame = startHTMLGame; // 添加这个别名以确保兼容性
             // 清理临时元素
             document.body.removeChild(tempContainer);
 
+            // 如果游戏返回了内容，使用通用包装器包装
+            if (gameContent && typeof gameContent === 'string') {
+                const gameElement = document.createElement('div');
+                gameElement.innerHTML = gameContent;
+                this.wrapGameInUniversalContainer(gameElement, gameInfo.name);
+            } else if (gameContent && gameContent.nodeType) {
+                // 如果返回的是DOM元素，直接包装
+                this.wrapGameInUniversalContainer(gameContent, gameInfo.name);
+            }
+
             return {
                 success: true,
-                content: gameContent,
+                content: '', // 不再返回内容，因为已经直接显示
                 title: gameInfo.name
             };
 
@@ -470,9 +616,10 @@ window.startGame = startHTMLGame; // 添加这个别名以确保兼容性
             // 清理临时元素
             document.body.removeChild(tempContainer);
 
+            // HTML游戏已经自己创建了容器，不需要额外包装
             return {
                 success: true,
-                content: gameContent,
+                content: '', // HTML游戏已经直接显示
                 title: gameInfo.name
             };
 
