@@ -300,7 +300,7 @@ jQuery(() => {
                             <div class="external-interface">
                                 <h5><i class="fa-solid fa-info-circle"></i> 外接口说明</h5>
                                 <div class="supported-formats">
-                                    <p>通过外接口，您可以导入其他游戏插件到百宝箱中运行。</p>
+                                    <p style="margin-bottom: 0;">通过外接口，您可以导入其他游戏插件到百宝箱中运行。</p>
                                     <div class="url-types">
                                         <strong>支持的导入文件/URL类型列表：</strong><br>
                                         Javascript（需包含startGame函数）/html（完整前端代码）/json（游戏配置）
@@ -509,13 +509,13 @@ jQuery(() => {
             try {
                 console.log(`[Janusの百宝箱] 从URL导入游戏: ${url}`);
                 const gameInfo = await window.externalGameManager.importGameFromUrl(url);
-                alert(`游戏导入成功！\n名称: ${gameInfo.name}\n描述: ${gameInfo.description}`);
+                toastr.success(`游戏导入成功！\n名称: ${gameInfo.name}\n描述: ${gameInfo.description}`, '导入成功');
                 
                 // 刷新已导入游戏列表
                 refreshImportedGamesList();
             } catch (error) {
                 console.error('[Janusの百宝箱] 从URL导入游戏失败:', error);
-                alert(`导入失败: ${error.message}`);
+                toastr.error(`导入失败: ${error.message}`, '导入失败');
             }
         }
     }
@@ -525,13 +525,13 @@ jQuery(() => {
         try {
             console.log(`[Janusの百宝箱] 从文件导入游戏: ${file.name}`);
             const gameInfo = await window.externalGameManager.importGameFromFile(file);
-            alert(`游戏导入成功！\n名称: ${gameInfo.name}\n描述: ${gameInfo.description}`);
+            toastr.success(`游戏导入成功！\n名称: ${gameInfo.name}\n描述: ${gameInfo.description}`, '导入成功');
             
             // 刷新已导入游戏列表
             refreshImportedGamesList();
         } catch (error) {
             console.error('[Janusの百宝箱] 从文件导入游戏失败:', error);
-            alert(`导入失败: ${error.message}`);
+            toastr.error(`导入失败: ${error.message}`, '导入失败');
         }
     }
     
@@ -599,10 +599,10 @@ jQuery(() => {
         if (confirm('确定要删除这个游戏吗？')) {
             const removed = window.externalGameManager.removeGame(gameId);
             if (removed) {
-                alert('游戏已删除');
+                toastr.success('游戏已删除', '删除成功');
                 refreshImportedGamesList();
             } else {
-                alert('删除失败');
+                toastr.error('删除失败', '删除失败');
             }
         }
     }
