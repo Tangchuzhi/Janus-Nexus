@@ -110,7 +110,6 @@ jQuery(() => {
         }, 1 * 60 * 1000);
     }
     
-    
     // 加载打包助手内容
     async function loadPresetHelperContent() {
         try {
@@ -247,7 +246,7 @@ jQuery(() => {
             case 'games':
                 content = `
                     <div class="janus-tab-content">
-                        <h4><i class="fa-solid fa-gamepad"></i> 游戏中心</h4>
+                        <h4 style="text-align: center;"><i class="fa-solid fa-gamepad"></i> 游戏中心</h4>
                         
                         <!-- 游戏分类标签 -->
                         <div class="game-category-tabs">
