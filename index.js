@@ -302,9 +302,9 @@ jQuery(() => {
                                 <div class="supported-formats">
                                     <div class="url-types" style="color: var(--SmartThemeTextColor, inherit);">
                                         <strong>支持导入的游戏文件/URL：</strong><br>
-                                        <p>- Javascript（需包含startGame函数）</p>
-                                        <p>- html（完整前端代码）</p>
-                                        <p>- json（游戏配置）</p>
+                                        - Javascript（需包含startGame函数）<br>
+                                        - Html（完整前端代码）<br>
+                                        - Json（游戏配置）<br>
                                     </div>
                                 </div>
                                 
@@ -456,8 +456,8 @@ jQuery(() => {
                     <div class="game-icon">${game.icon || '🎮'}</div>
                     <div class="game-details">
                         <div class="game-name">${game.name}</div>
-                        <div class="game-meta" style="display: flex; gap: 15px; font-size: 0.85em; opacity: 0.8; flex-wrap: wrap;">
-                            <span class="game-source">来源: ${game.source === 'file' ? '文件' : 'URL'}</span>
+                        <div class="game-meta" style="font-size: 0.85em; opacity: 0.8;">
+                            <span class="game-source">来源: ${game.source === 'file' ? '文件' : 'URL'}</span><br>
                             <span class="game-date">导入时间: ${new Date(game.importedAt).toLocaleDateString()}</span>
                         </div>
                     </div>
