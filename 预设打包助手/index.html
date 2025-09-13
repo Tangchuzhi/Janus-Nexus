@@ -181,11 +181,12 @@
 }
 
 .preset-section {
-    background: var(--SmartThemeBackgroundColor, white);
-    border: 1px solid var(--SmartThemeBorderColor, #ddd);
+    background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
     border-radius: 8px;
     padding: 15px;
     margin-bottom: 15px;
+    color: var(--SmartThemeTextColor, white);
 }
 
 .section-title {
@@ -247,15 +248,16 @@
     align-items: center;
     padding: 8px;
     margin-bottom: 4px;
-    background: var(--SmartThemeBackgroundColor, white);
+    background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
     border-radius: 4px;
-    border: 1px solid transparent;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
     transition: all 0.2s ease;
+    color: var(--SmartThemeTextColor, white);
 }
 
 .resource-item:hover {
-    border-color: var(--SmartThemeBorderColor, #ddd);
-    background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.02));
+    border-color: var(--SmartThemeQuoteColor, #007bff);
+    background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
 }
 
 .resource-item input[type="checkbox"] {
@@ -301,11 +303,11 @@
 .config-input {
     width: 100%;
     padding: 8px 12px;
-    border: 1px solid var(--SmartThemeBorderColor, #ddd);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
     border-radius: 6px;
     font-size: 14px;
-    background: var(--SmartThemeBackgroundColor, white);
-    color: var(--SmartThemeTextColor, #333);
+    background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+    color: var(--SmartThemeTextColor, white);
     transition: border-color 0.3s ease;
 }
 
