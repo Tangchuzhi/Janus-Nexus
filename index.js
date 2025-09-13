@@ -456,7 +456,6 @@ jQuery(() => {
                     <div class="game-icon">${game.icon || '🎮'}</div>
                     <div class="game-details">
                         <div class="game-name">${game.name}</div>
-                        <div class="game-desc">${game.description}</div>
                         <div class="game-meta">
                             <span class="game-source">来源: ${game.source === 'file' ? '文件' : 'URL'}</span>
                             <span class="game-date">导入时间: ${new Date(game.importedAt).toLocaleDateString()}</span>
