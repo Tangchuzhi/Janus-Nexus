@@ -648,7 +648,7 @@ jQuery(() => {
         
         .game-category-btn.active {
             background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
-            color: var(--SmartThemeQuoteColor, #007bff);
+            color: var(--SmartThemeTextColor, white);
             font-weight: bold;
         }
         
