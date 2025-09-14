@@ -1,375 +1,334 @@
 /**
  * DMSS (Dynamic Memory Stream System) 核心模块
- * 负责捕获、存储和管理动态记忆流内容
+ * 负责捕获、存储和管理AI生成的记忆内容
  */
 
 class DMSSCore {
     constructor() {
-        this.storageKey = 'janus_dmss_memory';
+        this.storageKey = 'janus_dmss_memories';
         this.currentChatId = null;
+        this.memories = new Map(); // 存储格式: chatId -> Array<memory>
         this.isEnabled = false;
-        this.memoryData = new Map(); // 存储格式: chatId -> { memories: [], lastUpdate: timestamp }
         
-        console.log('[DMSS Core] 初始化完成');
+        // 初始化
+        this.init();
     }
-
+    
     /**
      * 初始化DMSS系统
      */
     init() {
-        this.loadMemoryData();
+        console.log('[DMSS Core] 初始化DMSS核心模块');
+        this.loadMemories();
         this.setupMessageListener();
-        console.log('[DMSS Core] 系统初始化完成');
-    }
-
-    /**
-     * 启动DMSS系统
-     */
-    start() {
-        this.isEnabled = true;
         this.currentChatId = this.getCurrentChatId();
-        console.log(`[DMSS Core] 系统已启动，当前聊天ID: ${this.currentChatId}`);
     }
-
-    /**
-     * 停止DMSS系统
-     */
-    stop() {
-        this.isEnabled = false;
-        console.log('[DMSS Core] 系统已停止');
-    }
-
-    /**
-     * 重置DMSS系统
-     */
-    reset() {
-        this.memoryData.clear();
-        this.saveMemoryData();
-        console.log('[DMSS Core] 系统已重置');
-    }
-
+    
     /**
      * 获取当前聊天ID
      */
     getCurrentChatId() {
         // 尝试从SillyTavern的全局变量获取当前聊天ID
-        if (typeof chat !== 'undefined' && chat.chatId) {
-            return chat.chatId;
+        if (window.chat && window.chat.length > 0) {
+            return window.chat[window.chat.length - 1].id || 'default';
         }
-        
-        // 备用方案：使用时间戳作为聊天ID
-        return `chat_${Date.now()}`;
+        return 'default';
     }
-
+    
     /**
-     * 设置消息监听器
+     * 设置消息监听器，监听AI生成的消息
      */
     setupMessageListener() {
-        // 监听DOM变化，检测新消息
+        // 监听消息生成完成事件
+        if (window.eventSource) {
+            window.eventSource.addEventListener('message', (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'message' && data.data && data.data.name !== 'You') {
+                        // AI消息生成完成，检查是否包含DMSS内容
+                        setTimeout(() => {
+                            this.checkAndCaptureDMSS(data.data);
+                        }, 100);
+                    }
+                } catch (error) {
+                    // 忽略解析错误
+                }
+            });
+        }
+        
+        // 备用方案：监听DOM变化
+        this.setupDOMObserver();
+    }
+    
+    /**
+     * 设置DOM观察器作为备用方案
+     */
+    setupDOMObserver() {
         const observer = new MutationObserver((mutations) => {
-            if (!this.isEnabled) return;
-            
             mutations.forEach((mutation) => {
                 if (mutation.type === 'childList') {
                     mutation.addedNodes.forEach((node) => {
-                        if (node.nodeType === Node.ELEMENT_NODE) {
-                            this.checkNodeForDMSS(node);
+                        if (node.nodeType === Node.ELEMENT_NODE && 
+                            node.classList && 
+                            node.classList.contains('mes')) {
+                            this.checkMessageForDMSS(node);
                         }
                     });
                 }
             });
         });
-
-        // 开始观察聊天区域的变化
-        const chatContainer = document.querySelector('#chat') || document.querySelector('.chat-container') || document.querySelector('.mes');
+        
+        const chatContainer = document.querySelector('#chat');
         if (chatContainer) {
             observer.observe(chatContainer, {
                 childList: true,
                 subtree: true
             });
-            console.log('[DMSS Core] 消息监听器已设置');
-        } else {
-            console.warn('[DMSS Core] 未找到聊天容器，尝试延迟设置监听器');
-            // 延迟重试
-            setTimeout(() => {
-                this.setupMessageListener();
-            }, 2000);
         }
     }
-
+    
     /**
-     * 检查节点中是否包含DMSS内容
+     * 检查消息中是否包含DMSS内容
      */
-    checkNodeForDMSS(node) {
+    checkMessageForDMSS(messageElement) {
         if (!this.isEnabled) return;
-
-        // 查找包含DMSS标签的文本内容
-        const textContent = node.textContent || '';
-        if (textContent.includes('<DMSS>') && textContent.includes('</DMSS>')) {
-            console.log('[DMSS Core] 发现DMSS内容:', textContent.substring(0, 100) + '...');
-            this.extractDMSSContent(textContent);
-        }
-
-        // 递归检查子节点
-        const children = node.querySelectorAll('*');
-        children.forEach(child => {
-            const childText = child.textContent || '';
-            if (childText.includes('<DMSS>') && childText.includes('</DMSS>')) {
-                console.log('[DMSS Core] 在子节点发现DMSS内容:', childText.substring(0, 100) + '...');
-                this.extractDMSSContent(childText);
-            }
-        });
+        
+        const messageText = messageElement.textContent || '';
+        this.captureDMSSContent(messageText);
     }
-
+    
     /**
-     * 检查最新的消息内容
+     * 检查并捕获DMSS内容（从事件数据）
      */
-    checkForDMSSContent() {
+    checkAndCaptureDMSS(messageData) {
         if (!this.isEnabled) return;
-
-        console.log('[DMSS Core] 开始检查页面中的DMSS内容...');
-
-        // 获取所有消息
-        const messages = document.querySelectorAll('.mes');
-        console.log(`[DMSS Core] 找到 ${messages.length} 条消息`);
-
-        if (messages.length === 0) {
-            // 尝试其他选择器
-            const altMessages = document.querySelectorAll('[class*="message"], [class*="chat"], [class*="mes"]');
-            console.log(`[DMSS Core] 尝试其他选择器，找到 ${altMessages.length} 个元素`);
-            
-            altMessages.forEach((msg, index) => {
-                const text = msg.textContent || '';
-                if (text.includes('<DMSS>') && text.includes('</DMSS>')) {
-                    console.log(`[DMSS Core] 在备用选择器第${index}个元素中发现DMSS内容`);
-                    this.extractDMSSContent(text);
+        
+        const messageText = messageData.mes || '';
+        this.captureDMSSContent(messageText);
+    }
+    
+    /**
+     * 使用正则表达式捕获DMSS内容
+     */
+    captureDMSSContent(text) {
+        // 正则表达式：捕获<DMSS>和</DMSS>之间的内容，最大深度为0
+        const dmssRegex = /<DMSS>([\s\S]*?)<\/DMSS>/g;
+        const matches = text.match(dmssRegex);
+        
+        if (matches && matches.length > 0) {
+            matches.forEach(match => {
+                // 提取DMSS标签内的内容
+                const contentMatch = match.match(/<DMSS>([\s\S]*?)<\/DMSS>/);
+                if (contentMatch && contentMatch[1]) {
+                    const dmssContent = contentMatch[1].trim();
+                    if (dmssContent) {
+                        this.storeDMSSMemory(dmssContent);
+                        console.log('[DMSS Core] 捕获到DMSS内容:', dmssContent.substring(0, 100) + '...');
+                    }
                 }
             });
-            return;
-        }
-
-        // 检查所有消息
-        messages.forEach((message, index) => {
-            const messageText = message.textContent || '';
-            if (messageText.includes('<DMSS>') && messageText.includes('</DMSS>')) {
-                console.log(`[DMSS Core] 在第${index}条消息中发现DMSS内容`);
-                this.extractDMSSContent(messageText);
-            }
-        });
-    }
-
-    /**
-     * 使用正则表达式提取DMSS内容
-     */
-    extractDMSSContent(text) {
-        try {
-            // 正则表达式：捕获<DMSS>和</DMSS>之间的内容，最大深度为0
-            const dmssRegex = /<DMSS>([\s\S]*?)<\/DMSS>/g;
-            const matches = text.match(dmssRegex);
-            
-            if (matches && matches.length > 0) {
-                matches.forEach(match => {
-                    // 提取DMSS标签内的纯文本内容
-                    const contentMatch = match.match(/<DMSS>([\s\S]*?)<\/DMSS>/);
-                    if (contentMatch && contentMatch[1]) {
-                        const dmssContent = contentMatch[1].trim();
-                        this.storeDMSSMemory(dmssContent);
-                    }
-                });
-            }
-        } catch (error) {
-            console.error('[DMSS Core] 提取DMSS内容时出错:', error);
         }
     }
-
+    
     /**
      * 存储DMSS记忆内容
      */
     storeDMSSMemory(content) {
-        if (!content || content.trim() === '') return;
-
         const chatId = this.getCurrentChatId();
-        const timestamp = new Date().toISOString();
-        
-        // 获取或创建聊天记忆数据
-        if (!this.memoryData.has(chatId)) {
-            this.memoryData.set(chatId, {
-                memories: [],
-                lastUpdate: timestamp,
-                chatName: this.getChatName()
-            });
-        }
-
-        const chatData = this.memoryData.get(chatId);
-        
-        // 创建新的记忆条目
-        const memoryEntry = {
-            id: `memory_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        const memory = {
+            id: this.generateMemoryId(),
             content: content,
-            timestamp: timestamp,
-            chatId: chatId
+            timestamp: new Date().toISOString(),
+            chatId: chatId,
+            createdAt: Date.now()
         };
-
-        // 添加到记忆列表
-        chatData.memories.push(memoryEntry);
-        chatData.lastUpdate = timestamp;
-
-        // 保存到本地存储
-        this.saveMemoryData();
-
-        console.log(`[DMSS Core] 已存储新的DMSS记忆，聊天ID: ${chatId}`);
         
-        // 触发UI更新事件
-        this.triggerMemoryUpdateEvent(memoryEntry);
-    }
-
-    /**
-     * 获取聊天名称
-     */
-    getChatName() {
-        // 尝试从SillyTavern获取聊天名称
-        if (typeof chat !== 'undefined' && chat.title) {
-            return chat.title;
+        // 获取当前聊天的记忆数组
+        if (!this.memories.has(chatId)) {
+            this.memories.set(chatId, []);
         }
         
-        // 备用方案：使用时间戳
-        return `聊天_${new Date().toLocaleDateString()}`;
+        const chatMemories = this.memories.get(chatId);
+        chatMemories.push(memory);
+        
+        // 保存到永久存储
+        this.saveMemories();
+        
+        // 触发更新事件
+        this.triggerMemoryUpdate(chatId, memory);
+        
+        console.log(`[DMSS Core] 已存储记忆到聊天 ${chatId}:`, memory.id);
     }
-
+    
     /**
-     * 获取指定聊天的所有记忆
+     * 生成记忆ID
+     */
+    generateMemoryId() {
+        return 'dmss_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+    
+    /**
+     * 从永久存储加载记忆
+     */
+    loadMemories() {
+        try {
+            const stored = localStorage.getItem(this.storageKey);
+            if (stored) {
+                const data = JSON.parse(stored);
+                this.memories = new Map(data);
+                console.log('[DMSS Core] 已加载记忆数据:', this.memories.size, '个聊天');
+            }
+        } catch (error) {
+            console.error('[DMSS Core] 加载记忆失败:', error);
+            this.memories = new Map();
+        }
+    }
+    
+    /**
+     * 保存记忆到永久存储
+     */
+    saveMemories() {
+        try {
+            const data = Array.from(this.memories.entries());
+            localStorage.setItem(this.storageKey, JSON.stringify(data));
+            console.log('[DMSS Core] 记忆已保存到永久存储');
+        } catch (error) {
+            console.error('[DMSS Core] 保存记忆失败:', error);
+        }
+    }
+    
+    /**
+     * 获取指定聊天的记忆
      */
     getMemoriesForChat(chatId = null) {
         const targetChatId = chatId || this.getCurrentChatId();
-        const chatData = this.memoryData.get(targetChatId);
-        
-        if (!chatData) {
-            return [];
-        }
-        
-        return chatData.memories || [];
+        return this.memories.get(targetChatId) || [];
     }
-
+    
     /**
-     * 获取所有聊天的记忆数据
+     * 获取所有记忆
      */
     getAllMemories() {
         const allMemories = [];
-        
-        this.memoryData.forEach((chatData, chatId) => {
-            allMemories.push({
-                chatId: chatId,
-                chatName: chatData.chatName,
-                memories: chatData.memories,
-                lastUpdate: chatData.lastUpdate
+        this.memories.forEach((memories, chatId) => {
+            memories.forEach(memory => {
+                allMemories.push({
+                    ...memory,
+                    chatId: chatId
+                });
             });
         });
-        
-        return allMemories;
+        return allMemories.sort((a, b) => b.createdAt - a.createdAt);
     }
-
+    
     /**
      * 删除指定记忆
      */
     deleteMemory(memoryId, chatId = null) {
         const targetChatId = chatId || this.getCurrentChatId();
-        const chatData = this.memoryData.get(targetChatId);
+        const chatMemories = this.memories.get(targetChatId);
         
-        if (!chatData) return false;
-        
-        const initialLength = chatData.memories.length;
-        chatData.memories = chatData.memories.filter(memory => memory.id !== memoryId);
-        
-        if (chatData.memories.length < initialLength) {
-            chatData.lastUpdate = new Date().toISOString();
-            this.saveMemoryData();
-            console.log(`[DMSS Core] 已删除记忆: ${memoryId}`);
-            return true;
+        if (chatMemories) {
+            const index = chatMemories.findIndex(m => m.id === memoryId);
+            if (index !== -1) {
+                const deleted = chatMemories.splice(index, 1)[0];
+                this.saveMemories();
+                console.log('[DMSS Core] 已删除记忆:', memoryId);
+                return deleted;
+            }
         }
-        
-        return false;
+        return null;
     }
-
+    
     /**
      * 清空指定聊天的所有记忆
      */
     clearChatMemories(chatId = null) {
         const targetChatId = chatId || this.getCurrentChatId();
+        const cleared = this.memories.delete(targetChatId);
+        this.saveMemories();
         
-        if (this.memoryData.has(targetChatId)) {
-            this.memoryData.delete(targetChatId);
-            this.saveMemoryData();
-            console.log(`[DMSS Core] 已清空聊天记忆: ${targetChatId}`);
-            return true;
+        if (cleared) {
+            console.log(`[DMSS Core] 已清空聊天 ${targetChatId} 的所有记忆`);
         }
-        
-        return false;
+        return cleared;
     }
-
+    
     /**
-     * 从本地存储加载记忆数据
+     * 清空所有记忆
      */
-    loadMemoryData() {
-        try {
-            const stored = localStorage.getItem(this.storageKey);
-            if (stored) {
-                const parsedData = JSON.parse(stored);
-                this.memoryData = new Map(parsedData);
-                console.log(`[DMSS Core] 已加载记忆数据，包含 ${this.memoryData.size} 个聊天`);
-            }
-        } catch (error) {
-            console.error('[DMSS Core] 加载记忆数据失败:', error);
-            this.memoryData = new Map();
-        }
+    clearAllMemories() {
+        this.memories.clear();
+        this.saveMemories();
+        console.log('[DMSS Core] 已清空所有记忆');
     }
-
+    
     /**
-     * 保存记忆数据到本地存储
+     * 启用DMSS系统
      */
-    saveMemoryData() {
-        try {
-            const dataToStore = Array.from(this.memoryData.entries());
-            localStorage.setItem(this.storageKey, JSON.stringify(dataToStore));
-            console.log('[DMSS Core] 记忆数据已保存');
-        } catch (error) {
-            console.error('[DMSS Core] 保存记忆数据失败:', error);
-        }
+    enable() {
+        this.isEnabled = true;
+        console.log('[DMSS Core] DMSS系统已启用');
     }
-
+    
+    /**
+     * 禁用DMSS系统
+     */
+    disable() {
+        this.isEnabled = false;
+        console.log('[DMSS Core] DMSS系统已禁用');
+    }
+    
+    /**
+     * 获取系统状态
+     */
+    getStatus() {
+        return {
+            enabled: this.isEnabled,
+            currentChatId: this.getCurrentChatId(),
+            totalChats: this.memories.size,
+            totalMemories: this.getAllMemories().length,
+            lastUpdate: this.getLastUpdateTime()
+        };
+    }
+    
+    /**
+     * 获取最后更新时间
+     */
+    getLastUpdateTime() {
+        const allMemories = this.getAllMemories();
+        if (allMemories.length > 0) {
+            return new Date(allMemories[0].createdAt).toLocaleString();
+        }
+        return '从未';
+    }
+    
     /**
      * 触发记忆更新事件
      */
-    triggerMemoryUpdateEvent(memoryEntry) {
-        // 创建自定义事件
-        const event = new CustomEvent('dmssMemoryUpdated', {
+    triggerMemoryUpdate(chatId, memory) {
+        // 触发自定义事件，供UI监听
+        const event = new CustomEvent('dmssMemoryUpdate', {
             detail: {
-                memory: memoryEntry,
-                chatId: this.getCurrentChatId()
+                chatId: chatId,
+                memory: memory,
+                timestamp: Date.now()
             }
         });
-        
-        // 分发事件
         window.dispatchEvent(event);
     }
-
+    
     /**
-     * 获取系统状态信息
+     * 重置DMSS系统
      */
-    getStatus() {
-        const totalMemories = Array.from(this.memoryData.values())
-            .reduce((sum, chatData) => sum + chatData.memories.length, 0);
-        
-        return {
-            isEnabled: this.isEnabled,
-            currentChatId: this.currentChatId,
-            totalChats: this.memoryData.size,
-            totalMemories: totalMemories,
-            lastUpdate: this.memoryData.get(this.currentChatId)?.lastUpdate || '从未'
-        };
+    reset() {
+        this.clearAllMemories();
+        this.isEnabled = false;
+        console.log('[DMSS Core] DMSS系统已重置');
     }
 }
 
 // 创建全局实例
-window.DMSSCore = DMSSCore;
+window.DMSSCore = new DMSSCore();
 
-console.log('[DMSS Core] 模块加载完成');
+console.log('[DMSS Core] DMSS核心模块已加载完成');
