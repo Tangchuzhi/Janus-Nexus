@@ -149,9 +149,9 @@ class DMSSUI {
             <div class="dmss-modal-content">
                 <div class="dmss-modal-header">
                     <h3><i class="fa-solid fa-brain"></i> DMSS 记忆查看器</h3>
-                    <button class="dmss-modal-close" onclick="window.dmssUI.closeMemoryViewer()">
-                        <i class="fa-solid fa-times"></i>
-                    </button>
+                     <button class="dmss-modal-close" onclick="window.dmssUI.closeMemoryViewer()" type="button">
+                         <i class="fa-solid fa-times"></i>
+                     </button>
                 </div>
                 
                 <div class="dmss-modal-body">
@@ -163,14 +163,17 @@ class DMSSUI {
                             </select>
                         </div>
                         
-                        <div class="dmss-memory-actions">
-                            <button onclick="window.dmssUI.refreshMemoryData()" class="dmss-action-btn">
-                                <i class="fa-solid fa-refresh"></i> 刷新
-                            </button>
-                            <button onclick="window.dmssUI.clearCurrentChatMemories()" class="dmss-action-btn warning-btn">
-                                <i class="fa-solid fa-trash"></i> 清空当前聊天
-                            </button>
-                        </div>
+                         <div class="dmss-memory-actions">
+                             <button onclick="window.dmssUI.refreshMemoryData()" class="dmss-action-btn">
+                                 <i class="fa-solid fa-refresh"></i> 刷新
+                             </button>
+                             <button onclick="window.dmssUI.checkForDMSSContent()" class="dmss-action-btn">
+                                 <i class="fa-solid fa-search"></i> 检查DMSS
+                             </button>
+                             <button onclick="window.dmssUI.clearCurrentChatMemories()" class="dmss-action-btn warning-btn">
+                                 <i class="fa-solid fa-trash"></i> 清空当前聊天
+                             </button>
+                         </div>
                     </div>
                     
                     <div class="dmss-memory-stats">
@@ -318,6 +321,11 @@ class DMSSUI {
      * 刷新记忆数据
      */
     refreshMemoryData() {
+        // 手动检查当前页面的DMSS内容
+        if (this.core && this.core.isEnabled) {
+            this.core.checkForDMSSContent();
+        }
+        
         this.loadMemoryData();
         toastr.success('记忆数据已刷新', '刷新成功', { timeOut: 1500 });
     }
@@ -385,6 +393,30 @@ class DMSSUI {
     }
 
     /**
+     * 手动检查DMSS内容
+     */
+    checkForDMSSContent() {
+        if (!this.core) {
+            toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+            return;
+        }
+        
+        if (!this.core.isEnabled) {
+            toastr.info('请先启动DMSS系统', '提示', { timeOut: 2000 });
+            return;
+        }
+        
+        console.log('[DMSS UI] 手动触发DMSS内容检查');
+        this.core.checkForDMSSContent();
+        
+        // 延迟刷新界面
+        setTimeout(() => {
+            this.loadMemoryData();
+            toastr.success('DMSS内容检查完成', '检查完成', { timeOut: 1500 });
+        }, 1000);
+    }
+
+    /**
      * 打开设置界面
      */
     openSettings() {
@@ -426,60 +458,60 @@ const dmssStyles = `
     backdrop-filter: blur(2px);
 }
 
-.dmss-modal-content {
-    position: relative;
-    width: 90%;
-    max-width: 1000px;
-    max-height: 80vh;
-    background: var(--SmartThemeBodyColor, #ffffff);
-    border: 1px solid var(--SmartThemeBorderColor, #ddd);
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    display: flex;
-    flex-direction: column;
-    transform: scale(0.9);
-    transition: transform 0.3s ease;
-}
+ .dmss-modal-content {
+     position: relative;
+     width: 90%;
+     max-width: 1000px;
+     max-height: 80vh;
+     background: var(--SmartThemeBodyColor);
+     border: 1px solid var(--SmartThemeBorderColor);
+     border-radius: 12px;
+     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+     display: flex;
+     flex-direction: column;
+     transform: scale(0.9);
+     transition: transform 0.3s ease;
+ }
 
 .dmss-memory-viewer-modal.show .dmss-modal-content {
     transform: scale(1);
 }
 
-.dmss-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 25px;
-    border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
-    background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
-    border-radius: 12px 12px 0 0;
-}
-
-.dmss-modal-header h3 {
-    margin: 0;
-    color: var(--SmartThemeTextColor, #333);
-    font-size: 18px;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.dmss-modal-close {
-    background: none;
-    border: none;
-    color: var(--SmartThemeTextColor, #666);
-    font-size: 18px;
-    cursor: pointer;
-    padding: 5px;
-    border-radius: 4px;
-    transition: all 0.3s ease;
-}
-
-.dmss-modal-close:hover {
-    background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.1));
-    color: var(--SmartThemeTextColor, #333);
-}
+ .dmss-modal-header {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     padding: 20px 25px;
+     border-bottom: 1px solid var(--SmartThemeBorderColor);
+     background: var(--SmartThemeBodyColor);
+     border-radius: 12px 12px 0 0;
+ }
+ 
+ .dmss-modal-header h3 {
+     margin: 0;
+     color: var(--SmartThemeTextColor);
+     font-size: 18px;
+     font-weight: bold;
+     display: flex;
+     align-items: center;
+     gap: 8px;
+ }
+ 
+ .dmss-modal-close {
+     background: none;
+     border: none;
+     color: var(--SmartThemeTextColor);
+     font-size: 18px;
+     cursor: pointer;
+     padding: 5px;
+     border-radius: 4px;
+     transition: all 0.3s ease;
+ }
+ 
+ .dmss-modal-close:hover {
+     background: var(--SmartThemeChatTintColor);
+     color: var(--SmartThemeTextColor);
+ }
 
 .dmss-modal-body {
     flex: 1;
@@ -490,105 +522,105 @@ const dmssStyles = `
     gap: 20px;
 }
 
-/* 记忆控制面板 */
-.dmss-memory-controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 15px;
-    padding: 15px;
-    background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
-    border: 1px solid var(--SmartThemeBorderColor, rgba(0, 0, 0, 0.1));
-    border-radius: 8px;
-}
-
-.dmss-chat-selector {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.dmss-chat-selector label {
-    color: var(--SmartThemeTextColor, #333);
-    font-weight: bold;
-    font-size: 14px;
-}
-
-.dmss-chat-selector select {
-    padding: 8px 12px;
-    border: 1px solid var(--SmartThemeBorderColor, #ddd);
-    border-radius: 6px;
-    background: var(--SmartThemeBodyColor, #fff);
-    color: var(--SmartThemeTextColor, #333);
-    font-size: 14px;
-    min-width: 200px;
-}
+ /* 记忆控制面板 */
+ .dmss-memory-controls {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     flex-wrap: wrap;
+     gap: 15px;
+     padding: 15px;
+     background: var(--SmartThemeBodyColor);
+     border: 1px solid var(--SmartThemeBorderColor);
+     border-radius: 8px;
+ }
+ 
+ .dmss-chat-selector {
+     display: flex;
+     align-items: center;
+     gap: 10px;
+ }
+ 
+ .dmss-chat-selector label {
+     color: var(--SmartThemeTextColor);
+     font-weight: bold;
+     font-size: 14px;
+ }
+ 
+ .dmss-chat-selector select {
+     padding: 8px 12px;
+     border: 1px solid var(--SmartThemeBorderColor);
+     border-radius: 6px;
+     background: var(--SmartThemeBodyColor);
+     color: var(--SmartThemeTextColor);
+     font-size: 14px;
+     min-width: 200px;
+ }
 
 .dmss-memory-actions {
     display: flex;
     gap: 10px;
 }
 
-.dmss-action-btn {
-    padding: 8px 16px;
-    border: 1px solid var(--SmartThemeBorderColor, #ddd);
-    background: var(--SmartThemeBodyColor, #fff);
-    color: var(--SmartThemeTextColor, #333);
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
+ .dmss-action-btn {
+     padding: 8px 16px;
+     border: 1px solid var(--SmartThemeBorderColor);
+     background: var(--SmartThemeBodyColor);
+     color: var(--SmartThemeTextColor);
+     border-radius: 6px;
+     cursor: pointer;
+     font-size: 13px;
+     transition: all 0.3s ease;
+     display: flex;
+     align-items: center;
+     gap: 6px;
+ }
+ 
+ .dmss-action-btn:hover {
+     background: var(--SmartThemeChatTintColor);
+     border-color: var(--SmartThemeQuoteColor);
+ }
 
-.dmss-action-btn:hover {
-    background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.1));
-    border-color: var(--SmartThemeQuoteColor, #007bff);
-}
+ .dmss-action-btn.warning-btn {
+     background: var(--SmartThemeBodyColor);
+     border-color: var(--SmartThemeQuoteColor);
+     color: var(--SmartThemeTextColor);
+ }
+ 
+ .dmss-action-btn.warning-btn:hover {
+     background: var(--SmartThemeChatTintColor);
+ }
 
-.dmss-action-btn.warning-btn {
-    background: rgba(255, 193, 7, 0.1);
-    border-color: #ffc107;
-    color: #ffc107;
-}
-
-.dmss-action-btn.warning-btn:hover {
-    background: rgba(255, 193, 7, 0.2);
-}
-
-/* 记忆统计信息 */
-.dmss-memory-stats {
-    display: flex;
-    justify-content: space-around;
-    padding: 15px;
-    background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
-    border: 1px solid var(--SmartThemeBorderColor, rgba(0, 0, 0, 0.1));
-    border-radius: 8px;
-    flex-wrap: wrap;
-    gap: 15px;
-}
-
-.stat-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-width: 120px;
-}
-
-.stat-label {
-    font-size: 12px;
-    color: var(--SmartThemeTextColor, #666);
-    margin-bottom: 4px;
-}
-
-.stat-value {
-    font-size: 16px;
-    font-weight: bold;
-    color: var(--SmartThemeTextColor, #333);
-}
+ /* 记忆统计信息 */
+ .dmss-memory-stats {
+     display: flex;
+     justify-content: space-around;
+     padding: 15px;
+     background: var(--SmartThemeBodyColor);
+     border: 1px solid var(--SmartThemeBorderColor);
+     border-radius: 8px;
+     flex-wrap: wrap;
+     gap: 15px;
+ }
+ 
+ .stat-item {
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+     min-width: 120px;
+ }
+ 
+ .stat-label {
+     font-size: 12px;
+     color: var(--SmartThemeTextColor);
+     margin-bottom: 4px;
+ }
+ 
+ .stat-value {
+     font-size: 16px;
+     font-weight: bold;
+     color: var(--SmartThemeTextColor);
+ }
 
 /* 记忆列表 */
 .dmss-memory-list {
@@ -597,71 +629,71 @@ const dmssStyles = `
     max-height: 400px;
 }
 
-.dmss-loading {
-    text-align: center;
-    padding: 40px;
-    color: var(--SmartThemeTextColor, #666);
-}
+ .dmss-loading {
+     text-align: center;
+     padding: 40px;
+     color: var(--SmartThemeTextColor);
+ }
+ 
+ .dmss-loading i {
+     font-size: 24px;
+     margin-bottom: 10px;
+     color: var(--SmartThemeQuoteColor);
+ }
+ 
+ .dmss-no-memories {
+     text-align: center;
+     padding: 40px;
+     color: var(--SmartThemeTextColor);
+ }
+ 
+ .dmss-no-memories i {
+     font-size: 48px;
+     margin-bottom: 15px;
+     opacity: 0.5;
+ }
 
-.dmss-loading i {
-    font-size: 24px;
-    margin-bottom: 10px;
-    color: var(--SmartThemeQuoteColor, #007bff);
-}
-
-.dmss-no-memories {
-    text-align: center;
-    padding: 40px;
-    color: var(--SmartThemeTextColor, #666);
-}
-
-.dmss-no-memories i {
-    font-size: 48px;
-    margin-bottom: 15px;
-    opacity: 0.5;
-}
-
-/* 记忆条目 */
-.dmss-memory-item {
-    background: var(--SmartThemeBodyColor, #fff);
-    border: 1px solid var(--SmartThemeBorderColor, #ddd);
-    border-radius: 8px;
-    margin-bottom: 15px;
-    overflow: hidden;
-    transition: all 0.3s ease;
-}
-
-.dmss-memory-item:hover {
-    border-color: var(--SmartThemeQuoteColor, #007bff);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.dmss-memory-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 15px;
-    background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
-    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(0, 0, 0, 0.1));
-}
-
-.dmss-memory-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.dmss-memory-time {
-    font-size: 13px;
-    color: var(--SmartThemeTextColor, #333);
-    font-weight: bold;
-}
-
-.dmss-memory-id {
-    font-size: 11px;
-    color: var(--SmartThemeTextColor, #666);
-    font-family: monospace;
-}
+ /* 记忆条目 */
+ .dmss-memory-item {
+     background: var(--SmartThemeBodyColor);
+     border: 1px solid var(--SmartThemeBorderColor);
+     border-radius: 8px;
+     margin-bottom: 15px;
+     overflow: hidden;
+     transition: all 0.3s ease;
+ }
+ 
+ .dmss-memory-item:hover {
+     border-color: var(--SmartThemeQuoteColor);
+     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+ }
+ 
+ .dmss-memory-header {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     padding: 12px 15px;
+     background: var(--SmartThemeBodyColor);
+     border-bottom: 1px solid var(--SmartThemeBorderColor);
+ }
+ 
+ .dmss-memory-meta {
+     display: flex;
+     flex-direction: column;
+     gap: 4px;
+ }
+ 
+ .dmss-memory-time {
+     font-size: 13px;
+     color: var(--SmartThemeTextColor);
+     font-weight: bold;
+ }
+ 
+ .dmss-memory-id {
+     font-size: 11px;
+     color: var(--SmartThemeTextColor);
+     font-family: monospace;
+ }
 
 .dmss-memory-actions {
     display: flex;
@@ -687,53 +719,59 @@ const dmssStyles = `
     padding: 15px;
 }
 
-.dmss-memory-content pre {
-    margin: 0;
-    padding: 0;
-    background: none;
-    border: none;
-    color: var(--SmartThemeTextColor, #333);
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    font-size: 13px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    max-height: 200px;
-    overflow-y: auto;
-}
+ .dmss-memory-content pre {
+     margin: 0;
+     padding: 0;
+     background: none;
+     border: none;
+     color: var(--SmartThemeTextColor);
+     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+     font-size: 13px;
+     line-height: 1.5;
+     white-space: pre-wrap;
+     word-wrap: break-word;
+     max-height: 200px;
+     overflow-y: auto;
+ }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-    .dmss-modal-content {
-        width: 95%;
-        max-height: 90vh;
-    }
-    
-    .dmss-memory-controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .dmss-chat-selector {
-        justify-content: space-between;
-    }
-    
-    .dmss-chat-selector select {
-        min-width: auto;
-        flex: 1;
-    }
-    
-    .dmss-memory-stats {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .stat-item {
-        flex-direction: row;
-        justify-content: space-between;
-        min-width: auto;
-    }
-}
+ /* 响应式设计 */
+ @media (max-width: 768px) {
+     .dmss-memory-viewer-modal {
+         align-items: center;
+         justify-content: center;
+     }
+     
+     .dmss-modal-content {
+         width: 95%;
+         max-height: 90vh;
+         margin: 20px;
+     }
+     
+     .dmss-memory-controls {
+         flex-direction: column;
+         align-items: stretch;
+     }
+     
+     .dmss-chat-selector {
+         justify-content: space-between;
+     }
+     
+     .dmss-chat-selector select {
+         min-width: auto;
+         flex: 1;
+     }
+     
+     .dmss-memory-stats {
+         flex-direction: column;
+         gap: 10px;
+     }
+     
+     .stat-item {
+         flex-direction: row;
+         justify-content: space-between;
+         min-width: auto;
+     }
+ }
 </style>
 `;
 

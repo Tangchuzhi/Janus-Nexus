@@ -65,21 +65,6 @@ class DMSSCore {
      * 设置消息监听器
      */
     setupMessageListener() {
-        // 监听AI生成的消息，捕获DMSS内容
-        const originalSendMessage = window.sendMessage;
-        if (originalSendMessage) {
-            window.sendMessage = (...args) => {
-                const result = originalSendMessage.apply(this, args);
-                
-                // 延迟检查消息内容，确保消息已添加到聊天中
-                setTimeout(() => {
-                    this.checkForDMSSContent();
-                }, 1000);
-                
-                return result;
-            };
-        }
-
         // 监听DOM变化，检测新消息
         const observer = new MutationObserver((mutations) => {
             if (!this.isEnabled) return;
@@ -96,12 +81,19 @@ class DMSSCore {
         });
 
         // 开始观察聊天区域的变化
-        const chatContainer = document.querySelector('#chat') || document.querySelector('.chat-container');
+        const chatContainer = document.querySelector('#chat') || document.querySelector('.chat-container') || document.querySelector('.mes');
         if (chatContainer) {
             observer.observe(chatContainer, {
                 childList: true,
                 subtree: true
             });
+            console.log('[DMSS Core] 消息监听器已设置');
+        } else {
+            console.warn('[DMSS Core] 未找到聊天容器，尝试延迟设置监听器');
+            // 延迟重试
+            setTimeout(() => {
+                this.setupMessageListener();
+            }, 2000);
         }
     }
 
@@ -114,6 +106,7 @@ class DMSSCore {
         // 查找包含DMSS标签的文本内容
         const textContent = node.textContent || '';
         if (textContent.includes('<DMSS>') && textContent.includes('</DMSS>')) {
+            console.log('[DMSS Core] 发现DMSS内容:', textContent.substring(0, 100) + '...');
             this.extractDMSSContent(textContent);
         }
 
@@ -122,6 +115,7 @@ class DMSSCore {
         children.forEach(child => {
             const childText = child.textContent || '';
             if (childText.includes('<DMSS>') && childText.includes('</DMSS>')) {
+                console.log('[DMSS Core] 在子节点发现DMSS内容:', childText.substring(0, 100) + '...');
                 this.extractDMSSContent(childText);
             }
         });
@@ -133,16 +127,35 @@ class DMSSCore {
     checkForDMSSContent() {
         if (!this.isEnabled) return;
 
-        // 获取最新的AI消息
+        console.log('[DMSS Core] 开始检查页面中的DMSS内容...');
+
+        // 获取所有消息
         const messages = document.querySelectorAll('.mes');
-        if (messages.length === 0) return;
+        console.log(`[DMSS Core] 找到 ${messages.length} 条消息`);
 
-        const lastMessage = messages[messages.length - 1];
-        const messageText = lastMessage.textContent || '';
-
-        if (messageText.includes('<DMSS>') && messageText.includes('</DMSS>')) {
-            this.extractDMSSContent(messageText);
+        if (messages.length === 0) {
+            // 尝试其他选择器
+            const altMessages = document.querySelectorAll('[class*="message"], [class*="chat"], [class*="mes"]');
+            console.log(`[DMSS Core] 尝试其他选择器，找到 ${altMessages.length} 个元素`);
+            
+            altMessages.forEach((msg, index) => {
+                const text = msg.textContent || '';
+                if (text.includes('<DMSS>') && text.includes('</DMSS>')) {
+                    console.log(`[DMSS Core] 在备用选择器第${index}个元素中发现DMSS内容`);
+                    this.extractDMSSContent(text);
+                }
+            });
+            return;
         }
+
+        // 检查所有消息
+        messages.forEach((message, index) => {
+            const messageText = message.textContent || '';
+            if (messageText.includes('<DMSS>') && messageText.includes('</DMSS>')) {
+                console.log(`[DMSS Core] 在第${index}条消息中发现DMSS内容`);
+                this.extractDMSSContent(messageText);
+            }
+        });
     }
 
     /**
