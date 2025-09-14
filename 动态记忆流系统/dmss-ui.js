@@ -40,25 +40,11 @@ class DMSSUI {
             this.init();
         }
         
-        try {
-            await this.core.start();
-            await this.refreshMemoryList();
-            this.updateStatusDisplay();
-            
-            console.log('[DMSS UI] DMSS系统已启动');
-            
-            // 显示启动成功提示
-            if (typeof toastr !== 'undefined') {
-                toastr.success('DMSS系统已启动', '启动成功', { timeOut: 2000 });
-            }
-        } catch (error) {
-            console.error('[DMSS UI] 启动DMSS系统失败:', error);
-            
-            // 显示启动失败提示
-            if (typeof toastr !== 'undefined') {
-                toastr.error('DMSS系统启动失败，请检查世界书设置', '启动失败', { timeOut: 3000 });
-            }
-        }
+        this.core.start();
+        await this.refreshMemoryList();
+        this.updateStatusDisplay();
+        
+        console.log('[DMSS UI] DMSS系统已启动');
     }
 
     /**
@@ -390,73 +376,13 @@ class DMSSUI {
     }
 
     /**
-     * 测试DMSS功能
-     */
-    async testDMSSFunction() {
-        if (!this.core) {
-            if (typeof toastr !== 'undefined') {
-                toastr.error('请先启动DMSS系统', '测试失败', { timeOut: 2000 });
-            }
-            return;
-        }
-        
-        try {
-            console.log('[DMSS UI] 开始测试DMSS功能...');
-            
-            if (typeof toastr !== 'undefined') {
-                toastr.info('正在测试DMSS功能...', '测试中', { timeOut: 2000 });
-            }
-            
-            const success = await this.core.testDMSSFunction();
-            
-            if (success) {
-                await this.refreshMemoryList();
-                this.updateStatusDisplay();
-                
-                if (typeof toastr !== 'undefined') {
-                    toastr.success('DMSS功能测试成功！', '测试完成', { timeOut: 3000 });
-                }
-            } else {
-                if (typeof toastr !== 'undefined') {
-                    toastr.error('DMSS功能测试失败，请检查设置', '测试失败', { timeOut: 3000 });
-                }
-            }
-            
-        } catch (error) {
-            console.error('[DMSS UI] 测试DMSS功能失败:', error);
-            
-            if (typeof toastr !== 'undefined') {
-                toastr.error('测试过程中发生错误', '测试失败', { timeOut: 3000 });
-            }
-        }
-    }
-
-    /**
      * 处理新消息
      */
     async handleNewMessage(messageContent) {
         if (this.core && this.core.isEnabled) {
-            try {
-                // 检查是否包含DMSS标签
-                if (messageContent.includes('<DMSS>')) {
-                    console.log('[DMSS UI] 检测到DMSS标签，开始处理...');
-                    
-                    await this.core.processMessage(messageContent);
-                    await this.refreshMemoryList();
-                    this.updateStatusDisplay();
-                    
-                    // 显示处理成功提示
-                    if (typeof toastr !== 'undefined') {
-                        toastr.success('已捕获DMSS内容并存储到世界书', 'DMSS处理完成', { timeOut: 2000 });
-                    }
-                }
-            } catch (error) {
-                console.error('[DMSS UI] 处理DMSS消息失败:', error);
-                
-                if (typeof toastr !== 'undefined') {
-                    toastr.error('处理DMSS内容失败', '处理错误', { timeOut: 3000 });
-                }
-            }
+            await this.core.processMessage(messageContent);
+            await this.refreshMemoryList();
+            this.updateStatusDisplay();
         }
     }
 
