@@ -543,6 +543,14 @@ jQuery(() => {
                     <i class="fa-solid fa-gamepad"></i> GAME
                 </button>
             </div>
+            
+            <!-- 内容区域 -->
+            <div class="janus-content-area">
+                <div class="janus-tab-content">
+                    <h4 style="text-align: center;"><i class="fa-solid fa-brain"></i> 动态记忆流系统 (DMSS)</h4>
+                    <p>DMSS 功能正在开发中...</p>
+                </div>
+            </div>
         </div>
         
         <style>
