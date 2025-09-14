@@ -1131,8 +1131,8 @@ jQuery(() => {
         
         /* DMSS 样式 */
         .dmss-status-panel {
-            background: var(--SmartThemeBodyColor, rgba(255, 255, 255, 0.05));
-            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
             border-radius: 8px;
             padding: 12px;
             margin-bottom: 15px;
@@ -1164,8 +1164,8 @@ jQuery(() => {
         
         /* DMSS 主控制面板 */
         .dmss-main-control {
-            background: var(--SmartThemeBodyColor, rgba(255, 255, 255, 0.05));
-            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 15px;
@@ -1247,8 +1247,8 @@ jQuery(() => {
             flex: 1;
             min-width: 120px;
             padding: 10px 12px;
-            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
-            background: var(--SmartThemeBodyColor, rgba(255, 255, 255, 0.05));
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
             color: var(--SmartThemeTextColor);
             border-radius: 6px;
             cursor: pointer;
@@ -1263,8 +1263,8 @@ jQuery(() => {
         .dmss-action-btn:hover {
             transform: translateY(-1px);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            background: var(--SmartThemeBodyColor, rgba(255, 255, 255, 0.1));
-            border-color: var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.2));
+            border-color: var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.3));
         }
         
         .dmss-action-btn.primary-btn {
@@ -1362,7 +1362,7 @@ jQuery(() => {
         }
 
         .dmss-modal-content {
-            background: var(--SmartThemeBodyColor, #fff);
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.95));
             border-radius: 12px;
             max-width: 80%;
             max-height: 80%;
@@ -1417,8 +1417,8 @@ jQuery(() => {
 
         .dmss-btn {
             padding: 10px 20px;
-            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
-            background: var(--SmartThemeBodyColor, rgba(255, 255, 255, 0.05));
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
             color: var(--SmartThemeTextColor);
             border-radius: 6px;
             cursor: pointer;
