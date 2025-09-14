@@ -202,6 +202,41 @@ jQuery(() => {
         }
     }
     
+    // 加载DMSS核心模块
+    async function loadDMSSCore() {
+        // 如果DMSS核心已经加载，直接返回
+        if (window.DMSSCore && window.DMSSUI) {
+            console.log('[Janusの百宝箱] DMSS核心模块已存在');
+            return;
+        }
+        
+        try {
+            // 加载DMSS核心
+            const coreScript = document.createElement('script');
+            coreScript.src = 'scripts/extensions/third-party/Janus-Treasure-chest/动态记忆流系统/dmss-core.js';
+            coreScript.onload = () => {
+                console.log('[Janusの百宝箱] DMSS核心脚本加载完成');
+                
+                // 加载DMSS UI
+                const uiScript = document.createElement('script');
+                uiScript.src = 'scripts/extensions/third-party/Janus-Treasure-chest/动态记忆流系统/dmss-ui.js';
+                uiScript.onload = () => {
+                    console.log('[Janusの百宝箱] DMSS UI脚本加载完成');
+                };
+                uiScript.onerror = () => {
+                    console.error('[Janusの百宝箱] DMSS UI脚本加载失败');
+                };
+                document.head.appendChild(uiScript);
+            };
+            coreScript.onerror = () => {
+                console.error('[Janusの百宝箱] DMSS核心脚本加载失败');
+            };
+            document.head.appendChild(coreScript);
+        } catch (error) {
+            console.error('[Janusの百宝箱] 加载DMSS核心模块失败:', error);
+        }
+    }
+    
     // 切换标签页
     function switchTab(tabName) {
         currentActiveTab = tabName;
@@ -218,8 +253,45 @@ jQuery(() => {
             case 'dmss':
                 content = `
                     <div class="janus-tab-content">
-                        <h4><i class="fa-solid fa-brain"></i> 动态记忆流系统 (DMSS)</h4>
-                        <p>这里将显示DMSS功能界面...</p>
+                        <h4 style="text-align: center;"><i class="fa-solid fa-brain"></i> 动态记忆流系统 (DMSS)</h4>
+                        
+                        <!-- DMSS 状态面板 -->
+                        <div class="dmss-status-panel">
+                            <div class="status-item">
+                                <span class="status-label">系统状态:</span>
+                                <span id="dmss-status" class="status-value">未启动</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">最后更新:</span>
+                                <span id="dmss-last-update" class="status-value">从未</span>
+                            </div>
+                        </div>
+                        
+                        <!-- DMSS 主控制面板 -->
+                        <div class="dmss-main-control">
+                            <div class="main-toggle-section">
+                                <div class="toggle-container">
+                                    <label class="dmss-toggle-label">
+                                        <input type="checkbox" id="dmss-main-toggle" onchange="window.janusHandlers.toggleDMSS()">
+                                        <span class="toggle-slider"></span>
+                                        <span class="toggle-text">启用DMSS</span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="action-buttons">
+                                <button onclick="window.janusHandlers.viewMemoryContent()" class="dmss-action-btn primary-btn">
+                                    <i class="fa-solid fa-eye"></i> 查看记忆
+                                </button>
+                                <button onclick="window.janusHandlers.openSettings()" class="dmss-action-btn secondary-btn">
+                                    <i class="fa-solid fa-gear"></i> 系统设置
+                                </button>
+                                <button onclick="window.janusHandlers.resetDMSS()" class="dmss-action-btn warning-btn">
+                                    <i class="fa-solid fa-refresh"></i> 重置系统
+                                </button>
+                            </div>
+                        </div>
+                        
                     </div>
                 `;
                 break;
@@ -348,6 +420,13 @@ jQuery(() => {
             setTimeout(() => {
                 loadGameLoader();
                 loadExternalGameManager();
+            }, 100);
+        }
+        
+        // 如果是DMSS标签页，加载DMSS模块
+        if (tabName === 'dmss') {
+            setTimeout(() => {
+                loadDMSSCore();
             }, 100);
         }
     }
@@ -505,6 +584,107 @@ jQuery(() => {
         }
     }
     
+    // DMSS 相关处理函数
+    let dmssUI = null;
+    let dmssEnabled = false;
+    
+    // 切换DMSS开关
+    function toggleDMSS() {
+        const toggle = document.getElementById('dmss-main-toggle');
+        if (!toggle) return;
+        
+        dmssEnabled = toggle.checked;
+        
+        if (dmssEnabled) {
+            startDMSS();
+        } else {
+            stopDMSS();
+        }
+        
+        updateDMSSStatus();
+    }
+    
+    function startDMSS() {
+        if (!dmssUI) {
+            console.log('[Janusの百宝箱] 初始化DMSS UI');
+            dmssUI = new DMSSUI();
+            dmssUI.init();
+        }
+        dmssUI.startDMSS();
+        dmssEnabled = true;
+        updateDMSSStatus();
+    }
+    
+    function stopDMSS() {
+        if (dmssUI) {
+            dmssUI.stopDMSS();
+        }
+        dmssEnabled = false;
+        updateDMSSStatus();
+    }
+    
+    function resetDMSS() {
+        if (confirm('确定要重置DMSS系统吗？这将清除所有记忆内容。')) {
+            if (dmssUI) {
+                dmssUI.resetDMSS();
+            }
+            dmssEnabled = false;
+            const toggle = document.getElementById('dmss-main-toggle');
+            if (toggle) {
+                toggle.checked = false;
+            }
+            updateDMSSStatus();
+            if (window.toastr) {
+                toastr.success('DMSS系统已重置', '重置完成', { timeOut: 2000 });
+            }
+        }
+    }
+    
+    // 查看记忆内容
+    function viewMemoryContent() {
+        if (dmssUI) {
+            dmssUI.viewMemoryContent();
+        } else {
+            if (window.toastr) {
+                toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+            }
+        }
+    }
+    
+    // 打开设置
+    function openSettings() {
+        if (dmssUI) {
+            dmssUI.openSettings();
+        } else {
+            if (window.toastr) {
+                toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+            }
+        }
+    }
+    
+    // 更新DMSS状态显示
+    function updateDMSSStatus() {
+        const statusElement = document.getElementById('dmss-status');
+        const toggle = document.getElementById('dmss-main-toggle');
+        const lastUpdateElement = document.getElementById('dmss-last-update');
+        
+        if (statusElement) {
+            statusElement.textContent = dmssEnabled ? '运行中' : '已停止';
+            statusElement.style.color = dmssEnabled ? '#28a745' : '#dc3545';
+        }
+        
+        if (toggle) {
+            toggle.checked = dmssEnabled;
+        }
+        
+        // 更新最后更新时间
+        if (lastUpdateElement && dmssUI && dmssUI.core) {
+            const status = dmssUI.core.getStatus();
+            lastUpdateElement.textContent = status.lastUpdated ? 
+                new Date(status.lastUpdated).toLocaleString('zh-CN') : '从未';
+        }
+    }
+
     // 模块功能处理函数
     window.janusHandlers = {
         switchTab: switchTab,
@@ -514,7 +694,15 @@ jQuery(() => {
         importGameFromFile: importGameFromFile,
         launchExternalGame: launchExternalGame,
         removeExternalGame: removeExternalGame,
-        refreshImportedGamesList: refreshImportedGamesList
+        refreshImportedGamesList: refreshImportedGamesList,
+        // DMSS 相关函数
+        toggleDMSS: toggleDMSS,
+        startDMSS: startDMSS,
+        stopDMSS: stopDMSS,
+        resetDMSS: resetDMSS,
+        viewMemoryContent: viewMemoryContent,
+        openSettings: openSettings,
+        updateDMSSStatus: updateDMSSStatus
     };
     
     // 菜单栏布局的HTML内容
@@ -914,6 +1102,663 @@ jQuery(() => {
             background: rgba(220, 53, 69, 0.1);
             border-color: #dc3545;
             color: #dc3545;
+        }
+        
+        /* DMSS 样式 */
+        .dmss-status-panel {
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 100px;
+        }
+        
+        .status-label {
+            font-size: 11px;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.7;
+            margin-bottom: 4px;
+        }
+        
+        .status-value {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--SmartThemeTextColor);
+        }
+        
+        /* DMSS 主控制面板 */
+        .dmss-main-control {
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .main-toggle-section {
+            margin-bottom: 15px;
+        }
+        
+        .toggle-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        
+        .dmss-toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--SmartThemeTextColor);
+        }
+        
+        .dmss-toggle-label input[type="checkbox"] {
+            display: none;
+        }
+        
+        .toggle-slider {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: var(--SmartThemeBorderColor, #ccc);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+        
+        .dmss-toggle-label input[type="checkbox"]:checked + .toggle-slider {
+            background: #28a745;
+        }
+        
+        .dmss-toggle-label input[type="checkbox"]:checked + .toggle-slider::before {
+            transform: translateX(26px);
+        }
+        
+        .toggle-description {
+            text-align: center;
+            margin-top: 8px;
+        }
+        
+        .toggle-description p {
+            margin: 0;
+            font-size: 12px;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .dmss-action-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 10px 12px;
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            color: var(--SmartThemeTextColor);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        
+        .dmss-action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .dmss-action-btn.primary-btn {
+            background: rgba(40, 167, 69, 0.1);
+            border-color: #28a745;
+            color: #28a745;
+        }
+        
+        .dmss-action-btn.primary-btn:hover {
+            background: rgba(40, 167, 69, 0.2);
+        }
+        
+        .dmss-action-btn.secondary-btn {
+            background: rgba(108, 117, 125, 0.1);
+            border-color: #6c757d;
+            color: #6c757d;
+        }
+        
+        .dmss-action-btn.secondary-btn:hover {
+            background: rgba(108, 117, 125, 0.2);
+        }
+        
+        .dmss-action-btn.warning-btn {
+            background: rgba(255, 193, 7, 0.1);
+            border-color: #ffc107;
+            color: #ffc107;
+        }
+        
+        .dmss-action-btn.warning-btn:hover {
+            background: rgba(255, 193, 7, 0.2);
+        }
+        
+        /* DMSS 功能说明 */
+        .dmss-info-section {
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid rgba(52, 152, 219, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid rgba(52, 152, 219, 0.8);
+        }
+        
+        .dmss-info-section h5 {
+            margin: 0 0 12px 0;
+            color: rgba(52, 152, 219, 0.9);
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .workflow-step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            gap: 10px;
+        }
+        
+        .step-number {
+            width: 24px;
+            height: 24px;
+            background: rgba(52, 152, 219, 0.8);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .step-content {
+            flex: 1;
+            color: var(--SmartThemeTextColor);
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .step-content strong {
+            color: rgba(52, 152, 219, 0.9);
+            font-size: 13px;
+        }
+        
+        /* DMSS 模态框样式 */
+        .dmss-memory-modal,
+        .dmss-settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .dmss-memory-modal.show,
+        .dmss-settings-modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .dmss-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .dmss-modal-content {
+            background: var(--SmartThemeBodyColor, #fff);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            max-width: 90vw;
+            max-height: 90vh;
+            width: 800px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .dmss-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
+            background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
+        }
+        
+        .dmss-modal-header h3 {
+            margin: 0;
+            color: var(--SmartThemeTextColor);
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .dmss-modal-close {
+            background: none;
+            border: none;
+            color: var(--SmartThemeTextColor);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .dmss-modal-close:hover {
+            background: var(--SmartThemeBorderColor, rgba(0, 0, 0, 0.1));
+        }
+        
+        .dmss-modal-body {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            color: var(--SmartThemeTextColor);
+        }
+        
+        /* DMSS 状态区域 */
+        .dmss-status-section {
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .dmss-status-section h4 {
+            margin: 0 0 12px 0;
+            color: var(--SmartThemeTextColor);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .status-label {
+            font-size: 11px;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.7;
+        }
+        
+        .status-value {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--SmartThemeTextColor);
+        }
+        
+        .status-value.enabled {
+            color: #28a745;
+        }
+        
+        .status-value.disabled {
+            color: #dc3545;
+        }
+        
+        /* DMSS 标签页 */
+        .dmss-tab-bar {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
+            padding-bottom: 8px;
+        }
+        
+        .dmss-tab-btn {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            background: transparent;
+            color: var(--SmartThemeTextColor);
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        
+        .dmss-tab-btn.active {
+            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
+            color: var(--SmartThemeTextColor);
+            font-weight: bold;
+        }
+        
+        .dmss-tab-btn:hover {
+            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.05));
+        }
+        
+        .dmss-tab-content {
+            display: none;
+        }
+        
+        .dmss-tab-content.active {
+            display: block;
+        }
+        
+        /* DMSS 记录容器 */
+        .dmss-records-container {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        
+        .dmss-record-item {
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            border-radius: 8px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .dmss-record-item:hover {
+            border-color: var(--SmartThemeQuoteColor, #007bff);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
+            border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+        }
+        
+        .record-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 12px;
+        }
+        
+        .record-index {
+            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
+            color: var(--SmartThemeQuoteColor, #007bff);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .record-timestamp {
+            color: var(--SmartThemeTextColor);
+            opacity: 0.8;
+        }
+        
+        .record-chat {
+            background: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        
+        .record-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .record-action-btn {
+            background: none;
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            color: var(--SmartThemeTextColor);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s ease;
+        }
+        
+        .record-action-btn:hover {
+            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
+            border-color: var(--SmartThemeQuoteColor, #007bff);
+        }
+        
+        .record-content {
+            padding: 15px;
+            background: var(--SmartThemeBodyColor, #fff);
+            transition: all 0.3s ease;
+        }
+        
+        .record-content.collapsed {
+            max-height: 0;
+            padding: 0 15px;
+            overflow: hidden;
+        }
+        
+        .dmss-content-text {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--SmartThemeTextColor);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        /* DMSS 空状态 */
+        .dmss-empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.6;
+        }
+        
+        .dmss-empty-state i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        .dmss-empty-state p {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .dmss-empty-state small {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        /* DMSS 操作按钮 */
+        .dmss-action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--SmartThemeBorderColor, #ddd);
+        }
+        
+        .dmss-btn {
+            padding: 10px 15px;
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            color: var(--SmartThemeTextColor);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .dmss-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .dmss-btn.primary {
+            background: rgba(40, 167, 69, 0.1);
+            border-color: #28a745;
+            color: #28a745;
+        }
+        
+        .dmss-btn.primary:hover {
+            background: rgba(40, 167, 69, 0.2);
+        }
+        
+        .dmss-btn.warning {
+            background: rgba(255, 193, 7, 0.1);
+            border-color: #ffc107;
+            color: #ffc107;
+        }
+        
+        .dmss-btn.warning:hover {
+            background: rgba(255, 193, 7, 0.2);
+        }
+        
+        .dmss-btn.danger {
+            background: rgba(220, 53, 69, 0.1);
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+        
+        .dmss-btn.danger:hover {
+            background: rgba(220, 53, 69, 0.2);
+        }
+        
+        /* DMSS 设置样式 */
+        .settings-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
+        }
+        
+        .settings-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .settings-section h4 {
+            margin: 0 0 15px 0;
+            color: var(--SmartThemeTextColor);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .setting-item {
+            margin-bottom: 15px;
+        }
+        
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .setting-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--SmartThemeTextColor);
+        }
+        
+        .setting-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .setting-text {
+            font-weight: bold;
+        }
+        
+        .setting-description {
+            margin: 5px 0 0 28px;
+            font-size: 12px;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .info-label {
+            font-size: 11px;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.7;
+        }
+        
+        .info-value {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--SmartThemeTextColor);
         }
         </style>
     `;
