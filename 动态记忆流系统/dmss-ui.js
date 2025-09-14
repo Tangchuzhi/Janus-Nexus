@@ -1,11 +1,11 @@
 /**
- * DMSS (Dynamic Memory Stream System) UI界面模块
- * 负责提供用户界面和交互功能
+ * DMSS (Dynamic Memory Stream System) UI模块
+ * 动态记忆流系统用户界面 - 提供用户交互和显示功能
  */
 
 class DMSSUI {
     constructor() {
-        this.core = window.DMSSCore;
+        this.core = null;
         this.isInitialized = false;
         this.memoryViewerModal = null;
         this.settingsModal = null;
@@ -15,636 +15,436 @@ class DMSSUI {
      * 初始化DMSS UI
      */
     init() {
-        if (this.isInitialized) return;
+        if (this.isInitialized) {
+            console.log('[DMSS UI] UI已初始化');
+            return;
+        }
+
+        console.log('[DMSS UI] 初始化DMSS UI模块');
         
-        console.log('[DMSS UI] 初始化DMSS UI界面');
-        this.createStyles();
-        this.setupEventListeners();
-        this.isInitialized = true;
+            // 初始化核心模块
+            if (!window.DMSSCore) {
+            console.error('[DMSS UI] DMSSCore未找到，请先加载核心模块');
+            return;
+            }
+
+            this.core = new window.DMSSCore();
+        this.setupUI();
+            this.isInitialized = true;
+            
+        console.log('[DMSS UI] DMSS UI模块初始化完成');
     }
-    
+
     /**
-     * 创建样式
+     * 设置UI界面
      */
-    createStyles() {
-        const styleId = 'dmss-ui-styles';
-        if (document.getElementById(styleId)) return;
-        
-        const style = document.createElement('style');
-        style.id = styleId;
-        style.textContent = `
-            /* DMSS 记忆查看器模态框样式 */
-            .dmss-modal {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.7);
-                z-index: 10000;
-                display: none;
-                align-items: center;
-                justify-content: center;
-            }
-            
-            .dmss-modal.show {
-                display: flex;
-            }
-            
-            .dmss-modal-content {
-                background: var(--SmartThemeBodyColor, #fff);
-                border-radius: 12px;
-                width: 90%;
-                max-width: 800px;
-                max-height: 80vh;
-                overflow: hidden;
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-                display: flex;
-                flex-direction: column;
-            }
-            
-            .dmss-modal-header {
-                padding: 20px;
-                border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
-            }
-            
-            .dmss-modal-title {
-                font-size: 18px;
-                font-weight: bold;
-                color: var(--SmartThemeTextColor);
-                margin: 0;
-            }
-            
-            .dmss-modal-close {
-                background: none;
-                border: none;
-                font-size: 24px;
-                color: var(--SmartThemeTextColor);
-                cursor: pointer;
-                padding: 5px;
-                border-radius: 4px;
-                transition: background-color 0.3s;
-            }
-            
-            .dmss-modal-close:hover {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.1));
-            }
-            
-            .dmss-modal-body {
-                flex: 1;
-                overflow-y: auto;
-                padding: 20px;
-            }
-            
-            .dmss-modal-footer {
-                padding: 15px 20px;
-                border-top: 1px solid var(--SmartThemeBorderColor, #ddd);
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
-                display: flex;
-                justify-content: flex-end;
-                gap: 10px;
-            }
-            
-            /* 记忆列表样式 */
-            .dmss-memory-list {
-                display: flex;
-                flex-direction: column;
-                gap: 15px;
-            }
-            
-            .dmss-memory-item {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
-                border: 1px solid var(--SmartThemeBorderColor, rgba(0, 0, 0, 0.1));
-                border-radius: 8px;
-                padding: 15px;
-                transition: all 0.3s ease;
-            }
-            
-            .dmss-memory-item:hover {
-                border-color: var(--SmartThemeQuoteColor, #007bff);
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            }
-            
-            .dmss-memory-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 10px;
-            }
-            
-            .dmss-memory-meta {
-                display: flex;
-                gap: 15px;
-                font-size: 12px;
-                color: var(--SmartThemeTextColor);
-                opacity: 0.7;
-            }
-            
-            .dmss-memory-actions {
-                display: flex;
-                gap: 8px;
-            }
-            
-            .dmss-action-btn {
-                padding: 4px 8px;
-                border: 1px solid var(--SmartThemeBorderColor, rgba(0, 0, 0, 0.2));
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.1));
-                color: var(--SmartThemeTextColor);
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 11px;
-                transition: all 0.3s ease;
-            }
-            
-            .dmss-action-btn:hover {
-                background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
-                border-color: var(--SmartThemeQuoteColor, #007bff);
-            }
-            
-            .dmss-action-btn.delete:hover {
-                background: rgba(220, 53, 69, 0.1);
-                border-color: #dc3545;
-                color: #dc3545;
-            }
-            
-            .dmss-memory-content {
-                color: var(--SmartThemeTextColor);
-                line-height: 1.6;
-                font-size: 14px;
-                white-space: pre-wrap;
-                word-break: break-word;
-            }
-            
-            .dmss-memory-content.collapsed {
-                max-height: 100px;
-                overflow: hidden;
-                position: relative;
-            }
-            
-            .dmss-memory-content.collapsed::after {
-                content: '';
-                position: absolute;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                height: 30px;
-                background: linear-gradient(transparent, var(--SmartThemeBodyColor, #fff));
-            }
-            
-            .dmss-expand-btn {
-                background: none;
-                border: none;
-                color: var(--SmartThemeQuoteColor, #007bff);
-                cursor: pointer;
-                font-size: 12px;
-                padding: 5px 0;
-                margin-top: 5px;
-            }
-            
-            .dmss-expand-btn:hover {
-                text-decoration: underline;
-            }
-            
-            /* 空状态样式 */
-            .dmss-empty-state {
-                text-align: center;
-                padding: 40px 20px;
-                color: var(--SmartThemeTextColor);
-                opacity: 0.6;
-            }
-            
-            .dmss-empty-state i {
-                font-size: 48px;
-                margin-bottom: 15px;
-                opacity: 0.3;
-            }
-            
-            .dmss-empty-state h3 {
-                margin: 0 0 10px 0;
-                font-size: 18px;
-            }
-            
-            .dmss-empty-state p {
-                margin: 0;
-                font-size: 14px;
-            }
-            
-            /* 统计信息样式 */
-            .dmss-stats {
-                display: flex;
-                gap: 20px;
-                margin-bottom: 20px;
-                padding: 15px;
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
-                border-radius: 8px;
-                border: 1px solid var(--SmartThemeBorderColor, rgba(0, 0, 0, 0.1));
-            }
-            
-            .dmss-stat-item {
-                text-align: center;
-                flex: 1;
-            }
-            
-            .dmss-stat-value {
-                font-size: 24px;
-                font-weight: bold;
-                color: var(--SmartThemeQuoteColor, #007bff);
-                margin-bottom: 5px;
-            }
-            
-            .dmss-stat-label {
-                font-size: 12px;
-                color: var(--SmartThemeTextColor);
-                opacity: 0.7;
-            }
-            
-            /* 聊天选择器样式 */
-            .dmss-chat-selector {
-                margin-bottom: 20px;
-            }
-            
-            .dmss-chat-selector select {
-                width: 100%;
-                padding: 8px 12px;
-                border: 1px solid var(--SmartThemeBorderColor, #ddd);
-                border-radius: 6px;
-                background: var(--SmartThemeBodyColor, #fff);
-                color: var(--SmartThemeTextColor);
-                font-size: 14px;
-            }
-            
-            .dmss-chat-selector label {
-                display: block;
-                margin-bottom: 8px;
-                font-size: 14px;
-                font-weight: bold;
-                color: var(--SmartThemeTextColor);
-            }
-            
-            /* 按钮样式 */
-            .dmss-btn {
-                padding: 8px 16px;
-                border: 1px solid var(--SmartThemeBorderColor, #ddd);
-                background: var(--SmartThemeBodyColor, #fff);
-                color: var(--SmartThemeTextColor);
-                border-radius: 6px;
-                cursor: pointer;
-                font-size: 14px;
-                transition: all 0.3s ease;
-            }
-            
-            .dmss-btn:hover {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
-            }
-            
-            .dmss-btn.primary {
-                background: var(--SmartThemeQuoteColor, #007bff);
-                color: white;
-                border-color: var(--SmartThemeQuoteColor, #007bff);
-            }
-            
-            .dmss-btn.primary:hover {
-                background: var(--SmartThemeQuoteColor, #0056b3);
-            }
-            
-            .dmss-btn.danger {
-                background: #dc3545;
-                color: white;
-                border-color: #dc3545;
-            }
-            
-            .dmss-btn.danger:hover {
-                background: #c82333;
-            }
-        `;
-        
-        document.head.appendChild(style);
+    setupUI() {
+        this.createMemoryViewerModal();
+        this.createSettingsModal();
+        this.setupEventListeners();
     }
-    
+
+    /**
+     * 创建记忆查看器模态框
+     */
+    createMemoryViewerModal() {
+        const modalHtml = `
+            <div id="dmss-memory-viewer-modal" class="modal" style="display: none;">
+                <div class="modal-content" style="max-width: 800px; max-height: 80vh;">
+                    <div class="modal-header">
+                        <h3><i class="fa-solid fa-brain"></i> DMSS 记忆查看器</h3>
+                        <span class="close" onclick="this.closest('.modal').style.display='none'">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="memory-stats" style="margin-bottom: 15px; padding: 10px; background: var(--SmartThemeChatTintColor, rgba(0,0,0,0.05)); border-radius: 6px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span><strong>当前聊天记忆:</strong> <span id="current-memory-count">0</span> 条</span>
+                                <span><strong>总聊天数:</strong> <span id="total-chats-count">0</span></span>
+                                <span><strong>总记忆数:</strong> <span id="total-memory-count">0</span></span>
+                            </div>
+                        </div>
+                        
+                        <div class="memory-controls" style="margin-bottom: 15px;">
+                            <button onclick="window.dmssUI.refreshMemoryView()" class="btn btn-primary" style="margin-right: 10px;">
+                                <i class="fa-solid fa-refresh"></i> 刷新
+                            </button>
+                            <button onclick="window.dmssUI.clearCurrentMemory()" class="btn btn-warning" style="margin-right: 10px;">
+                                <i class="fa-solid fa-trash"></i> 清空当前聊天
+                            </button>
+                            <button onclick="window.dmssUI.clearAllMemory()" class="btn btn-danger">
+                                <i class="fa-solid fa-trash-alt"></i> 清空所有记忆
+                            </button>
+                        </div>
+                        
+                        <div class="memory-list" id="memory-list" style="max-height: 400px; overflow-y: auto;">
+                            <div class="no-memory" style="text-align: center; padding: 40px; color: var(--SmartThemeTextColor, #666);">
+                                <i class="fa-solid fa-brain" style="font-size: 48px; opacity: 0.3; margin-bottom: 15px;"></i>
+                                <p>暂无记忆内容</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 添加到页面
+        if (!document.getElementById('dmss-memory-viewer-modal')) {
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+    }
+
+    /**
+     * 创建设置模态框
+     */
+    createSettingsModal() {
+        const modalHtml = `
+            <div id="dmss-settings-modal" class="modal" style="display: none;">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h3><i class="fa-solid fa-gear"></i> DMSS 系统设置</h3>
+                        <span class="close" onclick="this.closest('.modal').style.display='none'">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="settings-section">
+                            <h4>基本设置</h4>
+                            <div class="setting-item">
+                                <label>
+                                    <input type="checkbox" id="dmss-auto-enable" checked>
+                                    自动启用DMSS
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <label>
+                                    <input type="checkbox" id="dmss-notifications" checked>
+                                    显示通知
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h4>记忆管理</h4>
+                            <div class="setting-item">
+                                <label>最大记忆条数:</label>
+                                <input type="number" id="dmss-max-memories" value="100" min="1" max="1000">
+                            </div>
+                            <div class="setting-item">
+                                <label>记忆保留天数:</label>
+                                <input type="number" id="dmss-retention-days" value="30" min="1" max="365">
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h4>高级设置</h4>
+                            <div class="setting-item">
+                                <label>
+                                    <input type="checkbox" id="dmss-debug-mode">
+                                    调试模式
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-actions" style="margin-top: 20px; text-align: right;">
+                            <button onclick="window.dmssUI.saveSettings()" class="btn btn-primary">
+                                <i class="fa-solid fa-save"></i> 保存设置
+                            </button>
+                            <button onclick="window.dmssUI.resetSettings()" class="btn btn-secondary" style="margin-left: 10px;">
+                                <i class="fa-solid fa-undo"></i> 重置
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 添加到页面
+        if (!document.getElementById('dmss-settings-modal')) {
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+    }
+
     /**
      * 设置事件监听器
      */
     setupEventListeners() {
         // 监听记忆更新事件
-        window.addEventListener('dmssMemoryUpdate', (event) => {
-            console.log('[DMSS UI] 收到记忆更新事件:', event.detail);
-            this.updateMemoryViewer();
-        });
-        
-        // 监听聊天切换事件
-        window.addEventListener('chatChanged', () => {
-            console.log('[DMSS UI] 检测到聊天切换');
-            this.updateMemoryViewer();
-        });
+        if (window.eventSource && window.event_types) {
+            window.eventSource.on(window.event_types.DMSS_MEMORY_UPDATED, (data) => {
+                this.handleMemoryUpdate(data);
+            });
+        }
     }
-    
+
     /**
-     * 启动DMSS系统
+     * 处理记忆更新事件
+     * @param {Object} data - 更新数据
+     */
+    handleMemoryUpdate(data) {
+        console.log('[DMSS UI] 记忆更新事件:', data);
+        
+        // 更新UI显示
+        this.updateMemoryStats();
+        
+        // 如果记忆查看器打开，刷新显示
+        if (document.getElementById('dmss-memory-viewer-modal').style.display !== 'none') {
+            this.refreshMemoryView();
+        }
+        
+        // 显示通知
+        if (window.toastr) {
+            toastr.success('新的记忆已保存', 'DMSS', { timeOut: 2000 });
+        }
+    }
+
+    /**
+     * 启动DMSS
      */
     startDMSS() {
+        if (!this.core) {
+            console.error('[DMSS UI] 核心模块未初始化');
+            return;
+        }
+
         this.core.enable();
-        console.log('[DMSS UI] DMSS系统已启动');
+                this.updateStatusDisplay();
+        console.log('[DMSS UI] DMSS已启动');
     }
-    
+
     /**
-     * 停止DMSS系统
+     * 停止DMSS
      */
     stopDMSS() {
+        if (!this.core) {
+            console.error('[DMSS UI] 核心模块未初始化');
+            return;
+        }
+
         this.core.disable();
-        console.log('[DMSS UI] DMSS系统已停止');
+                this.updateStatusDisplay();
+        console.log('[DMSS UI] DMSS已停止');
     }
-    
+
     /**
-     * 重置DMSS系统
+     * 重置DMSS
      */
     resetDMSS() {
-        this.core.reset();
-        console.log('[DMSS UI] DMSS系统已重置');
+        if (!this.core) {
+            console.error('[DMSS UI] 核心模块未初始化');
+            return;
+        }
+
+        this.core.clearAllMemory();
+                this.updateStatusDisplay();
+        this.updateMemoryStats();
+        console.log('[DMSS UI] DMSS已重置');
     }
 
     /**
      * 查看记忆内容
      */
     viewMemoryContent() {
-        this.showMemoryViewer();
-    }
-    
-    /**
-     * 显示记忆查看器
-     */
-    showMemoryViewer() {
-        if (this.memoryViewerModal) {
-            this.memoryViewerModal.remove();
-        }
-        
-        this.memoryViewerModal = this.createMemoryViewerModal();
-        document.body.appendChild(this.memoryViewerModal);
-        
-        // 显示模态框
-        setTimeout(() => {
-            this.memoryViewerModal.classList.add('show');
-        }, 10);
-        
-        // 加载记忆数据
-        this.updateMemoryViewer();
-    }
-    
-    /**
-     * 创建记忆查看器模态框
-     */
-    createMemoryViewerModal() {
-        const modal = document.createElement('div');
-        modal.className = 'dmss-modal';
-        modal.innerHTML = `
-            <div class="dmss-modal-content">
-                <div class="dmss-modal-header">
-                    <h3 class="dmss-modal-title">
-                        <i class="fa-solid fa-brain"></i> DMSS 记忆查看器
-                    </h3>
-                    <button class="dmss-modal-close" onclick="window.DMSSUI.closeMemoryViewer()">
-                        <i class="fa-solid fa-times"></i>
-                    </button>
-                </div>
-                <div class="dmss-modal-body">
-                    <div class="dmss-stats" id="dmss-stats">
-                        <div class="dmss-stat-item">
-                            <div class="dmss-stat-value" id="total-memories">0</div>
-                            <div class="dmss-stat-label">总记忆数</div>
-                        </div>
-                        <div class="dmss-stat-item">
-                            <div class="dmss-stat-value" id="current-chat-memories">0</div>
-                            <div class="dmss-stat-label">当前聊天</div>
-                        </div>
-                        <div class="dmss-stat-item">
-                            <div class="dmss-stat-value" id="total-chats">0</div>
-                            <div class="dmss-stat-label">聊天数量</div>
-                        </div>
-                    </div>
-                    
-                    <div class="dmss-chat-selector">
-                        <label for="dmss-chat-select">选择聊天:</label>
-                        <select id="dmss-chat-select" onchange="window.DMSSUI.switchChat(this.value)">
-                            <option value="current">当前聊天</option>
-                            <option value="all">所有聊天</option>
-                        </select>
-                    </div>
-                    
-                    <div id="dmss-memory-container">
-                        <div class="dmss-empty-state">
-                            <i class="fa-solid fa-brain"></i>
-                            <h3>暂无记忆内容</h3>
-                            <p>DMSS系统将自动捕获AI生成的记忆内容</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="dmss-modal-footer">
-                    <button class="dmss-btn" onclick="window.DMSSUI.refreshMemories()">
-                        <i class="fa-solid fa-refresh"></i> 刷新
-                    </button>
-                    <button class="dmss-btn danger" onclick="window.DMSSUI.clearCurrentChatMemories()">
-                        <i class="fa-solid fa-trash"></i> 清空当前聊天
-                    </button>
-                    <button class="dmss-btn" onclick="window.DMSSUI.closeMemoryViewer()">
-                        关闭
-                    </button>
-                        </div>
-                    </div>
-                `;
-        
-        return modal;
-    }
-    
-    /**
-     * 关闭记忆查看器
-     */
-    closeMemoryViewer() {
-        if (this.memoryViewerModal) {
-            this.memoryViewerModal.classList.remove('show');
-            setTimeout(() => {
-                this.memoryViewerModal.remove();
-                this.memoryViewerModal = null;
-            }, 300);
+        const modal = document.getElementById('dmss-memory-viewer-modal');
+        if (modal) {
+            this.refreshMemoryView();
+            modal.style.display = 'block';
         }
     }
 
-    /**
-     * 更新记忆查看器
-     */
-    updateMemoryViewer() {
-        if (!this.memoryViewerModal) return;
-        
-        this.updateStats();
-        this.updateMemoryList();
-    }
-    
-    /**
-     * 更新统计信息
-     */
-    updateStats() {
-                const status = this.core.getStatus();
-        const allMemories = this.core.getAllMemories();
-        const currentMemories = this.core.getMemoriesForChat();
-        
-        const totalMemoriesEl = document.getElementById('total-memories');
-        const currentChatMemoriesEl = document.getElementById('current-chat-memories');
-        const totalChatsEl = document.getElementById('total-chats');
-        
-        if (totalMemoriesEl) totalMemoriesEl.textContent = allMemories.length;
-        if (currentChatMemoriesEl) currentChatMemoriesEl.textContent = currentMemories.length;
-        if (totalChatsEl) totalChatsEl.textContent = status.totalChats;
-    }
-    
-    /**
-     * 更新记忆列表
-     */
-    updateMemoryList() {
-        const container = document.getElementById('dmss-memory-container');
-        if (!container) return;
-        
-        const memories = this.core.getMemoriesForChat();
-        
-        if (memories.length === 0) {
-            container.innerHTML = `
-                <div class="dmss-empty-state">
-                    <i class="fa-solid fa-brain"></i>
-                    <h3>暂无记忆内容</h3>
-                    <p>DMSS系统将自动捕获AI生成的记忆内容</p>
-            </div>
-        `;
-            return;
-        }
-        
-        const memoriesHTML = memories.map(memory => this.createMemoryItemHTML(memory)).join('');
-        container.innerHTML = `<div class="dmss-memory-list">${memoriesHTML}</div>`;
-    }
-    
-    /**
-     * 创建记忆项HTML
-     */
-    createMemoryItemHTML(memory) {
-        const date = new Date(memory.timestamp).toLocaleString();
-        const isLongContent = memory.content.length > 200;
-        
-        return `
-            <div class="dmss-memory-item">
-                <div class="dmss-memory-header">
-                    <div class="dmss-memory-meta">
-                        <span><i class="fa-solid fa-clock"></i> ${date}</span>
-                        <span><i class="fa-solid fa-hashtag"></i> ${memory.id}</span>
-                    </div>
-                    <div class="dmss-memory-actions">
-                        <button class="dmss-action-btn" onclick="window.DMSSUI.copyMemory('${memory.id}')" title="复制内容">
-                            <i class="fa-solid fa-copy"></i>
-                        </button>
-                        <button class="dmss-action-btn delete" onclick="window.DMSSUI.deleteMemory('${memory.id}')" title="删除记忆">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="dmss-memory-content ${isLongContent ? 'collapsed' : ''}" id="content-${memory.id}">
-                    ${this.escapeHtml(memory.content)}
-                </div>
-                ${isLongContent ? `
-                    <button class="dmss-expand-btn" onclick="window.DMSSUI.toggleMemoryContent('${memory.id}')">
-                        展开更多
-                    </button>
-                ` : ''}
-            </div>
-        `;
-    }
-    
-    /**
-     * 切换记忆内容展开/收起
-     */
-    toggleMemoryContent(memoryId) {
-        const contentEl = document.getElementById(`content-${memoryId}`);
-        const expandBtn = contentEl.nextElementSibling;
-        
-        if (contentEl.classList.contains('collapsed')) {
-            contentEl.classList.remove('collapsed');
-            expandBtn.textContent = '收起';
-        } else {
-            contentEl.classList.add('collapsed');
-            expandBtn.textContent = '展开更多';
-        }
-    }
-    
-    /**
-     * 复制记忆内容
-     */
-    copyMemory(memoryId) {
-        const memories = this.core.getMemoriesForChat();
-        const memory = memories.find(m => m.id === memoryId);
-        
-        if (memory) {
-            navigator.clipboard.writeText(memory.content).then(() => {
-                toastr.success('记忆内容已复制到剪贴板', '复制成功', { timeOut: 2000 });
-            }).catch(() => {
-                toastr.error('复制失败', '复制失败', { timeOut: 2000 });
-            });
-        }
-    }
-
-    /**
-     * 删除记忆
-     */
-    deleteMemory(memoryId) {
-        if (confirm('确定要删除这条记忆吗？')) {
-            const deleted = this.core.deleteMemory(memoryId);
-            if (deleted) {
-                toastr.success('记忆已删除', '删除成功', { timeOut: 2000 });
-                this.updateMemoryViewer();
-            } else {
-                toastr.error('删除失败', '删除失败', { timeOut: 2000 });
-            }
-        }
-    }
-
-    /**
-     * 刷新记忆
-     */
-    refreshMemories() {
-        this.updateMemoryViewer();
-        toastr.success('记忆列表已刷新', '刷新成功', { timeOut: 2000 });
-    }
-    
-    /**
-     * 清空当前聊天记忆
-     */
-    clearCurrentChatMemories() {
-        if (confirm('确定要清空当前聊天的所有记忆吗？此操作不可恢复！')) {
-            const cleared = this.core.clearChatMemories();
-            if (cleared) {
-                toastr.success('当前聊天记忆已清空', '清空成功', { timeOut: 2000 });
-                this.updateMemoryViewer();
-            } else {
-                toastr.error('清空失败', '清空失败', { timeOut: 2000 });
-            }
-        }
-    }
-    
-    /**
-     * 切换聊天
-     */
-    switchChat(chatId) {
-        // 这里可以实现切换不同聊天的记忆显示
-        console.log('[DMSS UI] 切换聊天:', chatId);
-        this.updateMemoryViewer();
-    }
-    
     /**
      * 打开设置
      */
     openSettings() {
-        toastr.info('设置功能开发中...', '提示', { timeOut: 2000 });
+        const modal = document.getElementById('dmss-settings-modal');
+        if (modal) {
+            this.loadSettings();
+            modal.style.display = 'block';
+        }
+    }
+
+    /**
+     * 刷新记忆视图
+     */
+    refreshMemoryView() {
+        if (!this.core) return;
+
+        const memoryList = document.getElementById('memory-list');
+        if (!memoryList) return;
+
+        const currentMemory = this.core.getCurrentMemory();
+        
+        if (currentMemory.length === 0) {
+            memoryList.innerHTML = `
+                <div class="no-memory" style="text-align: center; padding: 40px; color: var(--SmartThemeTextColor, #666);">
+                    <i class="fa-solid fa-brain" style="font-size: 48px; opacity: 0.3; margin-bottom: 15px;"></i>
+                    <p>当前聊天暂无记忆内容</p>
+                </div>
+            `;
+        } else {
+            const memoryHtml = currentMemory.map((entry, index) => `
+                <div class="memory-entry" style="border: 1px solid var(--SmartThemeBorderColor, #ddd); border-radius: 6px; padding: 12px; margin-bottom: 10px; background: var(--SmartThemeChatTintColor, rgba(0,0,0,0.02));">
+                    <div class="memory-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span class="memory-index" style="font-weight: bold; color: var(--SmartThemeQuoteColor, #007bff);">#${index + 1}</span>
+                        <span class="memory-timestamp" style="font-size: 12px; color: var(--SmartThemeTextColor, #666);">${new Date(entry.timestamp).toLocaleString()}</span>
+                    </div>
+                    <div class="memory-content" style="color: var(--SmartThemeTextColor); line-height: 1.4;">
+                        ${this.escapeHtml(entry.content)}
+                    </div>
+                </div>
+            `).join('');
+            
+            memoryList.innerHTML = memoryHtml;
+        }
+
+        this.updateMemoryStats();
+    }
+
+    /**
+     * 更新记忆统计信息
+     */
+    updateMemoryStats() {
+        if (!this.core) return;
+
+        const stats = this.core.getMemoryStats();
+        
+        const currentCount = document.getElementById('current-memory-count');
+        const totalChatsCount = document.getElementById('total-chats-count');
+        const totalMemoryCount = document.getElementById('total-memory-count');
+        
+        if (currentCount) currentCount.textContent = this.core.getCurrentMemory().length;
+        if (totalChatsCount) totalChatsCount.textContent = stats.totalChats;
+        if (totalMemoryCount) totalMemoryCount.textContent = stats.totalEntries;
+    }
+
+    /**
+     * 更新状态显示
+     */
+    updateStatusDisplay() {
+        if (!this.core) return;
+
+            const statusElement = document.getElementById('dmss-status');
+        const toggle = document.getElementById('dmss-main-toggle');
+            
+            if (statusElement) {
+            statusElement.textContent = this.core.getStatus() ? '运行中' : '已停止';
+            statusElement.style.color = this.core.getStatus() ? '#28a745' : '#dc3545';
+        }
+        
+        if (toggle) {
+            toggle.checked = this.core.getStatus();
+        }
+    }
+
+    /**
+     * 清空当前聊天记忆
+     */
+    clearCurrentMemory() {
+        if (!this.core) return;
+        
+        if (confirm('确定要清空当前聊天的所有记忆吗？')) {
+            this.core.clearMemoryForChat(this.core.currentChatId);
+            this.refreshMemoryView();
+            
+            if (window.toastr) {
+                toastr.success('当前聊天记忆已清空', 'DMSS', { timeOut: 2000 });
+            }
+        }
+    }
+
+    /**
+     * 清空所有记忆
+     */
+    clearAllMemory() {
+        if (!this.core) return;
+        
+        if (confirm('确定要清空所有记忆吗？此操作不可恢复！')) {
+            this.core.clearAllMemory();
+            this.refreshMemoryView();
+            
+            if (window.toastr) {
+                toastr.success('所有记忆已清空', 'DMSS', { timeOut: 2000 });
+            }
+        }
+    }
+
+    /**
+     * 加载设置
+     */
+    loadSettings() {
+        // 从extension_settings加载设置
+        if (window.extension_settings && window.extension_settings.dmss) {
+            const settings = window.extension_settings.dmss.settings || {};
+            
+            const autoEnable = document.getElementById('dmss-auto-enable');
+            const notifications = document.getElementById('dmss-notifications');
+            const maxMemories = document.getElementById('dmss-max-memories');
+            const retentionDays = document.getElementById('dmss-retention-days');
+            const debugMode = document.getElementById('dmss-debug-mode');
+            
+            if (autoEnable) autoEnable.checked = settings.autoEnable !== false;
+            if (notifications) notifications.checked = settings.notifications !== false;
+            if (maxMemories) maxMemories.value = settings.maxMemories || 100;
+            if (retentionDays) retentionDays.value = settings.retentionDays || 30;
+            if (debugMode) debugMode.checked = settings.debugMode || false;
+        }
+    }
+
+    /**
+     * 保存设置
+     */
+    saveSettings() {
+        if (!window.extension_settings) {
+            window.extension_settings = {};
+        }
+        
+        if (!window.extension_settings.dmss) {
+            window.extension_settings.dmss = {};
+        }
+        
+        const settings = {
+            autoEnable: document.getElementById('dmss-auto-enable')?.checked || false,
+            notifications: document.getElementById('dmss-notifications')?.checked || false,
+            maxMemories: parseInt(document.getElementById('dmss-max-memories')?.value) || 100,
+            retentionDays: parseInt(document.getElementById('dmss-retention-days')?.value) || 30,
+            debugMode: document.getElementById('dmss-debug-mode')?.checked || false
+        };
+        
+        window.extension_settings.dmss.settings = settings;
+        
+        // 触发保存
+        if (window.saveMetadataDebounced) {
+            window.saveMetadataDebounced();
+        }
+        
+        // 关闭模态框
+        document.getElementById('dmss-settings-modal').style.display = 'none';
+        
+        if (window.toastr) {
+            toastr.success('设置已保存', 'DMSS', { timeOut: 2000 });
+        }
+    }
+
+    /**
+     * 重置设置
+     */
+    resetSettings() {
+        if (confirm('确定要重置所有设置为默认值吗？')) {
+            const autoEnable = document.getElementById('dmss-auto-enable');
+            const notifications = document.getElementById('dmss-notifications');
+            const maxMemories = document.getElementById('dmss-max-memories');
+            const retentionDays = document.getElementById('dmss-retention-days');
+            const debugMode = document.getElementById('dmss-debug-mode');
+            
+            if (autoEnable) autoEnable.checked = true;
+            if (notifications) notifications.checked = true;
+            if (maxMemories) maxMemories.value = 100;
+            if (retentionDays) retentionDays.value = 30;
+            if (debugMode) debugMode.checked = false;
+        }
     }
 
     /**
      * HTML转义
+     * @param {string} text - 要转义的文本
+     * @returns {string} - 转义后的文本
      */
     escapeHtml(text) {
         const div = document.createElement('div');
@@ -653,7 +453,7 @@ class DMSSUI {
     }
 }
 
-// 创建全局实例
-window.DMSSUI = new DMSSUI();
+// 导出DMSS UI类
+window.DMSSUI = DMSSUI;
 
-console.log('[DMSS UI] DMSS UI模块已加载完成');
+console.log('[DMSS UI] DMSS UI模块已加载');
