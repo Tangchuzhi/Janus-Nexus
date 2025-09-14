@@ -222,6 +222,17 @@ jQuery(() => {
                 uiScript.src = 'scripts/extensions/third-party/Janus-Treasure-chest/动态记忆流系统/dmss-ui.js';
                 uiScript.onload = () => {
                     console.log('[Janusの百宝箱] DMSS UI脚本加载完成');
+                    
+                    // 加载DMSS调试器
+                    const debuggerScript = document.createElement('script');
+                    debuggerScript.src = 'scripts/extensions/third-party/Janus-Treasure-chest/动态记忆流系统/dmss-debugger.js';
+                    debuggerScript.onload = () => {
+                        console.log('[Janusの百宝箱] DMSS调试器脚本加载完成');
+                    };
+                    debuggerScript.onerror = () => {
+                        console.error('[Janusの百宝箱] DMSS调试器脚本加载失败');
+                    };
+                    document.head.appendChild(debuggerScript);
                 };
                 uiScript.onerror = () => {
                     console.error('[Janusの百宝箱] DMSS UI脚本加载失败');
@@ -641,6 +652,8 @@ jQuery(() => {
             if (window.DMSSUI) {
                 dmssUI = new window.DMSSUI();
                 dmssUI.init();
+                // 设置全局引用
+                window.dmssUI = dmssUI;
             } else {
                 console.error('[Janusの百宝箱] DMSS UI模块未加载');
                 toastr.error('DMSS模块加载失败', '错误', { timeOut: 3000 });
