@@ -255,6 +255,29 @@ jQuery(() => {
                     <div class="janus-tab-content">
                         <h4 style="text-align: center;"><i class="fa-solid fa-brain"></i> 动态记忆流系统 (DMSS)</h4>
                         
+                        <!-- DMSS 功能说明 -->
+                        <div class="dmss-info-section">
+                            <h5><i class="fa-solid fa-info-circle"></i> 系统功能说明</h5>
+                            <div class="workflow-step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <strong>自动捕获:</strong> 系统会自动监听AI生成的消息，使用正则表达式捕获<DMSS>标签内的内容
+                                </div>
+                            </div>
+                            <div class="workflow-step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <strong>永久存储:</strong> 捕获的DMSS内容会按聊天分类存储到本地，支持多聊天窗口独立管理
+                                </div>
+                            </div>
+                            <div class="workflow-step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <strong>记忆查看:</strong> 点击"查看记忆"按钮可以浏览、管理和删除已存储的DMSS记忆内容
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- DMSS 状态面板 -->
                         <div class="dmss-status-panel">
                             <div class="status-item">
@@ -277,6 +300,9 @@ jQuery(() => {
                                         <span class="toggle-text">启用DMSS</span>
                                     </label>
                                 </div>
+                                <div class="toggle-description">
+                                    <p>启用后系统将自动监听并捕获AI消息中的DMSS内容</p>
+                                </div>
                             </div>
                             
                             <div class="action-buttons">
@@ -290,6 +316,15 @@ jQuery(() => {
                                     <i class="fa-solid fa-refresh"></i> 重置系统
                                 </button>
                             </div>
+                        </div>
+                        
+                        <!-- DMSS 使用提示 -->
+                        <div class="dmss-info-section">
+                            <h5><i class="fa-solid fa-lightbulb"></i> 使用提示</h5>
+                            <p style="margin: 0; font-size: 12px; line-height: 1.4; color: var(--SmartThemeTextColor); opacity: 0.8;">
+                                请在预设的最后添加DMSS指令模板，AI将自动生成结构化的记忆内容。<br>
+                                系统支持多聊天窗口，每个聊天的DMSS记忆独立存储和管理。
+                            </p>
                         </div>
                         
                     </div>
@@ -607,12 +642,20 @@ jQuery(() => {
     function startDMSS() {
         if (!dmssUI) {
             console.log('[Janusの百宝箱] 初始化DMSS UI');
-            dmssUI = new DMSSUI();
-            dmssUI.init();
+            // 确保DMSS模块已加载
+            if (window.DMSSUI) {
+                dmssUI = new DMSSUI();
+                dmssUI.init();
+            } else {
+                console.error('[Janusの百宝箱] DMSS UI模块未加载');
+                toastr.error('DMSS模块加载失败', '错误', { timeOut: 3000 });
+                return;
+            }
         }
         dmssUI.startDMSS();
         dmssEnabled = true;
         updateDMSSStatus();
+        toastr.success('DMSS系统已启动', '启动成功', { timeOut: 2000 });
     }
     
     function stopDMSS() {
@@ -621,6 +664,7 @@ jQuery(() => {
         }
         dmssEnabled = false;
         updateDMSSStatus();
+        toastr.info('DMSS系统已停止', '停止成功', { timeOut: 2000 });
     }
     
     function resetDMSS() {
@@ -634,54 +678,59 @@ jQuery(() => {
                 toggle.checked = false;
             }
             updateDMSSStatus();
-            if (window.toastr) {
-                toastr.success('DMSS系统已重置', '重置完成', { timeOut: 2000 });
-            }
+            toastr.success('DMSS系统已重置', '重置完成', { timeOut: 2000 });
         }
     }
     
     // 查看记忆内容
     function viewMemoryContent() {
-        if (dmssUI) {
-            dmssUI.viewMemoryContent();
-        } else {
-            if (window.toastr) {
-                toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
-            }
+        if (!dmssUI) {
+            toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+            return;
         }
+        
+        // 检查DMSS是否已启动
+        if (!dmssEnabled) {
+            toastr.info('请先启动DMSS系统', '提示', { timeOut: 2000 });
+            return;
+        }
+        
+        dmssUI.viewMemoryContent();
     }
     
     // 打开设置
     function openSettings() {
-        if (dmssUI) {
-            dmssUI.openSettings();
-        } else {
-            if (window.toastr) {
-                toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
-            }
+        if (!dmssUI) {
+            toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+            return;
         }
+        
+        dmssUI.openSettings();
     }
     
     // 更新DMSS状态显示
     function updateDMSSStatus() {
         const statusElement = document.getElementById('dmss-status');
-        const toggle = document.getElementById('dmss-main-toggle');
         const lastUpdateElement = document.getElementById('dmss-last-update');
+        const toggle = document.getElementById('dmss-main-toggle');
         
         if (statusElement) {
             statusElement.textContent = dmssEnabled ? '运行中' : '已停止';
             statusElement.style.color = dmssEnabled ? '#28a745' : '#dc3545';
         }
         
-        if (toggle) {
-            toggle.checked = dmssEnabled;
-        }
-        
-        // 更新最后更新时间
         if (lastUpdateElement && dmssUI && dmssUI.core) {
             const status = dmssUI.core.getStatus();
-            lastUpdateElement.textContent = status.lastUpdated ? 
-                new Date(status.lastUpdated).toLocaleString('zh-CN') : '从未';
+            if (status.lastUpdate === '从未') {
+                lastUpdateElement.textContent = '从未';
+            } else {
+                const updateTime = new Date(status.lastUpdate);
+                lastUpdateElement.textContent = updateTime.toLocaleString('zh-CN');
+            }
+        }
+        
+        if (toggle) {
+            toggle.checked = dmssEnabled;
         }
     }
 
@@ -1317,448 +1366,6 @@ jQuery(() => {
         .step-content strong {
             color: rgba(52, 152, 219, 0.9);
             font-size: 13px;
-        }
-        
-        /* DMSS 模态框样式 */
-        .dmss-memory-modal,
-        .dmss-settings-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10000;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .dmss-memory-modal.show,
-        .dmss-settings-modal.show {
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        .dmss-modal-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        
-        .dmss-modal-content {
-            background: var(--SmartThemeBodyColor, #fff);
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            max-width: 90vw;
-            max-height: 90vh;
-            width: 800px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        
-        .dmss-modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
-            border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
-            background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
-        }
-        
-        .dmss-modal-header h3 {
-            margin: 0;
-            color: var(--SmartThemeTextColor);
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .dmss-modal-close {
-            background: none;
-            border: none;
-            color: var(--SmartThemeTextColor);
-            font-size: 20px;
-            cursor: pointer;
-            padding: 5px;
-            border-radius: 4px;
-            transition: all 0.3s ease;
-        }
-        
-        .dmss-modal-close:hover {
-            background: var(--SmartThemeBorderColor, rgba(0, 0, 0, 0.1));
-        }
-        
-        .dmss-modal-body {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            color: var(--SmartThemeTextColor);
-        }
-        
-        /* DMSS 状态区域 */
-        .dmss-status-section {
-            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
-            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .dmss-status-section h4 {
-            margin: 0 0 12px 0;
-            color: var(--SmartThemeTextColor);
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
-        }
-        
-        .status-item {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        
-        .status-label {
-            font-size: 11px;
-            color: var(--SmartThemeTextColor);
-            opacity: 0.7;
-        }
-        
-        .status-value {
-            font-size: 12px;
-            font-weight: bold;
-            color: var(--SmartThemeTextColor);
-        }
-        
-        .status-value.enabled {
-            color: #28a745;
-        }
-        
-        .status-value.disabled {
-            color: #dc3545;
-        }
-        
-        /* DMSS 标签页 */
-        .dmss-tab-bar {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 20px;
-            border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
-            padding-bottom: 8px;
-        }
-        
-        .dmss-tab-btn {
-            flex: 1;
-            padding: 10px 15px;
-            border: none;
-            background: transparent;
-            color: var(--SmartThemeTextColor);
-            cursor: pointer;
-            border-radius: 6px;
-            transition: all 0.3s ease;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-        
-        .dmss-tab-btn.active {
-            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
-            color: var(--SmartThemeTextColor);
-            font-weight: bold;
-        }
-        
-        .dmss-tab-btn:hover {
-            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.05));
-        }
-        
-        .dmss-tab-content {
-            display: none;
-        }
-        
-        .dmss-tab-content.active {
-            display: block;
-        }
-        
-        /* DMSS 记录容器 */
-        .dmss-records-container {
-            max-height: 400px;
-            overflow-y: auto;
-            margin-bottom: 20px;
-        }
-        
-        .dmss-record-item {
-            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
-            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
-            border-radius: 8px;
-            margin-bottom: 10px;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .dmss-record-item:hover {
-            border-color: var(--SmartThemeQuoteColor, #007bff);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        .record-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 15px;
-            background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
-            border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
-        }
-        
-        .record-meta {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 12px;
-        }
-        
-        .record-index {
-            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
-            color: var(--SmartThemeQuoteColor, #007bff);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: bold;
-        }
-        
-        .record-timestamp {
-            color: var(--SmartThemeTextColor);
-            opacity: 0.8;
-        }
-        
-        .record-chat {
-            background: rgba(40, 167, 69, 0.1);
-            color: #28a745;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 11px;
-        }
-        
-        .record-actions {
-            display: flex;
-            gap: 5px;
-        }
-        
-        .record-action-btn {
-            background: none;
-            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
-            color: var(--SmartThemeTextColor);
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            transition: all 0.3s ease;
-        }
-        
-        .record-action-btn:hover {
-            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
-            border-color: var(--SmartThemeQuoteColor, #007bff);
-        }
-        
-        .record-content {
-            padding: 15px;
-            background: var(--SmartThemeBodyColor, #fff);
-            transition: all 0.3s ease;
-        }
-        
-        .record-content.collapsed {
-            max-height: 0;
-            padding: 0 15px;
-            overflow: hidden;
-        }
-        
-        .dmss-content-text {
-            margin: 0;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.5;
-            color: var(--SmartThemeTextColor);
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        
-        /* DMSS 空状态 */
-        .dmss-empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--SmartThemeTextColor);
-            opacity: 0.6;
-        }
-        
-        .dmss-empty-state i {
-            font-size: 48px;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
-        
-        .dmss-empty-state p {
-            margin: 0 0 8px 0;
-            font-size: 16px;
-            font-weight: bold;
-        }
-        
-        .dmss-empty-state small {
-            font-size: 12px;
-            opacity: 0.8;
-        }
-        
-        /* DMSS 操作按钮 */
-        .dmss-action-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid var(--SmartThemeBorderColor, #ddd);
-        }
-        
-        .dmss-btn {
-            padding: 10px 15px;
-            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
-            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
-            color: var(--SmartThemeTextColor);
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .dmss-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        .dmss-btn.primary {
-            background: rgba(40, 167, 69, 0.1);
-            border-color: #28a745;
-            color: #28a745;
-        }
-        
-        .dmss-btn.primary:hover {
-            background: rgba(40, 167, 69, 0.2);
-        }
-        
-        .dmss-btn.warning {
-            background: rgba(255, 193, 7, 0.1);
-            border-color: #ffc107;
-            color: #ffc107;
-        }
-        
-        .dmss-btn.warning:hover {
-            background: rgba(255, 193, 7, 0.2);
-        }
-        
-        .dmss-btn.danger {
-            background: rgba(220, 53, 69, 0.1);
-            border-color: #dc3545;
-            color: #dc3545;
-        }
-        
-        .dmss-btn.danger:hover {
-            background: rgba(220, 53, 69, 0.2);
-        }
-        
-        /* DMSS 设置样式 */
-        .settings-section {
-            margin-bottom: 25px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
-        }
-        
-        .settings-section:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-        }
-        
-        .settings-section h4 {
-            margin: 0 0 15px 0;
-            color: var(--SmartThemeTextColor);
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .setting-item {
-            margin-bottom: 15px;
-        }
-        
-        .setting-item:last-child {
-            margin-bottom: 0;
-        }
-        
-        .setting-label {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            font-size: 14px;
-            color: var(--SmartThemeTextColor);
-        }
-        
-        .setting-label input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-        }
-        
-        .setting-text {
-            font-weight: bold;
-        }
-        
-        .setting-description {
-            margin: 5px 0 0 28px;
-            font-size: 12px;
-            color: var(--SmartThemeTextColor);
-            opacity: 0.8;
-            line-height: 1.4;
-        }
-        
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
-        }
-        
-        .info-item {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        
-        .info-label {
-            font-size: 11px;
-            color: var(--SmartThemeTextColor);
-            opacity: 0.7;
-        }
-        
-        .info-value {
-            font-size: 12px;
-            font-weight: bold;
-            color: var(--SmartThemeTextColor);
         }
         </style>
     `;
