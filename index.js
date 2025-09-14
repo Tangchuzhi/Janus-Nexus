@@ -334,6 +334,12 @@ jQuery(() => {
                         <div class="dmss-quick-actions">
                             <h6><i class="fa-solid fa-bolt"></i> 快速操作</h6>
                             <div class="quick-action-buttons">
+                                <button onclick="window.janusHandlers.scanLatestMessages()" class="quick-btn">
+                                    <i class="fa-solid fa-search"></i> 扫描最新
+                                </button>
+                                <button onclick="window.janusHandlers.forceScanChat()" class="quick-btn">
+                                    <i class="fa-solid fa-search-plus"></i> 强制扫描
+                                </button>
                                 <button onclick="window.janusHandlers.exportCurrentMemory()" class="quick-btn">
                                     <i class="fa-solid fa-download"></i> 导出记忆
                                 </button>
@@ -748,6 +754,26 @@ jQuery(() => {
         }
     }
     
+    // 手动扫描最新消息
+    function scanLatestMessages() {
+        if (dmssUI && dmssUI.core) {
+            dmssUI.core.scanLatestMessages();
+            toastr.success('开始扫描最新消息', '扫描启动', { timeOut: 2000 });
+        } else {
+            toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+        }
+    }
+    
+    // 强制扫描整个聊天
+    function forceScanChat() {
+        if (dmssUI && dmssUI.core) {
+            dmssUI.core.forceScanChat();
+            toastr.success('开始强制扫描整个聊天', '扫描启动', { timeOut: 2000 });
+        } else {
+            toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+        }
+    }
+    
     // 导出当前记忆
     async function exportCurrentMemory() {
         if (!dmssUI || !dmssUI.core) {
@@ -906,6 +932,8 @@ jQuery(() => {
         openSettings: openSettings,
         showDebugPanel: showDebugPanel,
         testDMSS: testDMSS,
+        scanLatestMessages: scanLatestMessages,
+        forceScanChat: forceScanChat,
         exportCurrentMemory: exportCurrentMemory,
         importMemoryContent: importMemoryContent,
         clearCurrentMemory: clearCurrentMemory,
