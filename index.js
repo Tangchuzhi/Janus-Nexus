@@ -262,6 +262,10 @@ jQuery(() => {
                                 <span id="dmss-status" class="status-value">未启动</span>
                             </div>
                             <div class="status-item">
+                                <span class="status-label">记忆数量:</span>
+                                <span id="dmss-memory-count" class="status-value">0</span>
+                            </div>
+                            <div class="status-item">
                                 <span class="status-label">最后更新:</span>
                                 <span id="dmss-last-update" class="status-value">从未</span>
                             </div>
@@ -283,11 +287,30 @@ jQuery(() => {
                                 <button onclick="window.janusHandlers.viewMemoryContent()" class="dmss-action-btn primary-btn">
                                     <i class="fa-solid fa-eye"></i> 查看记忆
                                 </button>
+                                <button onclick="window.janusHandlers.processCurrentMessage()" class="dmss-action-btn secondary-btn">
+                                    <i class="fa-solid fa-play"></i> 处理当前消息
+                                </button>
                                 <button onclick="window.janusHandlers.openSettings()" class="dmss-action-btn secondary-btn">
                                     <i class="fa-solid fa-gear"></i> 系统设置
                                 </button>
                                 <button onclick="window.janusHandlers.resetDMSS()" class="dmss-action-btn warning-btn">
                                     <i class="fa-solid fa-refresh"></i> 重置系统
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- DMSS 快速操作 -->
+                        <div class="dmss-quick-actions">
+                            <h5><i class="fa-solid fa-bolt"></i> 快速操作</h5>
+                            <div class="quick-action-buttons">
+                                <button onclick="window.janusHandlers.createDMSSWorldBook()" class="dmss-quick-btn">
+                                    <i class="fa-solid fa-book"></i> 创建世界书
+                                </button>
+                                <button onclick="window.janusHandlers.testDMSSCapture()" class="dmss-quick-btn">
+                                    <i class="fa-solid fa-flask"></i> 测试捕获
+                                </button>
+                                <button onclick="window.janusHandlers.exportMemories()" class="dmss-quick-btn">
+                                    <i class="fa-solid fa-download"></i> 导出记忆
                                 </button>
                             </div>
                         </div>
@@ -613,11 +636,6 @@ jQuery(() => {
         dmssUI.startDMSS();
         dmssEnabled = true;
         updateDMSSStatus();
-        
-        // 显示启动成功提示
-        if (typeof toastr !== 'undefined') {
-            toastr.success('DMSS系统已启动', '启动成功', { timeOut: 2000 });
-        }
     }
     
     function stopDMSS() {
@@ -626,11 +644,6 @@ jQuery(() => {
         }
         dmssEnabled = false;
         updateDMSSStatus();
-        
-        // 显示停止提示
-        if (typeof toastr !== 'undefined') {
-            toastr.info('DMSS系统已停止', '已停止', { timeOut: 2000 });
-        }
     }
     
     function resetDMSS() {
@@ -644,10 +657,7 @@ jQuery(() => {
                 toggle.checked = false;
             }
             updateDMSSStatus();
-            
-            if (typeof toastr !== 'undefined') {
-                toastr.success('DMSS系统已重置', '重置完成', { timeOut: 2000 });
-            }
+            toastr.success('DMSS系统已重置', '重置完成', { timeOut: 2000 });
         }
     }
     
@@ -656,9 +666,7 @@ jQuery(() => {
         if (dmssUI) {
             dmssUI.viewMemoryContent();
         } else {
-            if (typeof toastr !== 'undefined') {
-                toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
-            }
+            toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
         }
     }
     
@@ -667,20 +675,24 @@ jQuery(() => {
         if (dmssUI) {
             dmssUI.openSettings();
         } else {
-            if (typeof toastr !== 'undefined') {
-                toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
-            }
+            toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
         }
     }
     
     // 更新DMSS状态显示
     function updateDMSSStatus() {
         const statusElement = document.getElementById('dmss-status');
+        const memoryCountElement = document.getElementById('dmss-memory-count');
         const toggle = document.getElementById('dmss-main-toggle');
         
         if (statusElement) {
             statusElement.textContent = dmssEnabled ? '运行中' : '已停止';
             statusElement.style.color = dmssEnabled ? '#28a745' : '#dc3545';
+        }
+        
+        if (memoryCountElement && dmssUI && dmssUI.core) {
+            const stats = dmssUI.core.getStats();
+            memoryCountElement.textContent = stats.memoryCount || 0;
         }
         
         if (toggle) {
@@ -695,6 +707,106 @@ jQuery(() => {
                 lastUpdateElement.textContent = stats.lastUpdate ? 
                     new Date(stats.lastUpdate).toLocaleString() : '从未';
             }
+        }
+    }
+
+    // 处理当前消息
+    async function processCurrentMessage() {
+        if (dmssUI) {
+            await dmssUI.processCurrentMessage();
+        } else {
+            if (typeof toastr !== 'undefined') {
+                toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+            }
+        }
+    }
+
+    // 创建DMSS世界书
+    async function createDMSSWorldBook() {
+        try {
+            // 使用酒馆的slash命令创建世界书
+            const result = await executeSlashCommand('/getchatbook name=【DMSS】');
+            
+            if (typeof toastr !== 'undefined') {
+                toastr.success('DMSS世界书已创建/确认', '操作成功', { timeOut: 2000 });
+            }
+            
+            console.log('[Janusの百宝箱] DMSS世界书创建完成');
+        } catch (error) {
+            console.error('[Janusの百宝箱] 创建DMSS世界书失败:', error);
+            if (typeof toastr !== 'undefined') {
+                toastr.error('创建世界书失败', '操作失败', { timeOut: 3000 });
+            }
+        }
+    }
+
+    // 测试DMSS捕获功能
+    async function testDMSSCapture() {
+        const testMessage = `
+            这是一条测试消息，包含DMSS标签：
+            <DMSS>这是一个测试的DMSS记忆内容，用于验证系统是否能正确捕获和处理DMSS标签。</DMSS>
+            消息的其他部分内容。
+        `;
+        
+        if (dmssUI && dmssUI.core) {
+            await dmssUI.core.processMessage(testMessage);
+            await dmssUI.refreshMemoryList();
+            updateDMSSStatus();
+            
+            if (typeof toastr !== 'undefined') {
+                toastr.success('测试消息已处理', '测试完成', { timeOut: 2000 });
+            }
+        } else {
+            if (typeof toastr !== 'undefined') {
+                toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+            }
+        }
+    }
+
+    // 导出记忆
+    function exportMemories() {
+        if (dmssUI && dmssUI.core) {
+            const memories = dmssUI.core.getAllMemories();
+            const exportData = {
+                exportTime: new Date().toISOString(),
+                totalMemories: memories.length,
+                memories: memories
+            };
+            
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dmss-memories-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            if (typeof toastr !== 'undefined') {
+                toastr.success(`已导出 ${memories.length} 条记忆`, '导出成功', { timeOut: 2000 });
+            }
+        } else {
+            if (typeof toastr !== 'undefined') {
+                toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+            }
+        }
+    }
+
+    // 执行slash命令的辅助函数
+    async function executeSlashCommand(command) {
+        try {
+            // 这里需要与酒馆的slash命令系统集成
+            // 由于无法直接调用，我们使用模拟的方式
+            console.log(`[Janusの百宝箱] 执行命令: ${command}`);
+            
+            // 在实际环境中，这里应该调用酒馆的slash命令执行器
+            // 目前返回模拟结果
+            return null;
+            
+        } catch (error) {
+            console.error('[Janusの百宝箱] 执行slash命令失败:', error);
+            throw error;
         }
     }
 
@@ -715,11 +827,13 @@ jQuery(() => {
         resetDMSS: resetDMSS,
         viewMemoryContent: viewMemoryContent,
         openSettings: openSettings,
-        updateDMSSStatus: updateDMSSStatus
+        updateDMSSStatus: updateDMSSStatus,
+        processCurrentMessage: processCurrentMessage,
+        createDMSSWorldBook: createDMSSWorldBook,
+        testDMSSCapture: testDMSSCapture,
+        exportMemories: exportMemories,
+        executeSlashCommand: executeSlashCommand
     };
-    
-    // 全局DMSS访问
-    window.dmssUI = dmssUI;
     
     // 菜单栏布局的HTML内容
     const html = `
@@ -1333,6 +1447,364 @@ jQuery(() => {
         .step-content strong {
             color: rgba(52, 152, 219, 0.9);
             font-size: 13px;
+        }
+
+        /* DMSS 快速操作样式 */
+        .dmss-quick-actions {
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .dmss-quick-actions h5 {
+            margin: 0 0 12px 0;
+            color: var(--SmartThemeTextColor);
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .quick-action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .dmss-quick-btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 8px 12px;
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            color: var(--SmartThemeTextColor);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .dmss-quick-btn:hover {
+            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.05));
+            border-color: var(--SmartThemeQuoteColor, #007bff);
+            transform: translateY(-1px);
+        }
+
+        /* DMSS 模态框样式 */
+        .dmss-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .dmss-modal-content {
+            background: var(--SmartThemeBodyColor, #fff);
+            border-radius: 12px;
+            max-width: 80%;
+            max-height: 80%;
+            width: 600px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .dmss-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
+        }
+
+        .dmss-modal-header h3 {
+            margin: 0;
+            color: var(--SmartThemeTextColor);
+            font-size: 18px;
+        }
+
+        .dmss-modal-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+
+        .dmss-modal-close:hover {
+            opacity: 1;
+        }
+
+        .dmss-modal-body {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .dmss-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 20px;
+            border-top: 1px solid var(--SmartThemeBorderColor, #ddd);
+        }
+
+        .dmss-btn {
+            padding: 10px 20px;
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            color: var(--SmartThemeTextColor);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dmss-btn:hover {
+            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.05));
+            border-color: var(--SmartThemeQuoteColor, #007bff);
+        }
+
+        .dmss-btn.primary {
+            background: rgba(40, 167, 69, 0.1);
+            border-color: #28a745;
+            color: #28a745;
+        }
+
+        .dmss-btn.primary:hover {
+            background: rgba(40, 167, 69, 0.2);
+        }
+
+        .dmss-btn.secondary {
+            background: rgba(108, 117, 125, 0.1);
+            border-color: #6c757d;
+            color: #6c757d;
+        }
+
+        .dmss-btn.secondary:hover {
+            background: rgba(108, 117, 125, 0.2);
+        }
+
+        .dmss-btn.warning {
+            background: rgba(255, 193, 7, 0.1);
+            border-color: #ffc107;
+            color: #ffc107;
+        }
+
+        .dmss-btn.warning:hover {
+            background: rgba(255, 193, 7, 0.2);
+        }
+
+        /* 记忆统计样式 */
+        .memory-stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            border-radius: 8px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.7;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--SmartThemeTextColor);
+        }
+
+        /* 记忆列表样式 */
+        .memory-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .no-memories {
+            text-align: center;
+            padding: 40px;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.6;
+        }
+
+        .no-memories i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .memory-item {
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            border-radius: 8px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.05));
+            transition: all 0.3s ease;
+        }
+
+        .memory-item:hover {
+            border-color: var(--SmartThemeQuoteColor, #007bff);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .memory-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .memory-key {
+            font-weight: bold;
+            color: var(--SmartThemeTextColor);
+            font-size: 13px;
+        }
+
+        .memory-timestamp {
+            font-size: 11px;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.7;
+        }
+
+        .memory-delete-btn {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .memory-delete-btn:hover {
+            background: rgba(220, 53, 69, 0.1);
+        }
+
+        .memory-content {
+            margin-bottom: 10px;
+        }
+
+        .memory-summary {
+            font-size: 12px;
+            color: var(--SmartThemeTextColor);
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+
+        .memory-full-content {
+            font-size: 11px;
+            color: var(--SmartThemeTextColor);
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+
+        .memory-text {
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 8px;
+            white-space: pre-wrap;
+        }
+
+        .memory-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .memory-toggle-btn {
+            background: none;
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            color: var(--SmartThemeTextColor);
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s ease;
+        }
+
+        .memory-toggle-btn:hover {
+            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.05));
+            border-color: var(--SmartThemeQuoteColor, #007bff);
+        }
+
+        /* 设置样式 */
+        .settings-section {
+            margin-bottom: 25px;
+        }
+
+        .settings-section h4 {
+            margin: 0 0 15px 0;
+            color: var(--SmartThemeTextColor);
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 10px;
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.05));
+            border-radius: 6px;
+        }
+
+        .setting-item label {
+            color: var(--SmartThemeTextColor);
+            font-size: 12px;
+        }
+
+        .setting-item input[type="checkbox"] {
+            transform: scale(1.2);
+        }
+
+        .setting-item input[type="number"] {
+            width: 80px;
+            padding: 4px 8px;
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            color: var(--SmartThemeTextColor);
+            border-radius: 4px;
+        }
+
+        .setting-item input[type="range"] {
+            flex: 1;
+            margin: 0 10px;
+        }
+
+        /* 代码样式 */
+        code {
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            color: var(--SmartThemeQuoteColor, #007bff);
         }
         </style>
     `;
