@@ -144,32 +144,31 @@ class DMSSCore {
      */
     async ensureDMSSLorebookExists() {
         try {
-            // 首先检查是否已有DMSS全局lorebook
-            const globalBooksCommand = '/getglobalbooks';
-            const globalBooks = await this.executeSlashCommand(globalBooksCommand);
+            // 首先尝试直接创建条目来测试DMSS lorebook是否存在
+            const testKey = 'DMSS_Test_' + Date.now();
+            const testContent = 'DMSS系统测试条目';
             
-            this.log('debug', '当前全局lorebook列表', globalBooks);
-            
-            // 检查是否包含DMSS
-            if (globalBooks && globalBooks.includes('DMSS')) {
-                this.log('info', 'DMSS全局lorebook已存在');
-                return true;
-            }
-            
-            // 如果不存在，需要手动创建
-            // 注意：SillyTavern没有直接的slash命令创建全局lorebook
-            // 我们需要提示用户手动创建，或者使用其他方法
-            this.log('warn', 'DMSS全局lorebook不存在，需要手动创建');
-            this.log('info', '请在SillyTavern的世界书设置中手动创建名为"DMSS"的全局lorebook');
-            
-            // 尝试使用createentry命令，如果lorebook不存在会失败
             try {
-                const testCommand = '/createentry file=DMSS key=test_entry 这是一个测试条目';
-                await this.executeSlashCommand(testCommand);
-                this.log('info', 'DMSS全局lorebook创建成功');
+                // 尝试创建测试条目
+                await this.executeSlashCommand(`/createentry file=DMSS key=${testKey} ${testContent}`);
+                this.log('info', 'DMSS全局lorebook已存在并可用');
+                
+                // 立即删除测试条目
+                await this.executeSlashCommand(`/db-delete source=global ${testKey}`);
                 return true;
+                
             } catch (error) {
-                this.log('error', '无法创建DMSS全局lorebook，请手动创建', error);
+                this.log('warn', 'DMSS全局lorebook不存在，尝试创建...');
+                
+                // 如果创建失败，说明lorebook不存在，需要用户手动创建
+                this.log('error', '无法自动创建DMSS全局lorebook');
+                this.log('info', '请手动在SillyTavern中创建名为"DMSS"的全局lorebook');
+                
+                // 显示用户提示
+                if (typeof toastr !== 'undefined') {
+                    toastr.warning('请手动创建名为"DMSS"的全局lorebook', '需要创建世界书', { timeOut: 5000 });
+                }
+                
                 return false;
             }
             
@@ -564,21 +563,34 @@ class DMSSCore {
     }
 
     /**
-     * 清空所有记忆
+     * 测试DMSS功能
      */
-    async clearAllMemories() {
+    async testDMSSFunction() {
         try {
-            for (let entry of this.memoryEntries) {
-                await this.executeSlashCommand(`/db-delete source=global ${entry.key}`);
+            this.log('info', '开始测试DMSS功能...');
+            
+            // 测试世界书检测
+            const lorebookExists = await this.ensureDMSSLorebookExists();
+            if (!lorebookExists) {
+                this.log('error', 'DMSS世界书不存在，测试终止');
+                return false;
             }
             
-            this.memoryEntries = [];
-            this.stats.totalEntries = 0;
+            // 测试DMSS内容处理
+            const testContent = `
+                这是一条测试消息，包含DMSS标签：
+                <DMSS>这是一个测试的DMSS记忆内容，用于验证系统是否能正确捕获和处理DMSS标签。测试时间：${new Date().toISOString()}</DMSS>
+                消息的其他部分内容。
+            `;
             
-            this.log('info', '已清空全局lorebook中的所有记忆');
+            await this.processMessage(testContent);
+            
+            this.log('info', 'DMSS功能测试完成');
+            return true;
             
         } catch (error) {
-            this.log('error', '清空全局lorebook记忆失败', error);
+            this.log('error', 'DMSS功能测试失败', error);
+            return false;
         }
     }
 }
