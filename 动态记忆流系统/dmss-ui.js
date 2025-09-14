@@ -49,29 +49,29 @@ class DMSSUI {
      */
     createMemoryViewerModal() {
         const modalHtml = `
-            <div id="dmss-memory-viewer-modal" class="modal" style="display: none;">
-                <div class="modal-content" style="max-width: 800px; max-height: 80vh;">
-                    <div class="modal-header">
-                        <h3><i class="fa-solid fa-brain"></i> DMSS 记忆查看器</h3>
-                        <span class="close" onclick="this.closest('.modal').style.display='none'">&times;</span>
+            <div id="dmss-memory-viewer-modal" class="dmss-modal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+                <div class="dmss-modal-content" style="background-color: var(--SmartThemeBodyColor, #fff); margin: 5% auto; padding: 0; border-radius: 8px; max-width: 800px; max-height: 80vh; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                    <div class="dmss-modal-header" style="padding: 15px 20px; border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd); display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0; color: var(--SmartThemeTextColor, #333);"><i class="fa-solid fa-brain"></i> DMSS 记忆查看器</h3>
+                        <span class="dmss-close" onclick="document.getElementById('dmss-memory-viewer-modal').style.display='none'" style="font-size: 24px; font-weight: bold; cursor: pointer; color: var(--SmartThemeTextColor, #333);">&times;</span>
                     </div>
-                    <div class="modal-body">
+                    <div class="dmss-modal-body" style="padding: 20px; max-height: calc(80vh - 120px); overflow-y: auto;">
                         <div class="memory-stats" style="margin-bottom: 15px; padding: 10px; background: var(--SmartThemeChatTintColor, rgba(0,0,0,0.05)); border-radius: 6px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span><strong>当前聊天记忆:</strong> <span id="current-memory-count">0</span> 条</span>
-                                <span><strong>总聊天数:</strong> <span id="total-chats-count">0</span></span>
-                                <span><strong>总记忆数:</strong> <span id="total-memory-count">0</span></span>
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                <span style="color: var(--SmartThemeTextColor, #333);"><strong>当前聊天记忆:</strong> <span id="current-memory-count">0</span> 条</span>
+                                <span style="color: var(--SmartThemeTextColor, #333);"><strong>总聊天数:</strong> <span id="total-chats-count">0</span></span>
+                                <span style="color: var(--SmartThemeTextColor, #333);"><strong>总记忆数:</strong> <span id="total-memory-count">0</span></span>
                             </div>
                         </div>
                         
-                        <div class="memory-controls" style="margin-bottom: 15px;">
-                            <button onclick="window.dmssUI.refreshMemoryView()" class="btn btn-primary" style="margin-right: 10px;">
+                        <div class="memory-controls" style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button onclick="window.dmssUI.refreshMemoryView()" class="dmss-btn dmss-btn-primary" style="padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white;">
                                 <i class="fa-solid fa-refresh"></i> 刷新
                             </button>
-                            <button onclick="window.dmssUI.clearCurrentMemory()" class="btn btn-warning" style="margin-right: 10px;">
+                            <button onclick="window.dmssUI.clearCurrentMemory()" class="dmss-btn dmss-btn-warning" style="padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; background: #ffc107; color: #333;">
                                 <i class="fa-solid fa-trash"></i> 清空当前聊天
                             </button>
-                            <button onclick="window.dmssUI.clearAllMemory()" class="btn btn-danger">
+                            <button onclick="window.dmssUI.clearAllMemory()" class="dmss-btn dmss-btn-danger" style="padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; background: #dc3545; color: white;">
                                 <i class="fa-solid fa-trash-alt"></i> 清空所有记忆
                             </button>
                         </div>
@@ -98,56 +98,56 @@ class DMSSUI {
      */
     createSettingsModal() {
         const modalHtml = `
-            <div id="dmss-settings-modal" class="modal" style="display: none;">
-                <div class="modal-content" style="max-width: 600px;">
-                    <div class="modal-header">
-                        <h3><i class="fa-solid fa-gear"></i> DMSS 系统设置</h3>
-                        <span class="close" onclick="this.closest('.modal').style.display='none'">&times;</span>
+            <div id="dmss-settings-modal" class="dmss-modal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+                <div class="dmss-modal-content" style="background-color: var(--SmartThemeBodyColor, #fff); margin: 10% auto; padding: 0; border-radius: 8px; max-width: 600px; max-height: 70vh; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                    <div class="dmss-modal-header" style="padding: 15px 20px; border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd); display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0; color: var(--SmartThemeTextColor, #333);"><i class="fa-solid fa-gear"></i> DMSS 系统设置</h3>
+                        <span class="dmss-close" onclick="document.getElementById('dmss-settings-modal').style.display='none'" style="font-size: 24px; font-weight: bold; cursor: pointer; color: var(--SmartThemeTextColor, #333);">&times;</span>
                     </div>
-                    <div class="modal-body">
-                        <div class="settings-section">
-                            <h4>基本设置</h4>
-                            <div class="setting-item">
-                                <label>
+                    <div class="dmss-modal-body" style="padding: 20px; max-height: calc(70vh - 120px); overflow-y: auto;">
+                        <div class="settings-section" style="margin-bottom: 20px;">
+                            <h4 style="margin: 0 0 15px 0; color: var(--SmartThemeTextColor, #333);">基本设置</h4>
+                            <div class="setting-item" style="margin-bottom: 10px;">
+                                <label style="display: flex; align-items: center; gap: 8px; color: var(--SmartThemeTextColor, #333); cursor: pointer;">
                                     <input type="checkbox" id="dmss-auto-enable" checked>
                                     自动启用DMSS
                                 </label>
                             </div>
-                            <div class="setting-item">
-                                <label>
+                            <div class="setting-item" style="margin-bottom: 10px;">
+                                <label style="display: flex; align-items: center; gap: 8px; color: var(--SmartThemeTextColor, #333); cursor: pointer;">
                                     <input type="checkbox" id="dmss-notifications" checked>
                                     显示通知
                                 </label>
                             </div>
                         </div>
                         
-                        <div class="settings-section">
-                            <h4>记忆管理</h4>
-                            <div class="setting-item">
-                                <label>最大记忆条数:</label>
-                                <input type="number" id="dmss-max-memories" value="100" min="1" max="1000">
+                        <div class="settings-section" style="margin-bottom: 20px;">
+                            <h4 style="margin: 0 0 15px 0; color: var(--SmartThemeTextColor, #333);">记忆管理</h4>
+                            <div class="setting-item" style="margin-bottom: 10px;">
+                                <label style="display: block; margin-bottom: 5px; color: var(--SmartThemeTextColor, #333);">最大记忆条数:</label>
+                                <input type="number" id="dmss-max-memories" value="100" min="1" max="1000" style="width: 100px; padding: 5px; border: 1px solid var(--SmartThemeBorderColor, #ddd); border-radius: 4px;">
                             </div>
-                            <div class="setting-item">
-                                <label>记忆保留天数:</label>
-                                <input type="number" id="dmss-retention-days" value="30" min="1" max="365">
+                            <div class="setting-item" style="margin-bottom: 10px;">
+                                <label style="display: block; margin-bottom: 5px; color: var(--SmartThemeTextColor, #333);">记忆保留天数:</label>
+                                <input type="number" id="dmss-retention-days" value="30" min="1" max="365" style="width: 100px; padding: 5px; border: 1px solid var(--SmartThemeBorderColor, #ddd); border-radius: 4px;">
                             </div>
                         </div>
                         
-                        <div class="settings-section">
-                            <h4>高级设置</h4>
-                            <div class="setting-item">
-                                <label>
+                        <div class="settings-section" style="margin-bottom: 20px;">
+                            <h4 style="margin: 0 0 15px 0; color: var(--SmartThemeTextColor, #333);">高级设置</h4>
+                            <div class="setting-item" style="margin-bottom: 10px;">
+                                <label style="display: flex; align-items: center; gap: 8px; color: var(--SmartThemeTextColor, #333); cursor: pointer;">
                                     <input type="checkbox" id="dmss-debug-mode">
                                     调试模式
                                 </label>
                             </div>
                         </div>
                         
-                        <div class="settings-actions" style="margin-top: 20px; text-align: right;">
-                            <button onclick="window.dmssUI.saveSettings()" class="btn btn-primary">
+                        <div class="settings-actions" style="margin-top: 20px; text-align: right; display: flex; gap: 10px; justify-content: flex-end;">
+                            <button onclick="window.dmssUI.saveSettings()" class="dmss-btn dmss-btn-primary" style="padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white;">
                                 <i class="fa-solid fa-save"></i> 保存设置
                             </button>
-                            <button onclick="window.dmssUI.resetSettings()" class="btn btn-secondary" style="margin-left: 10px;">
+                            <button onclick="window.dmssUI.resetSettings()" class="dmss-btn dmss-btn-secondary" style="padding: 8px 16px; border: 1px solid var(--SmartThemeBorderColor, #ddd); border-radius: 4px; cursor: pointer; background: transparent; color: var(--SmartThemeTextColor, #333);">
                                 <i class="fa-solid fa-undo"></i> 重置
                             </button>
                         </div>
@@ -246,6 +246,11 @@ class DMSSUI {
         if (modal) {
             this.refreshMemoryView();
             modal.style.display = 'block';
+        } else {
+            console.error('[DMSS UI] 记忆查看器模态框未找到');
+            if (window.toastr) {
+                toastr.error('记忆查看器加载失败', 'DMSS', { timeOut: 3000 });
+            }
         }
     }
 
@@ -257,6 +262,11 @@ class DMSSUI {
         if (modal) {
             this.loadSettings();
             modal.style.display = 'block';
+        } else {
+            console.error('[DMSS UI] 设置模态框未找到');
+            if (window.toastr) {
+                toastr.error('设置面板加载失败', 'DMSS', { timeOut: 3000 });
+            }
         }
     }
 
@@ -284,11 +294,11 @@ class DMSSUI {
                     <div class="memory-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <span class="memory-index" style="font-weight: bold; color: var(--SmartThemeQuoteColor, #007bff);">#${index + 1}</span>
                         <span class="memory-timestamp" style="font-size: 12px; color: var(--SmartThemeTextColor, #666);">${new Date(entry.timestamp).toLocaleString()}</span>
-                    </div>
+                        </div>
                     <div class="memory-content" style="color: var(--SmartThemeTextColor); line-height: 1.4;">
                         ${this.escapeHtml(entry.content)}
+                        </div>
                     </div>
-                </div>
             `).join('');
             
             memoryList.innerHTML = memoryHtml;
@@ -413,8 +423,8 @@ class DMSSUI {
         if (window.saveMetadataDebounced) {
             window.saveMetadataDebounced();
         }
-        
-        // 关闭模态框
+
+            // 关闭模态框
         document.getElementById('dmss-settings-modal').style.display = 'none';
         
         if (window.toastr) {
@@ -455,5 +465,8 @@ class DMSSUI {
 
 // 导出DMSS UI类
 window.DMSSUI = DMSSUI;
+
+// 创建全局实例引用
+window.dmssUI = null;
 
 console.log('[DMSS UI] DMSS UI模块已加载');
