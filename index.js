@@ -255,6 +255,29 @@ jQuery(() => {
                     <div class="janus-tab-content">
                         <h4 style="text-align: center;"><i class="fa-solid fa-brain"></i> 动态记忆流系统 (DMSS)</h4>
                         
+                        <!-- DMSS 功能说明 -->
+                        <div class="dmss-info-section">
+                            <h5><i class="fa-solid fa-info-circle"></i> 系统说明</h5>
+                            <div class="workflow-step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <strong>自动捕获:</strong> 系统会自动捕获AI生成的<code>&lt;DMSS&gt;内容&lt;/DMSS&gt;</code>标签内容
+                                </div>
+                            </div>
+                            <div class="workflow-step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <strong>智能存储:</strong> 记忆内容按聊天分类存储，支持多聊天并行管理
+                                </div>
+                            </div>
+                            <div class="workflow-step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <strong>内容管理:</strong> 提供记忆查看、编辑、删除等完整管理功能
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- DMSS 状态面板 -->
                         <div class="dmss-status-panel">
                             <div class="status-item">
@@ -262,8 +285,12 @@ jQuery(() => {
                                 <span id="dmss-status" class="status-value">未启动</span>
                             </div>
                             <div class="status-item">
-                                <span class="status-label">最后更新:</span>
-                                <span id="dmss-last-update" class="status-value">从未</span>
+                                <span class="status-label">当前聊天:</span>
+                                <span id="dmss-current-chat" class="status-value">-</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">记忆条数:</span>
+                                <span id="dmss-memory-count" class="status-value">0</span>
                             </div>
                         </div>
                         
@@ -278,7 +305,7 @@ jQuery(() => {
                                     </label>
                                 </div>
                                 <div class="toggle-description">
-                                    <p>启用后，系统将自动捕获AI生成的<DMSS>记忆内容</p>
+                                    <p>启用后，系统将自动捕获AI生成的DMSS记忆内容并存储到当前聊天中</p>
                                 </div>
                             </div>
                             
@@ -292,29 +319,6 @@ jQuery(() => {
                                 <button onclick="window.janusHandlers.resetDMSS()" class="dmss-action-btn warning-btn">
                                     <i class="fa-solid fa-refresh"></i> 重置系统
                                 </button>
-                            </div>
-                        </div>
-                        
-                        <!-- DMSS 功能说明 -->
-                        <div class="dmss-info-section">
-                            <h5><i class="fa-solid fa-info-circle"></i> 功能说明</h5>
-                            <div class="workflow-step">
-                                <div class="step-number">1</div>
-                                <div class="step-content">
-                                    <strong>自动捕获：</strong>系统会监听AI生成的消息，使用正则表达式捕获<DMSS>标签内的内容
-                                </div>
-                            </div>
-                            <div class="workflow-step">
-                                <div class="step-number">2</div>
-                                <div class="step-content">
-                                    <strong>永久存储：</strong>捕获的记忆内容会按聊天分类存储，支持跨会话保存
-                                </div>
-                            </div>
-                            <div class="workflow-step">
-                                <div class="step-number">3</div>
-                                <div class="step-content">
-                                    <strong>记忆管理：</strong>可以查看、复制、删除记忆内容，支持按聊天分类管理
-                                </div>
                             </div>
                         </div>
                         
@@ -453,10 +457,6 @@ jQuery(() => {
         if (tabName === 'dmss') {
             setTimeout(() => {
                 loadDMSSCore();
-                // 延迟更新状态显示，确保模块已加载
-                setTimeout(() => {
-                    updateDMSSStatus();
-                }, 500);
             }, 100);
         }
     }
@@ -615,6 +615,7 @@ jQuery(() => {
     }
     
     // DMSS 相关处理函数
+    let dmssUI = null;
     let dmssEnabled = false;
     
     // 切换DMSS开关
@@ -634,29 +635,35 @@ jQuery(() => {
     }
     
     function startDMSS() {
-        if (window.DMSSUI) {
-            window.DMSSUI.startDMSS();
-            dmssEnabled = true;
-            updateDMSSStatus();
-            toastr.success('DMSS系统已启动', '启动成功', { timeOut: 2000 });
-        } else {
-            toastr.error('DMSS模块未加载，请刷新页面重试', '启动失败', { timeOut: 3000 });
+        if (!dmssUI) {
+            console.log('[Janusの百宝箱] 初始化DMSS UI');
+            // 确保DMSS模块已加载
+            if (window.DMSSUI) {
+                dmssUI = new window.DMSSUI();
+                dmssUI.init();
+            } else {
+                console.error('[Janusの百宝箱] DMSS UI模块未加载');
+                toastr.error('DMSS模块加载失败', '错误', { timeOut: 3000 });
+                return;
+            }
         }
+        dmssUI.startDMSS();
+        dmssEnabled = true;
+        updateDMSSStatus();
     }
     
     function stopDMSS() {
-        if (window.DMSSUI) {
-            window.DMSSUI.stopDMSS();
+        if (dmssUI) {
+            dmssUI.stopDMSS();
         }
         dmssEnabled = false;
         updateDMSSStatus();
-        toastr.info('DMSS系统已停止', '停止成功', { timeOut: 2000 });
     }
     
     function resetDMSS() {
         if (confirm('确定要重置DMSS系统吗？这将清除所有记忆内容。')) {
-            if (window.DMSSUI) {
-                window.DMSSUI.resetDMSS();
+            if (dmssUI) {
+                dmssUI.resetDMSS();
             }
             dmssEnabled = false;
             const toggle = document.getElementById('dmss-main-toggle');
@@ -670,40 +677,48 @@ jQuery(() => {
     
     // 查看记忆内容
     function viewMemoryContent() {
-        if (window.DMSSUI) {
-            window.DMSSUI.viewMemoryContent();
+        if (dmssUI) {
+            dmssUI.viewMemoryContent();
         } else {
-            toastr.info('DMSS模块未加载，请刷新页面重试', '提示', { timeOut: 3000 });
+            toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
         }
     }
     
     // 打开设置
     function openSettings() {
-        if (window.DMSSUI) {
-            window.DMSSUI.openSettings();
+        if (dmssUI) {
+            dmssUI.openSettings();
         } else {
-            toastr.info('DMSS模块未加载，请刷新页面重试', '提示', { timeOut: 3000 });
+            toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
         }
     }
     
     // 更新DMSS状态显示
     function updateDMSSStatus() {
         const statusElement = document.getElementById('dmss-status');
-        const lastUpdateElement = document.getElementById('dmss-last-update');
         const toggle = document.getElementById('dmss-main-toggle');
+        const currentChatElement = document.getElementById('dmss-current-chat');
+        const memoryCountElement = document.getElementById('dmss-memory-count');
         
         if (statusElement) {
             statusElement.textContent = dmssEnabled ? '运行中' : '已停止';
             statusElement.style.color = dmssEnabled ? '#28a745' : '#dc3545';
         }
         
-        if (lastUpdateElement && window.DMSSCore) {
-            const status = window.DMSSCore.getStatus();
-            lastUpdateElement.textContent = status.lastUpdate;
-        }
-        
         if (toggle) {
             toggle.checked = dmssEnabled;
+        }
+        
+        // 更新当前聊天信息
+        if (currentChatElement && dmssUI && dmssUI.core) {
+            const chatId = dmssUI.core.currentChatId;
+            currentChatElement.textContent = chatId ? chatId.substring(0, 8) + '...' : '-';
+        }
+        
+        // 更新记忆条数
+        if (memoryCountElement && dmssUI && dmssUI.core) {
+            const memoryCount = dmssUI.core.getCurrentMemory().length;
+            memoryCountElement.textContent = memoryCount;
         }
     }
 
