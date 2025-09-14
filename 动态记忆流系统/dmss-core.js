@@ -34,10 +34,91 @@ class DMSSCore {
             this.currentChatId = this_chid;
         }
 
-        // 监听消息发送
+        // 使用SillyTavern的事件系统监听消息
+        this.setupSillyTavernEventListeners();
+        
+        // 备用方案：DOM监听
         document.addEventListener('DOMContentLoaded', () => {
             this.observeMessageChanges();
         });
+    }
+
+    /**
+     * 设置SillyTavern事件监听器
+     */
+    setupSillyTavernEventListeners() {
+        try {
+            // 检查SillyTavern事件系统是否可用
+            if (typeof eventSource !== 'undefined' && typeof event_types !== 'undefined') {
+                console.log('[DMSS Core] 使用SillyTavern事件系统监听消息');
+                
+                // 监听AI生成的消息
+                eventSource.on(event_types.MESSAGE_RECEIVED, (messageData) => {
+                    this.handleMessageReceived(messageData);
+                });
+                
+                // 监听聊天切换
+                eventSource.on(event_types.CHAT_CHANGED, () => {
+                    this.handleChatChanged();
+                });
+                
+                // 监听聊天加载
+                eventSource.on(event_types.CHAT_LOADED, () => {
+                    this.handleChatLoaded();
+                });
+                
+                console.log('[DMSS Core] SillyTavern事件监听器已设置');
+            } else {
+                console.warn('[DMSS Core] SillyTavern事件系统不可用，使用DOM监听');
+            }
+        } catch (error) {
+            console.error('[DMSS Core] 设置SillyTavern事件监听器失败:', error);
+        }
+    }
+
+    /**
+     * 处理AI生成的消息
+     */
+    handleMessageReceived(messageData) {
+        if (!this.isEnabled) return;
+        
+        try {
+            console.log('[DMSS Core] 收到AI消息:', messageData);
+            
+            // 提取消息文本
+            let messageText = '';
+            if (typeof messageData === 'string') {
+                messageText = messageData;
+            } else if (messageData && messageData.text) {
+                messageText = messageData.text;
+            } else if (messageData && messageData.content) {
+                messageText = messageData.content;
+            }
+            
+            if (messageText) {
+                this.scanForDMSSContent(messageText);
+            }
+        } catch (error) {
+            console.error('[DMSS Core] 处理AI消息失败:', error);
+        }
+    }
+
+    /**
+     * 处理聊天切换
+     */
+    handleChatChanged() {
+        console.log('[DMSS Core] 聊天已切换');
+        this.currentChatId = this.getCurrentChatId();
+        this.triggerUpdateEvent();
+    }
+
+    /**
+     * 处理聊天加载
+     */
+    handleChatLoaded() {
+        console.log('[DMSS Core] 聊天已加载');
+        this.currentChatId = this.getCurrentChatId();
+        this.triggerUpdateEvent();
     }
 
     /**
@@ -57,12 +138,19 @@ class DMSSCore {
         });
 
         // 观察聊天消息容器
-        const chatContainer = document.querySelector('#chat') || document.querySelector('.chat-container');
+        const chatContainer = document.querySelector('#chat') || 
+                             document.querySelector('.chat-container') ||
+                             document.querySelector('.chat') ||
+                             document.querySelector('[class*="chat"]');
+                             
         if (chatContainer) {
             messageObserver.observe(chatContainer, {
                 childList: true,
                 subtree: true
             });
+            console.log('[DMSS Core] DOM消息监听器已设置');
+        } else {
+            console.warn('[DMSS Core] 未找到聊天容器，DOM监听器设置失败');
         }
     }
 
@@ -72,12 +160,41 @@ class DMSSCore {
     scanForDMSSContent(element) {
         if (!this.isEnabled) return;
 
-        const textContent = element.textContent || element.innerText || '';
-        const dmssMatches = this.extractDMSSContent(textContent);
+        try {
+            // 获取文本内容
+            let textContent = '';
+            if (typeof element === 'string') {
+                textContent = element;
+            } else if (element && element.textContent) {
+                textContent = element.textContent;
+            } else if (element && element.innerText) {
+                textContent = element.innerText;
+            } else if (element && element.innerHTML) {
+                // 对于HTML内容，先提取纯文本
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = element.innerHTML;
+                textContent = tempDiv.textContent || tempDiv.innerText || '';
+            }
 
-        if (dmssMatches.length > 0) {
-            console.log('[DMSS Core] 发现DMSS内容:', dmssMatches.length, '个匹配');
-            this.processDMSSContent(dmssMatches);
+            if (!textContent || textContent.trim().length === 0) {
+                return;
+            }
+
+            // 检查是否包含DMSS标签
+            if (!textContent.includes('<DMSS>') || !textContent.includes('</DMSS>')) {
+                return;
+            }
+
+            console.log('[DMSS Core] 扫描到可能包含DMSS的内容，长度:', textContent.length);
+            
+            const dmssMatches = this.extractDMSSContent(textContent);
+
+            if (dmssMatches.length > 0) {
+                console.log('[DMSS Core] 发现DMSS内容:', dmssMatches.length, '个匹配');
+                this.processDMSSContent(dmssMatches);
+            }
+        } catch (error) {
+            console.error('[DMSS Core] 扫描DMSS内容失败:', error);
         }
     }
 
@@ -540,11 +657,111 @@ class DMSSCore {
         
         return [];
     }
+
+    /**
+     * 手动扫描当前聊天的最新消息
+     */
+    async scanLatestMessages() {
+        if (!this.isEnabled) {
+            console.log('[DMSS Core] DMSS未启用，跳过扫描');
+            return;
+        }
+
+        try {
+            console.log('[DMSS Core] 开始手动扫描最新消息...');
+            
+            // 查找聊天消息容器
+            const chatContainer = document.querySelector('#chat') || 
+                                 document.querySelector('.chat-container') ||
+                                 document.querySelector('.chat') ||
+                                 document.querySelector('[class*="chat"]');
+            
+            if (!chatContainer) {
+                console.warn('[DMSS Core] 未找到聊天容器');
+                return;
+            }
+
+            // 查找所有消息元素
+            const messageElements = chatContainer.querySelectorAll('[class*="message"], [class*="msg"], .mes, .message');
+            
+            console.log('[DMSS Core] 找到', messageElements.length, '个消息元素');
+            
+            let scannedCount = 0;
+            let foundCount = 0;
+            
+            // 扫描最近的消息（最多扫描最后10条）
+            const recentMessages = Array.from(messageElements).slice(-10);
+            
+            for (const messageElement of recentMessages) {
+                scannedCount++;
+                const originalLength = this.extractDMSSContent(messageElement.textContent || '').length;
+                
+                this.scanForDMSSContent(messageElement);
+                
+                const newLength = this.extractDMSSContent(messageElement.textContent || '').length;
+                if (newLength > originalLength) {
+                    foundCount++;
+                }
+            }
+            
+            console.log(`[DMSS Core] 扫描完成: 扫描了${scannedCount}条消息，发现${foundCount}条包含DMSS内容`);
+            
+        } catch (error) {
+            console.error('[DMSS Core] 手动扫描失败:', error);
+        }
+    }
+
+    /**
+     * 强制扫描整个聊天
+     */
+    async forceScanChat() {
+        if (!this.isEnabled) {
+            console.log('[DMSS Core] DMSS未启用，跳过强制扫描');
+            return;
+        }
+
+        try {
+            console.log('[DMSS Core] 开始强制扫描整个聊天...');
+            
+            // 查找聊天消息容器
+            const chatContainer = document.querySelector('#chat') || 
+                                 document.querySelector('.chat-container') ||
+                                 document.querySelector('.chat') ||
+                                 document.querySelector('[class*="chat"]');
+            
+            if (!chatContainer) {
+                console.warn('[DMSS Core] 未找到聊天容器');
+                return;
+            }
+
+            // 获取所有文本内容
+            const allText = chatContainer.textContent || chatContainer.innerText || '';
+            
+            if (!allText.includes('<DMSS>')) {
+                console.log('[DMSS Core] 聊天中未发现DMSS标签');
+                return;
+            }
+
+            console.log('[DMSS Core] 聊天中发现DMSS标签，开始提取...');
+            
+            const matches = this.extractDMSSContent(allText);
+            
+            if (matches.length > 0) {
+                console.log('[DMSS Core] 强制扫描发现', matches.length, '个DMSS内容');
+                await this.processDMSSContent(matches);
+            } else {
+                console.log('[DMSS Core] 强制扫描未发现有效的DMSS内容');
+            }
+            
+        } catch (error) {
+            console.error('[DMSS Core] 强制扫描失败:', error);
+        }
+    }
 }
 
 // 导出到全局
 if (typeof window !== 'undefined') {
-    window.DMSSCore = DMSSCore;
+window.DMSSCore = DMSSCore;
 }
 
 console.log('[DMSS Core] 动态记忆流系统核心模块已加载');

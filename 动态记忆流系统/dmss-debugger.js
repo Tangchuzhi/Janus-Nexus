@@ -218,6 +218,18 @@ class DMSSDebugger {
                                 <i class="fa-solid fa-download"></i> 导出TXT
                             </button>
                         </div>
+                        
+                        <div class="debug-control-group">
+                            <button onclick="window.dmssDebugger.scanChat()" class="dmss-btn primary">
+                                <i class="fa-solid fa-search"></i> 扫描最新消息
+                            </button>
+                            <button onclick="window.dmssDebugger.forceScanChat()" class="dmss-btn primary">
+                                <i class="fa-solid fa-search-plus"></i> 强制扫描聊天
+                            </button>
+                            <button onclick="window.dmssDebugger.testDMSS()" class="dmss-btn test-btn">
+                                <i class="fa-solid fa-vial"></i> 测试功能
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="debug-logs-container">
@@ -488,6 +500,40 @@ class DMSSDebugger {
             });
         } else {
             console.warn('[DMSS Debugger] DMSS核心未初始化，无法进行测试');
+        }
+    }
+
+    /**
+     * 手动扫描聊天
+     */
+    scanChat() {
+        console.log('[DMSS Debugger] 开始手动扫描聊天');
+        
+        if (window.dmssUI && window.dmssUI.core) {
+            window.dmssUI.core.scanLatestMessages().then(() => {
+                console.log('[DMSS Debugger] 手动扫描完成');
+            }).catch(error => {
+                console.error('[DMSS Debugger] 手动扫描失败:', error);
+            });
+        } else {
+            console.warn('[DMSS Debugger] DMSS核心未初始化，无法进行扫描');
+        }
+    }
+
+    /**
+     * 强制扫描整个聊天
+     */
+    forceScanChat() {
+        console.log('[DMSS Debugger] 开始强制扫描整个聊天');
+        
+        if (window.dmssUI && window.dmssUI.core) {
+            window.dmssUI.core.forceScanChat().then(() => {
+                console.log('[DMSS Debugger] 强制扫描完成');
+            }).catch(error => {
+                console.error('[DMSS Debugger] 强制扫描失败:', error);
+            });
+        } else {
+            console.warn('[DMSS Debugger] DMSS核心未初始化，无法进行强制扫描');
         }
     }
 }
