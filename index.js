@@ -287,6 +287,9 @@ jQuery(() => {
                                 <button onclick="window.janusHandlers.viewMemoryContent()" class="dmss-action-btn primary-btn">
                                     <i class="fa-solid fa-eye"></i> 查看记忆
                                 </button>
+                                <button onclick="window.janusHandlers.testDMSSFunction()" class="dmss-action-btn secondary-btn">
+                                    <i class="fa-solid fa-flask"></i> 测试功能
+                                </button>
                                 <button onclick="window.janusHandlers.openSettings()" class="dmss-action-btn secondary-btn">
                                     <i class="fa-solid fa-gear"></i> 系统设置
                                 </button>
@@ -692,6 +695,17 @@ jQuery(() => {
     }
 
 
+    // 测试DMSS功能
+    async function testDMSSFunction() {
+        if (dmssUI) {
+            await dmssUI.testDMSSFunction();
+        } else {
+            if (typeof toastr !== 'undefined') {
+                toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+            }
+        }
+    }
+
     // 执行slash命令的辅助函数
     async function executeSlashCommand(command) {
         try {
@@ -727,6 +741,7 @@ jQuery(() => {
         viewMemoryContent: viewMemoryContent,
         openSettings: openSettings,
         updateDMSSStatus: updateDMSSStatus,
+        testDMSSFunction: testDMSSFunction,
         executeSlashCommand: executeSlashCommand
     };
     
