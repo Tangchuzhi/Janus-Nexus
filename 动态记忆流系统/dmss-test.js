@@ -48,6 +48,29 @@ function testRegex() {
     return matches;
 }
 
+// 测试聊天ID获取
+function testChatId() {
+    console.log('[DMSS Test] 开始测试聊天ID获取...');
+    
+    const methods = [
+        { name: 'this_chid', value: typeof this_chid !== 'undefined' ? this_chid : null },
+        { name: 'getCurrentChatId函数', value: typeof getCurrentChatId === 'function' ? getCurrentChatId() : null },
+        { name: 'URL解析', value: window.location.pathname.match(/\/chat\/([^\/]+)/)?.[1] || null },
+        { name: 'localStorage', value: localStorage.getItem('current_chat_id') },
+        { name: '临时ID', value: 'temp_chat_' + Date.now() }
+    ];
+    
+    console.log('[DMSS Test] 聊天ID获取方法测试:');
+    methods.forEach(method => {
+        console.log(`  ${method.name}:`, method.value || '未获取到');
+    });
+    
+    const validChatId = methods.find(m => m.value)?.value;
+    console.log('[DMSS Test] 推荐使用的聊天ID:', validChatId);
+    
+    return validChatId;
+}
+
 // 测试DMSS核心功能
 function testDMSSCore() {
     console.log('[DMSS Test] 开始测试DMSS核心功能...');
@@ -61,6 +84,10 @@ function testDMSSCore() {
         const core = new DMSSCore();
         console.log('[DMSS Test] DMSSCore实例创建成功');
         
+        // 测试聊天ID获取
+        const chatId = core.getCurrentChatId();
+        console.log('[DMSS Test] 聊天ID获取测试:', chatId || '无法获取');
+        
         // 测试内容提取
         const matches = core.extractDMSSContent(testDMSSContent);
         console.log('[DMSS Test] 内容提取测试:', matches.length, '个匹配');
@@ -68,6 +95,18 @@ function testDMSSCore() {
         // 测试内容解析
         const sections = core.parseDMSSSections(matches[0]?.content || '');
         console.log('[DMSS Test] 内容解析测试:', sections);
+        
+        // 测试内容处理（如果聊天ID可用）
+        if (chatId) {
+            console.log('[DMSS Test] 开始测试内容处理...');
+            core.processText(testDMSSContent).then(result => {
+                console.log('[DMSS Test] 内容处理测试完成:', result.length, '个匹配');
+            }).catch(error => {
+                console.error('[DMSS Test] 内容处理测试失败:', error);
+            });
+        } else {
+            console.log('[DMSS Test] 跳过内容处理测试（无聊天ID）');
+        }
         
         return true;
     } catch (error) {
@@ -109,11 +148,11 @@ function testDMSSDebugger() {
     }
     
     try {
-        const debugger = new DMSSDebugger();
+        const dmssDebugger = new DMSSDebugger();
         console.log('[DMSS Test] DMSSDebugger实例创建成功');
         
         // 测试日志记录
-        debugger.log('info', '测试日志消息');
+        dmssDebugger.log('info', '测试日志消息');
         console.log('[DMSS Test] 日志记录测试完成');
         
         return true;
@@ -128,6 +167,7 @@ function runAllTests() {
     console.log('[DMSS Test] ========== 开始DMSS系统测试 ==========');
     
     const results = {
+        chatId: testChatId(),
         regex: testRegex(),
         core: testDMSSCore(),
         ui: testDMSSUI(),
@@ -135,6 +175,7 @@ function runAllTests() {
     };
     
     console.log('[DMSS Test] ========== 测试结果汇总 ==========');
+    console.log('[DMSS Test] 聊天ID获取测试:', results.chatId ? '通过' : '失败');
     console.log('[DMSS Test] 正则表达式测试:', results.regex ? '通过' : '失败');
     console.log('[DMSS Test] 核心模块测试:', results.core ? '通过' : '失败');
     console.log('[DMSS Test] UI模块测试:', results.ui ? '通过' : '失败');
@@ -149,6 +190,14 @@ function runAllTests() {
         console.log('[DMSS Test] 🎉 所有测试通过！DMSS系统运行正常');
     } else {
         console.log('[DMSS Test] ⚠️ 部分测试失败，请检查相关模块');
+        
+        // 提供具体的解决建议
+        if (!results.chatId) {
+            console.log('[DMSS Test] 💡 建议: 在SillyTavern聊天页面中运行测试，或手动设置聊天ID');
+        }
+        if (!results.core) {
+            console.log('[DMSS Test] 💡 建议: 检查DMSSCore模块是否正确加载');
+        }
     }
     
     return results;
@@ -158,6 +207,7 @@ function runAllTests() {
 if (typeof window !== 'undefined') {
     window.dmssTest = {
         runAllTests,
+        testChatId,
         testRegex,
         testDMSSCore,
         testDMSSUI,

@@ -125,10 +125,12 @@ class DMSSCore {
      * 存储DMSS内容
      */
     async storeDMSSContent(match) {
-        const chatId = this.getCurrentChatId();
+        let chatId = this.getCurrentChatId();
+        
+        // 如果无法获取聊天ID，使用默认ID
         if (!chatId) {
-            console.warn('[DMSS Core] 无法获取当前聊天ID');
-            return;
+            chatId = 'default_chat';
+            console.warn('[DMSS Core] 无法获取当前聊天ID，使用默认ID:', chatId);
         }
 
         const storageKey = `${this.storagePrefix}${chatId}`;
@@ -146,10 +148,23 @@ class DMSSCore {
             // 更新缓存
             this.memoryCache.set(storageKey, mergedContent);
             
-            console.log('[DMSS Core] DMSS内容已存储');
+            console.log('[DMSS Core] DMSS内容已存储到:', chatId);
             
         } catch (error) {
             console.error('[DMSS Core] 存储DMSS内容失败:', error);
+            
+            // 备用存储方案：使用localStorage
+            try {
+                const mergedContent = this.mergeDMSSContent(
+                    await this.getStoredContent(storageKey), 
+                    match.content
+                );
+                localStorage.setItem(storageKey, mergedContent);
+                this.memoryCache.set(storageKey, mergedContent);
+                console.log('[DMSS Core] DMSS内容已存储到localStorage');
+            } catch (fallbackError) {
+                console.error('[DMSS Core] 备用存储也失败:', fallbackError);
+            }
         }
     }
 
@@ -254,12 +269,25 @@ class DMSSCore {
         try {
             // 使用SillyTavern的slash命令存储
             if (typeof window !== 'undefined' && window.stScript) {
-                // 使用stScript的API
-                await window.stScript.runCommand(`/db-update source=chat name=DMSS_${chatId} "${content}"`);
+                try {
+                    // 先尝试更新
+                    await window.stScript.runCommand(`/db-update source=chat name=DMSS_${chatId} "${content}"`);
+                    console.log('[DMSS Core] Data Bank更新成功');
+                } catch (updateError) {
+                    console.warn('[DMSS Core] Data Bank更新失败，尝试添加:', updateError);
+                    // 如果更新失败，尝试添加
+                    await window.stScript.runCommand(`/db-add source=chat name=DMSS_${chatId} "${content}"`);
+                    console.log('[DMSS Core] Data Bank添加成功');
+                }
             } else {
-                // 备用方案：使用全局变量
+                // 备用方案1：使用全局变量
                 if (typeof setGlobalVar !== 'undefined') {
                     setGlobalVar(`DMSS_${chatId}`, content);
+                    console.log('[DMSS Core] 使用全局变量存储成功');
+                } else {
+                    // 备用方案2：使用localStorage
+                    localStorage.setItem(`DMSS_${chatId}`, content);
+                    console.log('[DMSS Core] 使用localStorage存储成功');
                 }
             }
         } catch (error) {
@@ -280,20 +308,39 @@ class DMSSCore {
 
             // 从Data Bank获取
             if (typeof window !== 'undefined' && window.stScript) {
-                const result = await window.stScript.runCommand(`/db-get source=chat name=${storageKey}`);
-                if (result && result.trim()) {
-                    this.memoryCache.set(storageKey, result);
-                    return result;
+                try {
+                    const result = await window.stScript.runCommand(`/db-get source=chat name=${storageKey}`);
+                    if (result && result.trim()) {
+                        this.memoryCache.set(storageKey, result);
+                        return result;
+                    }
+                } catch (dbError) {
+                    console.warn('[DMSS Core] Data Bank获取失败，尝试备用方案:', dbError);
                 }
             }
 
-            // 备用方案：从全局变量获取
+            // 备用方案1：从全局变量获取
             if (typeof getGlobalVar !== 'undefined') {
-                const result = getGlobalVar(storageKey);
+                try {
+                    const result = getGlobalVar(storageKey);
+                    if (result) {
+                        this.memoryCache.set(storageKey, result);
+                        return result;
+                    }
+                } catch (globalVarError) {
+                    console.warn('[DMSS Core] 全局变量获取失败:', globalVarError);
+                }
+            }
+
+            // 备用方案2：从localStorage获取
+            try {
+                const result = localStorage.getItem(storageKey);
                 if (result) {
                     this.memoryCache.set(storageKey, result);
                     return result;
                 }
+            } catch (localStorageError) {
+                console.warn('[DMSS Core] localStorage获取失败:', localStorageError);
             }
 
             return null;
@@ -307,13 +354,46 @@ class DMSSCore {
      * 获取当前聊天ID
      */
     getCurrentChatId() {
-        if (typeof this_chid !== 'undefined') {
+        // 方案1：使用SillyTavern的全局变量
+        if (typeof this_chid !== 'undefined' && this_chid) {
             return this_chid;
         }
         
-        // 备用方案：从URL获取
+        // 方案2：使用getCurrentChatId函数（如果存在）
+        if (typeof getCurrentChatId === 'function') {
+            try {
+                const chatId = getCurrentChatId();
+                if (chatId) return chatId;
+            } catch (error) {
+                console.warn('[DMSS Core] getCurrentChatId函数调用失败:', error);
+            }
+        }
+        
+        // 方案3：从URL获取
         const urlMatch = window.location.pathname.match(/\/chat\/([^\/]+)/);
-        return urlMatch ? urlMatch[1] : null;
+        if (urlMatch) {
+            return urlMatch[1];
+        }
+        
+        // 方案4：从localStorage获取
+        try {
+            const savedChatId = localStorage.getItem('current_chat_id');
+            if (savedChatId) {
+                return savedChatId;
+            }
+        } catch (error) {
+            console.warn('[DMSS Core] 从localStorage获取聊天ID失败:', error);
+        }
+        
+        // 方案5：生成临时聊天ID（用于测试）
+        if (this.debugMode) {
+            const tempChatId = 'temp_chat_' + Date.now();
+            console.log('[DMSS Core] 使用临时聊天ID:', tempChatId);
+            return tempChatId;
+        }
+        
+        console.warn('[DMSS Core] 无法获取当前聊天ID');
+        return null;
     }
 
     /**
