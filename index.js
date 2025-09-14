@@ -228,6 +228,17 @@ jQuery(() => {
                     debuggerScript.src = 'scripts/extensions/third-party/Janus-Treasure-chest/动态记忆流系统/dmss-debugger.js';
                     debuggerScript.onload = () => {
                         console.log('[Janusの百宝箱] DMSS调试器脚本加载完成');
+                        
+                        // 加载DMSS测试模块
+                        const testScript = document.createElement('script');
+                        testScript.src = 'scripts/extensions/third-party/Janus-Treasure-chest/动态记忆流系统/dmss-test.js';
+                        testScript.onload = () => {
+                            console.log('[Janusの百宝箱] DMSS测试模块脚本加载完成');
+                        };
+                        testScript.onerror = () => {
+                            console.error('[Janusの百宝箱] DMSS测试模块脚本加载失败');
+                        };
+                        document.head.appendChild(testScript);
                     };
                     debuggerScript.onerror = () => {
                         console.error('[Janusの百宝箱] DMSS调试器脚本加载失败');
@@ -266,28 +277,7 @@ jQuery(() => {
                     <div class="janus-tab-content">
                         <h4 style="text-align: center;"><i class="fa-solid fa-brain"></i> 动态记忆流系统 (DMSS)</h4>
                         
-                        <!-- DMSS 功能说明 -->
-                        <div class="dmss-info-section">
-                            <h5><i class="fa-solid fa-info-circle"></i> 系统说明</h5>
-                            <div class="workflow-step">
-                                <div class="step-number">1</div>
-                                <div class="step-content">
-                                    <strong>自动捕获:</strong> 系统会自动捕获AI生成的<code>&lt;DMSS&gt;内容&lt;/DMSS&gt;</code>标签内容
-                                </div>
-                            </div>
-                            <div class="workflow-step">
-                                <div class="step-number">2</div>
-                                <div class="step-content">
-                                    <strong>智能存储:</strong> 记忆内容按聊天分类存储，支持多聊天并行管理
-                                </div>
-                            </div>
-                            <div class="workflow-step">
-                                <div class="step-number">3</div>
-                                <div class="step-content">
-                                    <strong>内容管理:</strong> 提供记忆查看、编辑、删除等完整管理功能
-                                </div>
-                            </div>
-                        </div>
+
                         
                         <!-- DMSS 状态面板 -->
                         <div class="dmss-status-panel">
@@ -303,6 +293,10 @@ jQuery(() => {
                                 <span class="status-label">记忆条数:</span>
                                 <span id="dmss-memory-count" class="status-value">0</span>
                             </div>
+                            <div class="status-item">
+                                <span class="status-label">调试模式:</span>
+                                <span id="dmss-debug-status" class="status-value">关闭</span>
+                            </div>
                         </div>
                         
                         <!-- DMSS 主控制面板 -->
@@ -315,9 +309,6 @@ jQuery(() => {
                                         <span class="toggle-text">启用DMSS</span>
                                     </label>
                                 </div>
-                                <div class="toggle-description">
-                                    <p>启用后，系统将自动捕获AI生成的DMSS记忆内容并存储到当前聊天中</p>
-                                </div>
                             </div>
                             
                             <div class="action-buttons">
@@ -327,8 +318,33 @@ jQuery(() => {
                                 <button onclick="window.janusHandlers.openSettings()" class="dmss-action-btn secondary-btn">
                                     <i class="fa-solid fa-gear"></i> 系统设置
                                 </button>
+                                <button onclick="window.janusHandlers.showDebugPanel()" class="dmss-action-btn info-btn">
+                                    <i class="fa-solid fa-bug"></i> 调试面板
+                                </button>
+                                <button onclick="window.janusHandlers.testDMSS()" class="dmss-action-btn test-btn">
+                                    <i class="fa-solid fa-vial"></i> 测试功能
+                                </button>
                                 <button onclick="window.janusHandlers.resetDMSS()" class="dmss-action-btn warning-btn">
                                     <i class="fa-solid fa-refresh"></i> 重置系统
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- DMSS 快速操作 -->
+                        <div class="dmss-quick-actions">
+                            <h6><i class="fa-solid fa-bolt"></i> 快速操作</h6>
+                            <div class="quick-action-buttons">
+                                <button onclick="window.janusHandlers.exportCurrentMemory()" class="quick-btn">
+                                    <i class="fa-solid fa-download"></i> 导出记忆
+                                </button>
+                                <button onclick="window.janusHandlers.importMemoryContent()" class="quick-btn">
+                                    <i class="fa-solid fa-upload"></i> 导入记忆
+                                </button>
+                                <button onclick="window.janusHandlers.clearCurrentMemory()" class="quick-btn">
+                                    <i class="fa-solid fa-trash"></i> 清空记忆
+                                </button>
+                                <button onclick="window.janusHandlers.refreshMemoryStats()" class="quick-btn">
+                                    <i class="fa-solid fa-sync"></i> 刷新统计
                                 </button>
                             </div>
                         </div>
@@ -627,6 +643,7 @@ jQuery(() => {
     
     // DMSS 相关处理函数
     let dmssUI = null;
+    let dmssDebugger = null;
     let dmssEnabled = false;
     
     // 切换DMSS开关
@@ -647,15 +664,21 @@ jQuery(() => {
     
     function startDMSS() {
         if (!dmssUI) {
-            console.log('[Janusの百宝箱] 初始化DMSS UI');
+            console.log('[Janusの百宝箱] 初始化DMSS系统');
             // 确保DMSS模块已加载
-            if (window.DMSSUI) {
+            if (window.DMSSUI && window.DMSSCore) {
                 dmssUI = new window.DMSSUI();
                 dmssUI.init();
                 // 设置全局引用
                 window.dmssUI = dmssUI;
+                
+                // 初始化调试器
+                if (window.DMSSDebugger) {
+                    dmssDebugger = new window.DMSSDebugger();
+                    window.dmssDebugger = dmssDebugger;
+                }
             } else {
-                console.error('[Janusの百宝箱] DMSS UI模块未加载');
+                console.error('[Janusの百宝箱] DMSS模块未加载');
                 toastr.error('DMSS模块加载失败', '错误', { timeOut: 3000 });
                 return;
             }
@@ -706,12 +729,131 @@ jQuery(() => {
         }
     }
     
+    // 显示调试面板
+    function showDebugPanel() {
+        if (dmssDebugger) {
+            dmssDebugger.showDebugPanel();
+        } else {
+            toastr.info('调试器未初始化', '提示', { timeOut: 2000 });
+        }
+    }
+    
+    // 测试DMSS功能
+    function testDMSS() {
+        if (dmssDebugger) {
+            dmssDebugger.testDMSS();
+            toastr.success('DMSS测试已开始，请查看调试面板', '测试启动', { timeOut: 3000 });
+        } else {
+            toastr.info('调试器未初始化', '提示', { timeOut: 2000 });
+        }
+    }
+    
+    // 导出当前记忆
+    async function exportCurrentMemory() {
+        if (!dmssUI || !dmssUI.core) {
+            toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+            return;
+        }
+        
+        try {
+            const memoryContent = await dmssUI.core.getCurrentMemory();
+            if (!memoryContent) {
+                toastr.warning('当前没有记忆内容可导出', '提示', { timeOut: 2000 });
+                return;
+            }
+            
+            const chatId = dmssUI.core.getCurrentChatId();
+            const filename = `dmss_memory_${chatId}_${new Date().toISOString().split('T')[0]}.txt`;
+            
+            const blob = new Blob([memoryContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            URL.revokeObjectURL(url);
+            toastr.success('记忆内容已导出', '导出成功', { timeOut: 2000 });
+        } catch (error) {
+            console.error('[Janusの百宝箱] 导出记忆失败:', error);
+            toastr.error('导出失败', '错误', { timeOut: 2000 });
+        }
+    }
+    
+    // 导入记忆内容
+    function importMemoryContent() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.txt,.json';
+        input.onchange = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            try {
+                const content = await file.text();
+                if (!dmssUI || !dmssUI.core) {
+                    toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+                    return;
+                }
+                
+                await dmssUI.core.processText(content);
+                toastr.success('记忆内容已导入', '导入成功', { timeOut: 2000 });
+                updateDMSSStatus();
+            } catch (error) {
+                console.error('[Janusの百宝箱] 导入记忆失败:', error);
+                toastr.error('导入失败', '错误', { timeOut: 2000 });
+            }
+        };
+        input.click();
+    }
+    
+    // 清空当前记忆
+    async function clearCurrentMemory() {
+        if (!confirm('确定要清空当前聊天的所有记忆内容吗？此操作不可撤销。')) {
+            return;
+        }
+        
+        if (!dmssUI || !dmssUI.core) {
+            toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+            return;
+        }
+        
+        try {
+            await dmssUI.core.reset();
+            toastr.success('记忆内容已清空', '清空成功', { timeOut: 2000 });
+            updateDMSSStatus();
+        } catch (error) {
+            console.error('[Janusの百宝箱] 清空记忆失败:', error);
+            toastr.error('清空失败', '错误', { timeOut: 2000 });
+        }
+    }
+    
+    // 刷新记忆统计
+    async function refreshMemoryStats() {
+        if (!dmssUI || !dmssUI.core) {
+            toastr.info('请先启用DMSS系统', '提示', { timeOut: 2000 });
+            return;
+        }
+        
+        try {
+            await updateDMSSStatus();
+            toastr.success('统计信息已刷新', '刷新成功', { timeOut: 2000 });
+        } catch (error) {
+            console.error('[Janusの百宝箱] 刷新统计失败:', error);
+            toastr.error('刷新失败', '错误', { timeOut: 2000 });
+        }
+    }
+    
     // 更新DMSS状态显示
-    function updateDMSSStatus() {
+    async function updateDMSSStatus() {
         const statusElement = document.getElementById('dmss-status');
         const toggle = document.getElementById('dmss-main-toggle');
         const currentChatElement = document.getElementById('dmss-current-chat');
         const memoryCountElement = document.getElementById('dmss-memory-count');
+        const debugStatusElement = document.getElementById('dmss-debug-status');
         
         if (statusElement) {
             statusElement.textContent = dmssEnabled ? '运行中' : '已停止';
@@ -724,14 +866,24 @@ jQuery(() => {
         
         // 更新当前聊天信息
         if (currentChatElement && dmssUI && dmssUI.core) {
-            const chatId = dmssUI.core.currentChatId;
+            const chatId = dmssUI.core.getCurrentChatId();
             currentChatElement.textContent = chatId ? chatId.substring(0, 8) + '...' : '-';
         }
         
         // 更新记忆条数
         if (memoryCountElement && dmssUI && dmssUI.core) {
-            const memoryCount = dmssUI.core.getCurrentMemory().length;
-            memoryCountElement.textContent = memoryCount;
+            try {
+                const stats = await dmssUI.core.getMemoryStats();
+                memoryCountElement.textContent = stats.archiveCount + stats.standbyCount;
+            } catch (error) {
+                memoryCountElement.textContent = '0';
+            }
+        }
+        
+        // 更新调试状态
+        if (debugStatusElement && dmssDebugger) {
+            debugStatusElement.textContent = dmssDebugger.isEnabled ? '开启' : '关闭';
+            debugStatusElement.style.color = dmssDebugger.isEnabled ? '#28a745' : '#dc3545';
         }
     }
 
@@ -752,6 +904,12 @@ jQuery(() => {
         resetDMSS: resetDMSS,
         viewMemoryContent: viewMemoryContent,
         openSettings: openSettings,
+        showDebugPanel: showDebugPanel,
+        testDMSS: testDMSS,
+        exportCurrentMemory: exportCurrentMemory,
+        importMemoryContent: importMemoryContent,
+        clearCurrentMemory: clearCurrentMemory,
+        refreshMemoryStats: refreshMemoryStats,
         updateDMSSStatus: updateDMSSStatus
     };
     
@@ -1367,6 +1525,79 @@ jQuery(() => {
         .step-content strong {
             color: rgba(52, 152, 219, 0.9);
             font-size: 13px;
+        }
+
+        /* DMSS 快速操作样式 */
+        .dmss-quick-actions {
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .dmss-quick-actions h6 {
+            margin: 0 0 10px 0;
+            color: var(--SmartThemeTextColor, #333);
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .quick-action-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+        }
+
+        .quick-btn {
+            padding: 8px 12px;
+            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+            color: var(--SmartThemeTextColor, #333);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .quick-btn:hover {
+            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.05));
+            border-color: var(--SmartThemeQuoteColor, #007bff);
+            transform: translateY(-1px);
+        }
+
+        /* DMSS 新增按钮样式 */
+        .dmss-action-btn.info-btn {
+            background: rgba(23, 162, 184, 0.1);
+            border-color: #17a2b8;
+            color: #17a2b8;
+        }
+
+        .dmss-action-btn.info-btn:hover {
+            background: rgba(23, 162, 184, 0.2);
+        }
+
+        .dmss-action-btn.test-btn {
+            background: rgba(40, 167, 69, 0.1);
+            border-color: #28a745;
+            color: #28a745;
+        }
+
+        .dmss-action-btn.test-btn:hover {
+            background: rgba(40, 167, 69, 0.2);
+        }
+
+        /* DMSS 状态面板扩展 */
+        .dmss-status-panel {
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        }
+
+        .status-item {
+            min-width: 120px;
         }
         </style>
     `;
