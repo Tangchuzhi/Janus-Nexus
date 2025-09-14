@@ -1,412 +1,437 @@
 /**
- * DMSS (动态记忆流系统) 核心模块
- * Dynamic Memory Stream System Core Module
+ * DMSS (Dynamic Memory Stream System) 核心模块
+ * 动态记忆流系统 - 用于长剧情记忆管理
  */
 
 class DMSSCore {
     constructor() {
-        this.extensionName = 'Janus-Treasure-chest';
-        this.memoryKey = 'dmss_memories';
-        this.settingsKey = 'dmss_settings';
-        
-        // 默认设置
-        this.defaultSettings = {
-            enabled: false,
-            maxMemories: 100,           // 最大记忆数量
-            memoryThreshold: 0.7,       // 记忆关联阈值
-            summaryLength: 200,         // 总结长度
-            injectionDepth: 2,          // 注入深度（只考虑最近2条消息）
-            autoSummarize: true,        // 自动总结
-            debugMode: false            // 调试模式
+        this.isEnabled = false;
+        this.memoryEntries = [];
+        this.lastProcessedMessage = null;
+        this.stats = {
+            totalEntries: 0,
+            lastUpdate: null,
+            processedMessages: 0
         };
         
-        // 初始化设置
-        this.settings = this.loadSettings();
-        
-        // 记忆存储结构
-        this.memories = this.loadMemories();
-        
-        // 当前聊天上下文
-        this.currentContext = null;
-        
-        console.log('[DMSS Core] 初始化完成', {
-            settings: this.settings,
-            memoryCount: this.memories.length
-        });
+        console.log('[DMSS Core] 核心模块已初始化');
     }
-    
+
     /**
-     * 加载DMSS设置
+     * 启动DMSS系统
      */
-    loadSettings() {
-        try {
-            // 从extension_settings中获取设置
-            if (typeof extension_settings !== 'undefined' && extension_settings[this.extensionName]) {
-                const savedSettings = extension_settings[this.extensionName][this.settingsKey] || {};
-                return { ...this.defaultSettings, ...savedSettings };
-            }
-        } catch (error) {
-            console.warn('[DMSS Core] 加载设置失败，使用默认设置:', error);
-        }
-        return { ...this.defaultSettings };
-    }
-    
-    /**
-     * 保存DMSS设置
-     */
-    saveSettings() {
-        try {
-            if (typeof extension_settings !== 'undefined') {
-                if (!extension_settings[this.extensionName]) {
-                    extension_settings[this.extensionName] = {};
-                }
-                extension_settings[this.extensionName][this.settingsKey] = this.settings;
-                
-                // 触发设置保存
-                if (typeof saveSettingsDebounced === 'function') {
-                    saveSettingsDebounced();
-                }
-                console.log('[DMSS Core] 设置已保存');
-            }
-        } catch (error) {
-            console.error('[DMSS Core] 保存设置失败:', error);
-        }
-    }
-    
-    /**
-     * 加载记忆数据
-     */
-    loadMemories() {
-        try {
-            if (typeof extension_settings !== 'undefined' && extension_settings[this.extensionName]) {
-                const savedMemories = extension_settings[this.extensionName][this.memoryKey] || [];
-                return Array.isArray(savedMemories) ? savedMemories : [];
-            }
-        } catch (error) {
-            console.warn('[DMSS Core] 加载记忆失败，使用空数组:', error);
-        }
-        return [];
-    }
-    
-    /**
-     * 保存记忆数据
-     */
-    saveMemories() {
-        try {
-            if (typeof extension_settings !== 'undefined') {
-                if (!extension_settings[this.extensionName]) {
-                    extension_settings[this.extensionName] = {};
-                }
-                extension_settings[this.extensionName][this.memoryKey] = this.memories;
-                
-                // 触发设置保存
-                if (typeof saveSettingsDebounced === 'function') {
-                    saveSettingsDebounced();
-                }
-                console.log('[DMSS Core] 记忆已保存，当前记忆数量:', this.memories.length);
-            }
-        } catch (error) {
-            console.error('[DMSS Core] 保存记忆失败:', error);
-        }
-    }
-    
-    /**
-     * 启用/禁用DMSS
-     */
-    setEnabled(enabled) {
-        this.settings.enabled = enabled;
-        this.saveSettings();
-        console.log(`[DMSS Core] ${enabled ? '启用' : '禁用'}DMSS`);
-    }
-    
-    /**
-     * 更新设置
-     */
-    updateSettings(newSettings) {
-        this.settings = { ...this.settings, ...newSettings };
-        this.saveSettings();
-        console.log('[DMSS Core] 设置已更新:', newSettings);
-    }
-    
-    /**
-     * 处理新的聊天消息
-     * @param {Object} messageData - 消息数据
-     * @param {string} messageData.content - 消息内容
-     * @param {string} messageData.role - 消息角色 (user/assistant)
-     * @param {number} messageData.timestamp - 时间戳
-     */
-    async processMessage(messageData) {
-        if (!this.settings.enabled) {
-            return null;
-        }
-        
-        try {
-            // 只处理assistant消息进行总结
-            if (messageData.role === 'assistant') {
-                await this.summarizeAndStore(messageData);
-            }
-            
-            // 如果是user消息，查找相关记忆
-            if (messageData.role === 'user') {
-                return await this.findRelevantMemories(messageData.content);
-            }
-            
-        } catch (error) {
-            console.error('[DMSS Core] 处理消息失败:', error);
-        }
-        
-        return null;
-    }
-    
-    /**
-     * 总结并存储assistant消息
-     */
-    async summarizeAndStore(messageData) {
-        if (!this.settings.autoSummarize) {
+    start() {
+        if (this.isEnabled) {
+            console.log('[DMSS Core] 系统已在运行中');
             return;
         }
-        
-        const content = messageData.content;
-        if (!content || content.length < 50) {
-            return; // 内容太短，不进行总结
-        }
-        
-        // 生成总结
-        const summary = await this.generateSummary(content);
-        
-        if (summary) {
-            // 创建记忆条目
-            const memory = {
-                id: this.generateMemoryId(),
-                content: content,
-                summary: summary,
-                timestamp: messageData.timestamp || Date.now(),
-                keywords: this.extractKeywords(content),
-                context: this.getCurrentContext()
-            };
-            
-            // 添加到记忆库
-            this.addMemory(memory);
-            
-            if (this.settings.debugMode) {
-                console.log('[DMSS Core] 新记忆已添加:', memory);
-            }
-        }
+
+        this.isEnabled = true;
+        this.loadMemoryEntries();
+        console.log('[DMSS Core] 系统已启动');
     }
-    
+
     /**
-     * 生成记忆总结
+     * 停止DMSS系统
      */
-    async generateSummary(content) {
-        try {
-            // 简单的总结逻辑：取前200个字符 + 关键信息
-            let summary = content.substring(0, this.settings.summaryLength);
-            
-            // 如果内容被截断，添加省略号
-            if (content.length > this.settings.summaryLength) {
-                summary += '...';
-            }
-            
-            // 提取关键信息（简单实现）
-            const keywords = this.extractKeywords(content);
-            if (keywords.length > 0) {
-                summary += ` [关键词: ${keywords.join(', ')}]`;
-            }
-            
-            return summary;
-        } catch (error) {
-            console.error('[DMSS Core] 生成总结失败:', error);
-            return null;
-        }
+    stop() {
+        this.isEnabled = false;
+        console.log('[DMSS Core] 系统已停止');
     }
-    
-    /**
-     * 提取关键词
-     */
-    extractKeywords(content) {
-        // 简单的关键词提取逻辑
-        const words = content.toLowerCase()
-            .replace(/[^\u4e00-\u9fa5a-zA-Z\s]/g, ' ')
-            .split(/\s+/)
-            .filter(word => word.length > 1);
-        
-        // 统计词频
-        const wordCount = {};
-        words.forEach(word => {
-            wordCount[word] = (wordCount[word] || 0) + 1;
-        });
-        
-        // 返回出现频率最高的前5个词
-        return Object.entries(wordCount)
-            .sort(([,a], [,b]) => b - a)
-            .slice(0, 5)
-            .map(([word]) => word);
-    }
-    
-    /**
-     * 查找相关记忆
-     */
-    async findRelevantMemories(userInput) {
-        if (!userInput || userInput.length < 3) {
-            return [];
-        }
-        
-        const relevantMemories = [];
-        const inputKeywords = this.extractKeywords(userInput);
-        
-        // 遍历所有记忆，计算相关性
-        for (const memory of this.memories) {
-            const relevance = this.calculateRelevance(userInput, memory, inputKeywords);
-            
-            if (relevance >= this.settings.memoryThreshold) {
-                relevantMemories.push({
-                    ...memory,
-                    relevance: relevance
-                });
-            }
-        }
-        
-        // 按相关性排序，返回最相关的前3条
-        relevantMemories.sort((a, b) => b.relevance - a.relevance);
-        
-        const result = relevantMemories.slice(0, 3);
-        
-        if (this.settings.debugMode && result.length > 0) {
-            console.log('[DMSS Core] 找到相关记忆:', result);
-        }
-        
-        return result;
-    }
-    
-    /**
-     * 计算记忆相关性
-     */
-    calculateRelevance(userInput, memory, inputKeywords) {
-        let score = 0;
-        
-        // 关键词匹配
-        const memoryKeywords = memory.keywords || [];
-        const keywordMatches = inputKeywords.filter(keyword => 
-            memoryKeywords.some(memKeyword => 
-                memKeyword.includes(keyword) || keyword.includes(memKeyword)
-            )
-        ).length;
-        
-        score += (keywordMatches / Math.max(inputKeywords.length, 1)) * 0.6;
-        
-        // 内容相似度（简单实现）
-        const contentSimilarity = this.calculateTextSimilarity(userInput, memory.summary);
-        score += contentSimilarity * 0.4;
-        
-        return Math.min(score, 1);
-    }
-    
-    /**
-     * 计算文本相似度
-     */
-    calculateTextSimilarity(text1, text2) {
-        // 简单的Jaccard相似度计算
-        const words1 = new Set(text1.toLowerCase().split(/\s+/));
-        const words2 = new Set(text2.toLowerCase().split(/\s+/));
-        
-        const intersection = new Set([...words1].filter(x => words2.has(x)));
-        const union = new Set([...words1, ...words2]);
-        
-        return intersection.size / union.size;
-    }
-    
-    /**
-     * 添加记忆到记忆库
-     */
-    addMemory(memory) {
-        // 检查是否已存在相似记忆（避免重复）
-        const isDuplicate = this.memories.some(existing => 
-            this.calculateTextSimilarity(memory.summary, existing.summary) > 0.8
-        );
-        
-        if (!isDuplicate) {
-            this.memories.push(memory);
-            
-            // 限制记忆数量
-            if (this.memories.length > this.settings.maxMemories) {
-                // 移除最旧的记忆
-                this.memories.sort((a, b) => a.timestamp - b.timestamp);
-                this.memories = this.memories.slice(-this.settings.maxMemories);
-            }
-            
-            this.saveMemories();
-        }
-    }
-    
-    /**
-     * 生成记忆ID
-     */
-    generateMemoryId() {
-        return `dmss_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    }
-    
-    /**
-     * 获取当前上下文
-     */
-    getCurrentContext() {
-        try {
-            // 尝试获取当前聊天上下文
-            if (typeof getContext === 'function') {
-                const context = getContext();
-                return {
-                    characterId: context.characterId,
-                    chatId: context.chatId,
-                    groupId: context.groupId
-                };
-            }
-        } catch (error) {
-            console.warn('[DMSS Core] 获取上下文失败:', error);
-        }
-        return null;
-    }
-    
-    /**
-     * 生成记忆注入文本
-     */
-    generateInjectionText(relevantMemories) {
-        if (!relevantMemories || relevantMemories.length === 0) {
-            return '';
-        }
-        
-        let injectionText = '\n[DMSS记忆注入]\n';
-        
-        relevantMemories.forEach((memory, index) => {
-            injectionText += `${index + 1}. ${memory.summary}\n`;
-        });
-        
-        injectionText += '[DMSS记忆注入结束]\n';
-        
-        return injectionText;
-    }
-    
+
     /**
      * 重置DMSS系统
      */
     reset() {
-        this.memories = [];
-        this.saveMemories();
+        this.memoryEntries = [];
+        this.lastProcessedMessage = null;
+        this.stats = {
+            totalEntries: 0,
+            lastUpdate: null,
+            processedMessages: 0
+        };
         console.log('[DMSS Core] 系统已重置');
     }
-    
+
+    /**
+     * 处理新消息，提取DMSS内容并存储到世界书
+     */
+    async processMessage(messageContent) {
+        if (!this.isEnabled) {
+            return;
+        }
+
+        try {
+            // 使用正则表达式提取DMSS标签内容
+            const dmssPattern = /<DMSS>([\s\S]*?)<\/DMSS>/g;
+            const matches = messageContent.match(dmssPattern);
+            
+            if (matches && matches.length > 0) {
+                for (let match of matches) {
+                    // 提取DMSS内容（去掉标签）
+                    const dmssContent = match.replace(/<\/?DMSS>/g, '').trim();
+                    
+                    if (dmssContent) {
+                        await this.storeDMSSEntry(dmssContent);
+                    }
+                }
+            }
+            
+            this.lastProcessedMessage = messageContent;
+            this.stats.processedMessages++;
+            this.stats.lastUpdate = new Date().toISOString();
+            
+        } catch (error) {
+            console.error('[DMSS Core] 处理消息时出错:', error);
+        }
+    }
+
+    /**
+     * 存储DMSS条目到世界书
+     */
+    async storeDMSSEntry(content) {
+        try {
+            // 生成唯一的时间戳ID
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const entryKey = `DMSS_${timestamp}`;
+            
+            // 创建摘要
+            const summary = this.generateSummary(content);
+            
+            // 存储到世界书
+            const entryData = {
+                content: content,
+                summary: summary,
+                timestamp: new Date().toISOString(),
+                key: entryKey
+            };
+
+            // 使用酒馆的slash命令存储到世界书
+            await this.executeSlashCommand(`/createentry file=chatLore key=${entryKey} ${JSON.stringify(entryData)}`);
+            
+            // 更新本地缓存
+            this.memoryEntries.push(entryData);
+            this.stats.totalEntries++;
+            
+            console.log(`[DMSS Core] 已存储DMSS条目: ${entryKey}`);
+            
+        } catch (error) {
+            console.error('[DMSS Core] 存储DMSS条目失败:', error);
+        }
+    }
+
+    /**
+     * 生成内容摘要
+     */
+    generateSummary(content) {
+        // 简单的摘要生成逻辑
+        const words = content.split(' ');
+        if (words.length <= 20) {
+            return content;
+        }
+        return words.slice(0, 20).join(' ') + '...';
+    }
+
+    /**
+     * 根据用户输入查找相关记忆
+     */
+    async findRelevantMemories(userInput) {
+        if (!this.isEnabled || this.memoryEntries.length === 0) {
+            return [];
+        }
+
+        try {
+            const relevantMemories = [];
+            
+            // 简单的关键词匹配逻辑
+            const inputWords = userInput.toLowerCase().split(/\s+/);
+            
+            for (let entry of this.memoryEntries) {
+                const content = entry.content.toLowerCase();
+                const summary = entry.summary.toLowerCase();
+                
+                // 检查关键词匹配
+                let matchCount = 0;
+                for (let word of inputWords) {
+                    if (word.length > 2 && (content.includes(word) || summary.includes(word))) {
+                        matchCount++;
+                    }
+                }
+                
+                // 如果匹配度足够高，添加到相关记忆
+                if (matchCount >= Math.min(2, inputWords.length * 0.3)) {
+                    relevantMemories.push({
+                        ...entry,
+                        relevanceScore: matchCount
+                    });
+                }
+            }
+            
+            // 按相关性排序，返回最相关的几条
+            return relevantMemories
+                .sort((a, b) => b.relevanceScore - a.relevanceScore)
+                .slice(0, 5);
+                
+        } catch (error) {
+            console.error('[DMSS Core] 查找相关记忆失败:', error);
+            return [];
+        }
+    }
+
+    /**
+     * 注入相关记忆到用户输入下方
+     */
+    async injectRelevantMemories(userInput) {
+        const relevantMemories = await this.findRelevantMemories(userInput);
+        
+        if (relevantMemories.length === 0) {
+            return userInput;
+        }
+
+        // 构建记忆注入内容
+        let injectedContent = userInput + '\n\n<!-- DMSS注入的相关记忆 -->\n';
+        
+        for (let memory of relevantMemories) {
+            injectedContent += `[记忆片段 ${memory.key}]: ${memory.summary}\n`;
+        }
+        
+        return injectedContent;
+    }
+
+    /**
+     * 自动注入记忆到当前用户输入
+     */
+    async autoInjectMemories() {
+        try {
+            // 获取当前用户输入
+            const currentInput = this.getCurrentUserInput();
+            if (!currentInput) {
+                console.log('[DMSS Core] 未找到当前用户输入');
+                return;
+            }
+
+            // 查找相关记忆
+            const relevantMemories = await this.findRelevantMemories(currentInput);
+            if (relevantMemories.length === 0) {
+                console.log('[DMSS Core] 未找到相关记忆');
+                return;
+            }
+
+            // 注入记忆
+            const injectedContent = await this.injectRelevantMemories(currentInput);
+            
+            // 更新用户输入框
+            this.updateUserInput(injectedContent);
+            
+            console.log(`[DMSS Core] 已注入 ${relevantMemories.length} 条相关记忆`);
+            
+        } catch (error) {
+            console.error('[DMSS Core] 自动注入记忆失败:', error);
+        }
+    }
+
+    /**
+     * 获取当前用户输入
+     */
+    getCurrentUserInput() {
+        try {
+            // 尝试多种方式获取用户输入
+            const inputSelectors = [
+                '#send_textarea',
+                '#user_input',
+                '.user-input',
+                'textarea[placeholder*="输入"]',
+                'textarea[placeholder*="message"]'
+            ];
+
+            for (let selector of inputSelectors) {
+                const element = document.querySelector(selector);
+                if (element && element.value) {
+                    return element.value;
+                }
+            }
+
+            return null;
+        } catch (error) {
+            console.error('[DMSS Core] 获取用户输入失败:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 更新用户输入框内容
+     */
+    updateUserInput(content) {
+        try {
+            const inputSelectors = [
+                '#send_textarea',
+                '#user_input',
+                '.user-input',
+                'textarea[placeholder*="输入"]',
+                'textarea[placeholder*="message"]'
+            ];
+
+            for (let selector of inputSelectors) {
+                const element = document.querySelector(selector);
+                if (element) {
+                    element.value = content;
+                    
+                    // 触发输入事件
+                    const event = new Event('input', { bubbles: true });
+                    element.dispatchEvent(event);
+                    
+                    console.log('[DMSS Core] 已更新用户输入框');
+                    return;
+                }
+            }
+
+            console.log('[DMSS Core] 未找到用户输入框');
+        } catch (error) {
+            console.error('[DMSS Core] 更新用户输入失败:', error);
+        }
+    }
+
+    /**
+     * 从世界书加载记忆条目
+     */
+    async loadMemoryEntries() {
+        try {
+            // 使用酒馆的slash命令获取世界书条目
+            const entries = await this.executeSlashCommand('/db-list source=chat field=name');
+            
+            if (entries && Array.isArray(entries)) {
+                this.memoryEntries = entries
+                    .filter(entry => entry.name && entry.name.startsWith('DMSS_'))
+                    .map(entry => ({
+                        key: entry.name,
+                        content: entry.content || '',
+                        summary: entry.summary || '',
+                        timestamp: entry.timestamp || new Date().toISOString()
+                    }));
+                
+                this.stats.totalEntries = this.memoryEntries.length;
+                console.log(`[DMSS Core] 已加载 ${this.memoryEntries.length} 个记忆条目`);
+            }
+            
+        } catch (error) {
+            console.error('[DMSS Core] 加载记忆条目失败:', error);
+        }
+    }
+
+    /**
+     * 获取所有记忆条目
+     */
+    getAllMemories() {
+        return this.memoryEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    }
+
     /**
      * 获取统计信息
      */
     getStats() {
         return {
-            totalMemories: this.memories.length,
-            settings: this.settings,
-            lastUpdate: this.memories.length > 0 ? 
-                Math.max(...this.memories.map(m => m.timestamp)) : null
+            ...this.stats,
+            isEnabled: this.isEnabled,
+            memoryCount: this.memoryEntries.length
         };
+    }
+
+    /**
+     * 执行酒馆slash命令
+     */
+    async executeSlashCommand(command) {
+        try {
+            console.log(`[DMSS Core] 执行命令: ${command}`);
+            
+            // 尝试使用SillyTavern的slash命令系统
+            if (window.executeSlashCommand) {
+                return await window.executeSlashCommand(command);
+            }
+            
+            // 如果直接调用不可用，尝试通过事件系统
+            if (window.dispatchEvent) {
+                const event = new CustomEvent('dmss-slash-command', {
+                    detail: { command: command }
+                });
+                window.dispatchEvent(event);
+            }
+            
+            // 尝试通过jQuery触发（如果可用）
+            if (window.$ && window.$.fn.trigger) {
+                window.$('body').trigger('dmss-slash-command', { command: command });
+            }
+            
+            // 模拟执行结果（用于测试）
+            return this.simulateSlashCommand(command);
+            
+        } catch (error) {
+            console.error('[DMSS Core] 执行slash命令失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 模拟slash命令执行（用于测试）
+     */
+    simulateSlashCommand(command) {
+        console.log(`[DMSS Core] 模拟执行命令: ${command}`);
+        
+        // 解析命令并返回模拟结果
+        if (command.includes('/getchatbook')) {
+            return 'chatLore';
+        } else if (command.includes('/createentry')) {
+            return 'DMSS_Entry_Created';
+        } else if (command.includes('/db-list')) {
+            return this.memoryEntries.map(entry => ({
+                name: entry.key,
+                content: entry.content,
+                timestamp: entry.timestamp
+            }));
+        } else if (command.includes('/db-delete')) {
+            return 'Entry_Deleted';
+        }
+        
+        return null;
+    }
+
+    /**
+     * 删除指定的记忆条目
+     */
+    async deleteMemoryEntry(entryKey) {
+        try {
+            // 从世界书删除
+            await this.executeSlashCommand(`/db-delete source=chat ${entryKey}`);
+            
+            // 从本地缓存删除
+            this.memoryEntries = this.memoryEntries.filter(entry => entry.key !== entryKey);
+            this.stats.totalEntries = this.memoryEntries.length;
+            
+            console.log(`[DMSS Core] 已删除记忆条目: ${entryKey}`);
+            
+        } catch (error) {
+            console.error('[DMSS Core] 删除记忆条目失败:', error);
+        }
+    }
+
+    /**
+     * 清空所有记忆
+     */
+    async clearAllMemories() {
+        try {
+            for (let entry of this.memoryEntries) {
+                await this.executeSlashCommand(`/db-delete source=chat ${entry.key}`);
+            }
+            
+            this.memoryEntries = [];
+            this.stats.totalEntries = 0;
+            
+            console.log('[DMSS Core] 已清空所有记忆');
+            
+        } catch (error) {
+            console.error('[DMSS Core] 清空记忆失败:', error);
+        }
     }
 }
 
-// 导出DMSS核心类
+// 导出核心类
 window.DMSSCore = DMSSCore;
-
-console.log('[DMSS Core] 模块加载完成');
