@@ -11,46 +11,99 @@ class DMSSCore {
         this.stats = {
             totalEntries: 0,
             lastUpdate: null,
-            processedMessages: 0
+            processedMessages: 0,
+            errors: 0,
+            warnings: 0
         };
+        this.logLevel = 'info'; // debug, info, warn, error
+        this.maxRetries = 3;
+        this.retryDelay = 1000; // 1秒
         
-        console.log('[DMSS Core] 核心模块已初始化');
+        this.log('info', '核心模块已初始化');
+    }
+
+    /**
+     * 日志记录函数
+     */
+    log(level, message, data = null) {
+        const levels = { debug: 0, info: 1, warn: 2, error: 3 };
+        const currentLevel = levels[this.logLevel] || 1;
+        const messageLevel = levels[level] || 1;
+
+        if (messageLevel >= currentLevel) {
+            const timestamp = new Date().toISOString();
+            const logMessage = `[DMSS Core] [${timestamp}] [${level.toUpperCase()}] ${message}`;
+            
+            if (data) {
+                console.log(logMessage, data);
+            } else {
+                console.log(logMessage);
+            }
+
+            // 记录错误和警告统计
+            if (level === 'error') {
+                this.stats.errors++;
+            } else if (level === 'warn') {
+                this.stats.warnings++;
+            }
+        }
     }
 
     /**
      * 启动DMSS系统
      */
-    start() {
-        if (this.isEnabled) {
-            console.log('[DMSS Core] 系统已在运行中');
-            return;
-        }
+    async start() {
+        try {
+            if (this.isEnabled) {
+                this.log('warn', '系统已在运行中');
+                return;
+            }
 
-        this.isEnabled = true;
-        this.loadMemoryEntries();
-        console.log('[DMSS Core] 系统已启动');
+            this.isEnabled = true;
+            
+            // 确保DMSS世界书存在
+            await this.ensureDMSSLorebookExists();
+            
+            await this.loadMemoryEntries();
+            this.log('info', '系统已启动');
+        } catch (error) {
+            this.log('error', '启动系统失败', error);
+            this.isEnabled = false;
+            throw error;
+        }
     }
 
     /**
      * 停止DMSS系统
      */
     stop() {
-        this.isEnabled = false;
-        console.log('[DMSS Core] 系统已停止');
+        try {
+            this.isEnabled = false;
+            this.log('info', '系统已停止');
+        } catch (error) {
+            this.log('error', '停止系统失败', error);
+        }
     }
 
     /**
      * 重置DMSS系统
      */
-    reset() {
-        this.memoryEntries = [];
-        this.lastProcessedMessage = null;
-        this.stats = {
-            totalEntries: 0,
-            lastUpdate: null,
-            processedMessages: 0
-        };
-        console.log('[DMSS Core] 系统已重置');
+    async reset() {
+        try {
+            this.memoryEntries = [];
+            this.lastProcessedMessage = null;
+            this.stats = {
+                totalEntries: 0,
+                lastUpdate: null,
+                processedMessages: 0,
+                errors: 0,
+                warnings: 0
+            };
+            this.log('info', '系统已重置');
+        } catch (error) {
+            this.log('error', '重置系统失败', error);
+            throw error;
+        }
     }
 
     /**
@@ -87,36 +140,111 @@ class DMSSCore {
     }
 
     /**
-     * 存储DMSS条目到世界书
+     * 确保DMSS全局lorebook存在
+     */
+    async ensureDMSSLorebookExists() {
+        try {
+            // 首先检查是否已有DMSS全局lorebook
+            const globalBooksCommand = '/getglobalbooks';
+            const globalBooks = await this.executeSlashCommand(globalBooksCommand);
+            
+            this.log('debug', '当前全局lorebook列表', globalBooks);
+            
+            // 检查是否包含DMSS
+            if (globalBooks && globalBooks.includes('DMSS')) {
+                this.log('info', 'DMSS全局lorebook已存在');
+                return true;
+            }
+            
+            // 如果不存在，需要手动创建
+            // 注意：SillyTavern没有直接的slash命令创建全局lorebook
+            // 我们需要提示用户手动创建，或者使用其他方法
+            this.log('warn', 'DMSS全局lorebook不存在，需要手动创建');
+            this.log('info', '请在SillyTavern的世界书设置中手动创建名为"DMSS"的全局lorebook');
+            
+            // 尝试使用createentry命令，如果lorebook不存在会失败
+            try {
+                const testCommand = '/createentry file=DMSS key=test_entry 这是一个测试条目';
+                await this.executeSlashCommand(testCommand);
+                this.log('info', 'DMSS全局lorebook创建成功');
+                return true;
+            } catch (error) {
+                this.log('error', '无法创建DMSS全局lorebook，请手动创建', error);
+                return false;
+            }
+            
+        } catch (error) {
+            this.log('error', '检查DMSS全局lorebook失败', error);
+            return false;
+        }
+    }
+
+    /**
+     * 存储DMSS条目到全局lorebook
      */
     async storeDMSSEntry(content) {
         try {
-            // 生成唯一的时间戳ID
+            // 确保DMSS全局lorebook存在
+            await this.ensureDMSSLorebookExists();
+            
+            // 生成唯一的时间戳ID，包含角色名
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const entryKey = `DMSS_${timestamp}`;
+            const charName = this.getCurrentCharacterName();
+            const entryKey = `${charName}_${timestamp}`;
             
             // 创建摘要
             const summary = this.generateSummary(content);
             
-            // 存储到世界书
+            // 存储到全局lorebook
             const entryData = {
                 content: content,
                 summary: summary,
                 timestamp: new Date().toISOString(),
-                key: entryKey
+                key: entryKey,
+                character: charName
             };
 
-            // 使用酒馆的slash命令存储到世界书
-            await this.executeSlashCommand(`/createentry file=chatLore key=${entryKey} ${JSON.stringify(entryData)}`);
+            // 使用酒馆的slash命令存储到DMSS全局lorebook
+            await this.executeSlashCommand(`/createentry file=DMSS key=${entryKey} ${JSON.stringify(entryData)}`);
             
             // 更新本地缓存
             this.memoryEntries.push(entryData);
             this.stats.totalEntries++;
             
-            console.log(`[DMSS Core] 已存储DMSS条目: ${entryKey}`);
+            this.log('info', `已存储DMSS条目到全局lorebook: ${entryKey}`);
             
         } catch (error) {
-            console.error('[DMSS Core] 存储DMSS条目失败:', error);
+            this.log('error', '存储DMSS条目到全局lorebook失败', error);
+        }
+    }
+
+    /**
+     * 获取当前角色名
+     */
+    getCurrentCharacterName() {
+        try {
+            // 尝试从SillyTavern获取当前角色名
+            if (window.chat && window.chat.length > 0) {
+                const lastMessage = window.chat[window.chat.length - 1];
+                if (lastMessage && lastMessage.name) {
+                    return lastMessage.name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
+                }
+            }
+            
+            // 尝试从DOM获取角色名
+            const charNameElement = document.querySelector('#char_name') || 
+                                  document.querySelector('.char_name') ||
+                                  document.querySelector('[data-char-name]');
+            
+            if (charNameElement) {
+                return charNameElement.textContent.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
+            }
+            
+            // 默认返回Unknown
+            return 'Unknown';
+        } catch (error) {
+            this.log('warn', '获取角色名失败，使用默认值', error);
+            return 'Unknown';
         }
     }
 
@@ -292,29 +420,30 @@ class DMSSCore {
     }
 
     /**
-     * 从世界书加载记忆条目
+     * 从全局lorebook加载记忆条目
      */
     async loadMemoryEntries() {
         try {
-            // 使用酒馆的slash命令获取世界书条目
-            const entries = await this.executeSlashCommand('/db-list source=chat field=name');
+            // 使用酒馆的slash命令获取全局lorebook条目
+            const entries = await this.executeSlashCommand('/db-list source=global field=name');
             
             if (entries && Array.isArray(entries)) {
                 this.memoryEntries = entries
-                    .filter(entry => entry.name && entry.name.startsWith('DMSS_'))
+                    .filter(entry => entry.name && (entry.name.startsWith('DMSS_') || entry.name.includes('_')))
                     .map(entry => ({
                         key: entry.name,
                         content: entry.content || '',
                         summary: entry.summary || '',
-                        timestamp: entry.timestamp || new Date().toISOString()
+                        timestamp: entry.timestamp || new Date().toISOString(),
+                        character: entry.character || 'Unknown'
                     }));
                 
                 this.stats.totalEntries = this.memoryEntries.length;
-                console.log(`[DMSS Core] 已加载 ${this.memoryEntries.length} 个记忆条目`);
+                this.log('info', `从全局lorebook加载了 ${this.memoryEntries.length} 个记忆条目`);
             }
             
         } catch (error) {
-            console.error('[DMSS Core] 加载记忆条目失败:', error);
+            this.log('error', '从全局lorebook加载记忆条目失败', error);
         }
     }
 
@@ -337,15 +466,17 @@ class DMSSCore {
     }
 
     /**
-     * 执行酒馆slash命令
+     * 执行酒馆slash命令（带重试机制）
      */
-    async executeSlashCommand(command) {
+    async executeSlashCommand(command, retryCount = 0) {
         try {
-            console.log(`[DMSS Core] 执行命令: ${command}`);
+            this.log('debug', `执行命令: ${command}`, { retryCount });
             
             // 尝试使用SillyTavern的slash命令系统
             if (window.executeSlashCommand) {
-                return await window.executeSlashCommand(command);
+                const result = await window.executeSlashCommand(command);
+                this.log('debug', '命令执行成功', { command, result });
+                return result;
             }
             
             // 如果直接调用不可用，尝试通过事件系统
@@ -354,20 +485,39 @@ class DMSSCore {
                     detail: { command: command }
                 });
                 window.dispatchEvent(event);
+                this.log('debug', '通过事件系统发送命令', { command });
             }
             
             // 尝试通过jQuery触发（如果可用）
             if (window.$ && window.$.fn.trigger) {
                 window.$('body').trigger('dmss-slash-command', { command: command });
+                this.log('debug', '通过jQuery发送命令', { command });
             }
             
             // 模拟执行结果（用于测试）
-            return this.simulateSlashCommand(command);
+            const result = this.simulateSlashCommand(command);
+            this.log('debug', '使用模拟执行', { command, result });
+            return result;
             
         } catch (error) {
-            console.error('[DMSS Core] 执行slash命令失败:', error);
+            this.log('error', '执行slash命令失败', { command, retryCount, error });
+            
+            // 重试机制
+            if (retryCount < this.maxRetries) {
+                this.log('warn', `重试执行命令 (${retryCount + 1}/${this.maxRetries})`, { command });
+                await this.delay(this.retryDelay * (retryCount + 1));
+                return await this.executeSlashCommand(command, retryCount + 1);
+            }
+            
             throw error;
         }
+    }
+
+    /**
+     * 延迟函数
+     */
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     /**
@@ -399,17 +549,17 @@ class DMSSCore {
      */
     async deleteMemoryEntry(entryKey) {
         try {
-            // 从世界书删除
-            await this.executeSlashCommand(`/db-delete source=chat ${entryKey}`);
+            // 从全局lorebook删除
+            await this.executeSlashCommand(`/db-delete source=global ${entryKey}`);
             
             // 从本地缓存删除
             this.memoryEntries = this.memoryEntries.filter(entry => entry.key !== entryKey);
             this.stats.totalEntries = this.memoryEntries.length;
             
-            console.log(`[DMSS Core] 已删除记忆条目: ${entryKey}`);
+            this.log('info', `已从全局lorebook删除记忆条目: ${entryKey}`);
             
         } catch (error) {
-            console.error('[DMSS Core] 删除记忆条目失败:', error);
+            this.log('error', '从全局lorebook删除记忆条目失败', error);
         }
     }
 
@@ -419,16 +569,16 @@ class DMSSCore {
     async clearAllMemories() {
         try {
             for (let entry of this.memoryEntries) {
-                await this.executeSlashCommand(`/db-delete source=chat ${entry.key}`);
+                await this.executeSlashCommand(`/db-delete source=global ${entry.key}`);
             }
             
             this.memoryEntries = [];
             this.stats.totalEntries = 0;
             
-            console.log('[DMSS Core] 已清空所有记忆');
+            this.log('info', '已清空全局lorebook中的所有记忆');
             
         } catch (error) {
-            console.error('[DMSS Core] 清空记忆失败:', error);
+            this.log('error', '清空全局lorebook记忆失败', error);
         }
     }
 }

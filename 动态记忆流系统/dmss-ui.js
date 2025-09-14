@@ -85,6 +85,294 @@ class DMSSUI {
                 }
             });
         }
+
+        // 监听DOM变化，检测新消息
+        this.setupDOMObserver();
+
+        // 监听用户输入事件，准备自动注入记忆
+        this.setupInputListener();
+
+        // 监听slash命令事件
+        this.setupSlashCommandListener();
+    }
+
+    /**
+     * 设置DOM观察器，监听聊天消息变化
+     */
+    setupDOMObserver() {
+        try {
+            const chatContainer = document.querySelector('#chat') || 
+                                document.querySelector('.chat-container') ||
+                                document.querySelector('.messages') ||
+                                document.body;
+
+            if (chatContainer) {
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        if (mutation.type === 'childList') {
+                            mutation.addedNodes.forEach((node) => {
+                                if (node.nodeType === Node.ELEMENT_NODE) {
+                                    this.checkForNewMessages(node);
+                                }
+                            });
+                        }
+                    });
+                });
+
+                observer.observe(chatContainer, {
+                    childList: true,
+                    subtree: true
+                });
+
+                console.log('[DMSS UI] DOM观察器已设置');
+            }
+        } catch (error) {
+            console.error('[DMSS UI] 设置DOM观察器失败:', error);
+        }
+    }
+
+    /**
+     * 检查新消息中的DMSS内容
+     */
+    checkForNewMessages(node) {
+        try {
+            // 查找消息元素
+            const messageSelectors = [
+                '.message',
+                '.chat-message',
+                '.user-message',
+                '.assistant-message',
+                '[class*="message"]'
+            ];
+
+            let messageElement = null;
+            for (let selector of messageSelectors) {
+                if (node.matches && node.matches(selector)) {
+                    messageElement = node;
+                    break;
+                }
+                const found = node.querySelector && node.querySelector(selector);
+                if (found) {
+                    messageElement = found;
+                    break;
+                }
+            }
+
+            if (messageElement) {
+                const messageText = messageElement.textContent || messageElement.innerText;
+                if (messageText && messageText.includes('<DMSS>')) {
+                    this.handleNewMessage(messageText);
+                }
+            }
+        } catch (error) {
+            console.error('[DMSS UI] 检查新消息失败:', error);
+        }
+    }
+
+    /**
+     * 设置输入监听器，准备自动注入记忆
+     */
+    setupInputListener() {
+        try {
+            const inputSelectors = [
+                '#send_textarea',
+                '#user_input',
+                '.user-input',
+                'textarea[placeholder*="输入"]',
+                'textarea[placeholder*="message"]'
+            ];
+
+            for (let selector of inputSelectors) {
+                const inputElement = document.querySelector(selector);
+                if (inputElement) {
+                    // 监听输入事件
+                    inputElement.addEventListener('input', (event) => {
+                        this.handleUserInput(event.target.value);
+                    });
+
+                    // 监听焦点事件
+                    inputElement.addEventListener('focus', (event) => {
+                        this.handleInputFocus(event.target.value);
+                    });
+
+                    console.log('[DMSS UI] 输入监听器已设置');
+                    break;
+                }
+            }
+        } catch (error) {
+            console.error('[DMSS UI] 设置输入监听器失败:', error);
+        }
+    }
+
+    /**
+     * 处理用户输入
+     */
+    handleUserInput(inputValue) {
+        if (!this.core || !this.core.isEnabled || !inputValue) {
+            return;
+        }
+
+        // 延迟处理，避免频繁触发
+        clearTimeout(this.inputTimeout);
+        this.inputTimeout = setTimeout(() => {
+            this.autoInjectMemories(inputValue);
+        }, 1000); // 1秒延迟
+    }
+
+    /**
+     * 处理输入框获得焦点
+     */
+    handleInputFocus(inputValue) {
+        if (!this.core || !this.core.isEnabled) {
+            return;
+        }
+
+        // 如果输入框为空，可以考虑注入一些通用记忆
+        if (!inputValue || inputValue.trim() === '') {
+            this.suggestGeneralMemories();
+        }
+    }
+
+    /**
+     * 自动注入记忆
+     */
+    async autoInjectMemories(inputValue) {
+        if (!this.core || !this.core.isEnabled) {
+            return;
+        }
+
+        try {
+            const relevantMemories = await this.core.findRelevantMemories(inputValue);
+            if (relevantMemories.length > 0) {
+                // 显示记忆建议
+                this.showMemorySuggestions(relevantMemories, inputValue);
+            }
+        } catch (error) {
+            console.error('[DMSS UI] 自动注入记忆失败:', error);
+        }
+    }
+
+    /**
+     * 显示记忆建议
+     */
+    showMemorySuggestions(memories, originalInput) {
+        try {
+            // 移除已存在的建议
+            const existingSuggestions = document.querySelector('.dmss-memory-suggestions');
+            if (existingSuggestions) {
+                existingSuggestions.remove();
+            }
+
+            // 创建建议容器
+            const suggestionsContainer = document.createElement('div');
+            suggestionsContainer.className = 'dmss-memory-suggestions';
+            suggestionsContainer.innerHTML = `
+                <div class="suggestions-header">
+                    <span><i class="fa-solid fa-brain"></i> 相关记忆建议</span>
+                    <button class="suggestions-close" onclick="this.parentElement.parentElement.remove()">
+                        <i class="fa-solid fa-times"></i>
+                    </button>
+                </div>
+                <div class="suggestions-content">
+                    ${memories.map(memory => `
+                        <div class="memory-suggestion" data-key="${memory.key}">
+                            <div class="suggestion-summary">${memory.summary}</div>
+                            <button class="suggestion-inject-btn" onclick="window.dmssUI.injectMemorySuggestion('${memory.key}', '${originalInput.replace(/'/g, "\\'")}')">
+                                <i class="fa-solid fa-plus"></i> 注入
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            // 添加到页面
+            document.body.appendChild(suggestionsContainer);
+
+            // 5秒后自动隐藏
+            setTimeout(() => {
+                if (suggestionsContainer.parentElement) {
+                    suggestionsContainer.remove();
+                }
+            }, 5000);
+
+        } catch (error) {
+            console.error('[DMSS UI] 显示记忆建议失败:', error);
+        }
+    }
+
+    /**
+     * 注入记忆建议
+     */
+    injectMemorySuggestion(memoryKey, originalInput) {
+        try {
+            const memory = this.core.memoryEntries.find(m => m.key === memoryKey);
+            if (memory) {
+                const injectedContent = originalInput + '\n\n<!-- DMSS注入的相关记忆 -->\n' +
+                    `[记忆片段 ${memory.key}]: ${memory.summary}\n`;
+                
+                this.core.updateUserInput(injectedContent);
+                
+                // 移除建议容器
+                const suggestionsContainer = document.querySelector('.dmss-memory-suggestions');
+                if (suggestionsContainer) {
+                    suggestionsContainer.remove();
+                }
+            }
+        } catch (error) {
+            console.error('[DMSS UI] 注入记忆建议失败:', error);
+        }
+    }
+
+    /**
+     * 建议通用记忆
+     */
+    suggestGeneralMemories() {
+        if (!this.core || this.core.memoryEntries.length === 0) {
+            return;
+        }
+
+        // 获取最近的几条记忆作为建议
+        const recentMemories = this.core.getAllMemories().slice(0, 3);
+        if (recentMemories.length > 0) {
+            this.showMemorySuggestions(recentMemories, '');
+        }
+    }
+
+    /**
+     * 设置slash命令监听器
+     */
+    setupSlashCommandListener() {
+        try {
+            // 监听自定义slash命令事件
+            window.addEventListener('dmss-slash-command', (event) => {
+                const command = event.detail.command;
+                console.log('[DMSS UI] 收到slash命令:', command);
+                
+                // 处理DMSS相关的slash命令
+                if (command.includes('dmss') || command.includes('DMSS')) {
+                    this.handleDMSSSlashCommand(command);
+                }
+            });
+
+            console.log('[DMSS UI] Slash命令监听器已设置');
+        } catch (error) {
+            console.error('[DMSS UI] 设置slash命令监听器失败:', error);
+        }
+    }
+
+    /**
+     * 处理DMSS相关的slash命令
+     */
+    handleDMSSSlashCommand(command) {
+        try {
+            if (command.includes('/dmss-inject')) {
+                this.core.autoInjectMemories();
+            } else if (command.includes('/dmss-view')) {
+                this.viewMemoryContent();
+            }
+        } catch (error) {
+            console.error('[DMSS UI] 处理DMSS slash命令失败:', error);
+        }
     }
 
     /**
@@ -364,28 +652,6 @@ class DMSSUI {
         }
     }
 
-    /**
-     * 手动处理当前消息
-     */
-    async processCurrentMessage() {
-        if (!this.core || !this.core.isEnabled) {
-            console.log('[DMSS UI] 系统未启用');
-            return;
-        }
-
-        try {
-            // 获取最后一条消息
-            const lastMessage = await this.getLastMessage();
-            if (lastMessage) {
-                await this.core.processMessage(lastMessage);
-                await this.refreshMemoryList();
-                this.updateStatusDisplay();
-                console.log('[DMSS UI] 已处理当前消息');
-            }
-        } catch (error) {
-            console.error('[DMSS UI] 处理消息失败:', error);
-        }
-    }
 
     /**
      * 获取最后一条消息
