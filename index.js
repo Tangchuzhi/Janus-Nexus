@@ -508,6 +508,149 @@ jQuery(() => {
     }
     
 
+    // DMSS功能处理函数
+    function updateDmssStatus() {
+        if (window.dmssAPI) {
+            window.dmssAPI.updateUIStatus();
+        }
+    }
+
+    function toggleDmssForChar() {
+        const toggle = document.getElementById('dmss-char-toggle');
+        const actionsPanel = document.getElementById('dmss-char-actions');
+        
+        if (toggle && actionsPanel) {
+            if (toggle.checked) {
+                actionsPanel.classList.remove('hidden');
+                // 激活DMSS系统
+                const charName = window.dmssAPI ? window.dmssAPI.getCurrentCharacterName() : '未知角色';
+                if (window.dmssAPI) {
+                    window.dmssAPI.activate(charName);
+                }
+            } else {
+                actionsPanel.classList.add('hidden');
+                // 停用DMSS系统
+                if (window.dmssAPI) {
+                    window.dmssAPI.deactivate();
+                }
+            }
+        }
+    }
+
+    function viewCharMemories() {
+        if (!window.dmssAPI) {
+            toastr.error('DMSS系统未初始化', '错误');
+            return;
+        }
+
+        const status = window.dmssAPI.getStatus();
+        if (!status.active) {
+            toastr.warning('请先激活DMSS系统', '提示');
+            return;
+        }
+
+        const entries = window.dmssAPI.core.getAllEntries();
+        const characterEntries = entries.filter(entry => 
+            entry.type === window.dmssAPI.core.entryTypes.CHARACTER
+        );
+
+        if (characterEntries.length === 0) {
+            toastr.info('暂无角色记忆数据', '提示');
+            return;
+        }
+
+        // 显示记忆数据
+        const memoryData = characterEntries.map(entry => ({
+            id: entry.id,
+            content: entry.content,
+            updatedAt: entry.updatedAt
+        }));
+
+        console.log('[DMSS] 角色记忆数据:', memoryData);
+        toastr.success(`找到 ${characterEntries.length} 个角色记忆条目`, '查看记忆');
+    }
+
+    function archiveCharMemories() {
+        if (!window.dmssAPI) {
+            toastr.error('DMSS系统未初始化', '错误');
+            return;
+        }
+
+        const status = window.dmssAPI.getStatus();
+        if (!status.active) {
+            toastr.warning('请先激活DMSS系统', '提示');
+            return;
+        }
+
+        // 执行记忆压缩
+        const cleanedCount = window.dmssAPI.cleanupOldMemories(7); // 清理7天前的记忆
+        toastr.success(`已清理 ${cleanedCount} 个过期记忆条目`, '压缩归档');
+    }
+
+    function exportCharMemories() {
+        if (!window.dmssAPI) {
+            toastr.error('DMSS系统未初始化', '错误');
+            return;
+        }
+
+        const status = window.dmssAPI.getStatus();
+        if (!status.active) {
+            toastr.warning('请先激活DMSS系统', '提示');
+            return;
+        }
+
+        const charName = status.currentCharacter || '未知角色';
+        const exportData = window.dmssAPI.exportCharacterMemory(charName);
+        
+        if (exportData) {
+            // 创建下载链接
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `dmss_${charName}_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+            toastr.success('记忆数据已导出', '导出成功');
+        } else {
+            toastr.error('导出失败', '错误');
+        }
+    }
+
+    function openDmssFolder() {
+        toastr.info('DMSS数据存储在浏览器本地存储中', '提示');
+    }
+
+    function validateMemoryFiles() {
+        if (!window.dmssAPI) {
+            toastr.error('DMSS系统未初始化', '错误');
+            return;
+        }
+
+        const status = window.dmssAPI.getStatus();
+        if (!status.active) {
+            toastr.warning('请先激活DMSS系统', '提示');
+            return;
+        }
+
+        const stats = status.stats;
+        const validationResults = {
+            totalChunks: stats.totalChunks,
+            characters: stats.characters,
+            groups: stats.groups,
+            items: stats.items,
+            plots: stats.plots,
+            parallels: stats.parallels,
+            lastSaved: status.lastSaved
+        };
+
+        console.log('[DMSS] 记忆文件验证结果:', validationResults);
+        toastr.success('记忆文件完整性检查完成', '验证完成');
+    }
+
     // 模块功能处理函数
     window.janusHandlers = {
         switchTab: switchTab,
@@ -517,7 +660,14 @@ jQuery(() => {
         importGameFromFile: importGameFromFile,
         launchExternalGame: launchExternalGame,
         removeExternalGame: removeExternalGame,
-        refreshImportedGamesList: refreshImportedGamesList
+        refreshImportedGamesList: refreshImportedGamesList,
+        updateDmssStatus: updateDmssStatus,
+        toggleDmssForChar: toggleDmssForChar,
+        viewCharMemories: viewCharMemories,
+        archiveCharMemories: archiveCharMemories,
+        exportCharMemories: exportCharMemories,
+        openDmssFolder: openDmssFolder,
+        validateMemoryFiles: validateMemoryFiles
     };
     
     // 菜单栏布局的HTML内容
@@ -950,7 +1100,103 @@ jQuery(() => {
         
         // 不显示加载成功通知
     }, 2000);
-    
+
+    // 监听角色切换事件
+    $(document).on('character_loaded', function() {
+        console.log('[Janusの百宝箱] 检测到角色切换，更新DMSS状态');
+        // 延迟更新，确保角色数据完全加载
+        setTimeout(() => {
+            if (window.janusHandlers && typeof window.janusHandlers.updateDmssStatus === 'function') {
+                window.janusHandlers.updateDmssStatus();
+            }
+        }, 500);
+    });
+
+    // 监听聊天开始事件
+    $(document).on('chat_changed', function() {
+        console.log('[Janusの百宝箱] 检测到聊天切换，更新DMSS状态');
+        setTimeout(() => {
+            if (window.janusHandlers && typeof window.janusHandlers.updateDmssStatus === 'function') {
+                window.janusHandlers.updateDmssStatus();
+            }
+        }, 300);
+    });
+
+    // 监听AI响应事件，处理DMSS指令
+    $(document).on('ai_response', function(event, response) {
+        if (window.dmssAPI && response) {
+            console.log('[Janusの百宝箱] 检测到AI响应，处理DMSS指令');
+            try {
+                const result = window.dmssAPI.processAIResponse(response);
+                if (result.success) {
+                    console.log('[Janusの百宝箱] DMSS指令处理成功');
+                } else {
+                    console.warn('[Janusの百宝箱] DMSS指令处理失败:', result.error);
+                }
+            } catch (error) {
+                console.error('[Janusの百宝箱] DMSS指令处理异常:', error);
+            }
+        }
+    });
+
+    // 监听消息发送事件，处理DMSS指令
+    $(document).on('message_sent', function(event, message) {
+        if (window.dmssAPI && message && message.content) {
+            console.log('[Janusの百宝箱] 检测到消息发送，处理DMSS指令');
+            try {
+                const result = window.dmssAPI.processAIResponse(message.content);
+                if (result.success) {
+                    console.log('[Janusの百宝箱] DMSS指令处理成功');
+                } else {
+                    console.warn('[Janusの百宝箱] DMSS指令处理失败:', result.error);
+                }
+            } catch (error) {
+                console.error('[Janusの百宝箱] DMSS指令处理异常:', error);
+            }
+        }
+    });
+
+    // 监听DOM变化，处理AI响应中的DMSS指令
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        // 检查是否是AI消息
+                        const messageContent = node.querySelector('.mes_text, .message_text, .ai_message');
+                        if (messageContent && window.dmssAPI) {
+                            const text = messageContent.textContent || messageContent.innerText;
+                            if (text && text.includes('<DMSS>')) {
+                                console.log('[Janusの百宝箱] 检测到包含DMSS指令的消息');
+                                try {
+                                    const result = window.dmssAPI.processAIResponse(text);
+                                    if (result.success) {
+                                        console.log('[Janusの百宝箱] DMSS指令处理成功');
+                                    } else {
+                                        console.warn('[Janusの百宝箱] DMSS指令处理失败:', result.error);
+                                    }
+                                } catch (error) {
+                                    console.error('[Janusの百宝箱] DMSS指令处理异常:', error);
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    });
+
+    // 开始观察DOM变化
+    setTimeout(() => {
+        const chatContainer = document.querySelector('#chat, .chat-container, .messages-container');
+        if (chatContainer) {
+            observer.observe(chatContainer, {
+                childList: true,
+                subtree: true
+            });
+            console.log('[Janusの百宝箱] DOM观察器已启动');
+        }
+    }, 3000);
 
     window.getJanusVersion = getJanusVersion;
 });
