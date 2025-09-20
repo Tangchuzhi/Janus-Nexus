@@ -219,56 +219,8 @@ jQuery(() => {
             case 'dmss':
                 content = `
                     <div class="janus-tab-content">
-                        <h4 style="text-align: center;"><i class="fa-solid fa-brain"></i> 动态记忆流系统 (DMSS)</h4>
-                        
-                        <!-- DMSS状态显示 -->
-                        <div class="dmss-status-panel">
-                            <div class="status-item">
-                                <label>系统状态:</label>
-                                <span id="dmss-system-status" class="status-inactive">未激活</span>
-                            </div>
-                            <div class="status-item">
-                                <label>当前角色:</label>
-                                <span id="dmss-current-char">无</span>
-                            </div>
-                            <div class="status-item">
-                                <label>记忆块数:</label>
-                                <span id="dmss-memory-chunks">0</span>
-                            </div>
-                        </div>
-
-                        <!-- 角色DMSS控制 -->
-                        <div class="dmss-control-panel">
-                            <div class="control-group">
-                                <label class="control-label">
-                                    <input type="checkbox" id="dmss-char-toggle" onchange="window.janusHandlers.toggleDmssForChar()">
-                                    为当前角色启用DMSS
-                                </label>
-                            </div>
-                            
-                            <div id="dmss-char-actions" class="dmss-actions hidden">
-                                <div class="action-buttons">
-                                    <button onclick="window.janusHandlers.viewCharMemories()" class="action-btn">
-                                        <i class="fa-solid fa-eye"></i> 查看记忆
-                                    </button>
-                                    <button onclick="window.janusHandlers.archiveCharMemories()" class="action-btn">
-                                        <i class="fa-solid fa-archive"></i> 压缩归档
-                                    </button>
-                                    <button onclick="window.janusHandlers.exportCharMemories()" class="action-btn">
-                                        <i class="fa-solid fa-download"></i> 导出记忆
-                                    </button>
-                                </div>
-                                
-                                <div class="action-buttons">
-                                    <button onclick="window.janusHandlers.openDmssFolder()" class="action-btn">
-                                        <i class="fa-solid fa-folder-open"></i> 打开文件夹
-                                    </button>
-                                    <button onclick="window.janusHandlers.validateMemoryFiles()" class="action-btn">
-                                        <i class="fa-solid fa-check-circle"></i> 检查记忆文件完整性
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                        <h4><i class="fa-solid fa-brain"></i> 动态记忆流系统 (DMSS)</h4>
+                        <p>这里将显示动态记忆流系统界面...</p>
                     </div>
                 `;
                 break;
@@ -585,6 +537,17 @@ jQuery(() => {
             apiScript.onload = () => {
                 console.log('[Janusの百宝箱] DMSS API文件加载完成');
                 
+                // 加载调试工具
+                const debugScript = document.createElement('script');
+                debugScript.src = basePath + 'dmss-debug.js';
+                debugScript.onload = () => {
+                    console.log('[Janusの百宝箱] DMSS调试工具加载完成');
+                };
+                debugScript.onerror = () => {
+                    console.error('[Janusの百宝箱] DMSS调试工具加载失败');
+                };
+                document.head.appendChild(debugScript);
+                
                 // 更新UI状态
                 setTimeout(() => {
                     if (window.janusHandlers && typeof window.janusHandlers.updateDmssStatus === 'function') {
@@ -644,9 +607,9 @@ jQuery(() => {
             return;
         }
 
-        const entries = window.dmssAPI.core.getAllEntries();
+        const entries = window.dmssAPI.getAllEntries();
         const characterEntries = entries.filter(entry => 
-            entry.type === window.dmssAPI.core.entryTypes.CHARACTER
+            entry.type === window.dmssAPI.entryTypes.CHARACTER
         );
 
         if (characterEntries.length === 0) {
@@ -793,56 +756,8 @@ jQuery(() => {
             <!-- 内容区域 -->
             <div class="janus-content-area">
                 <div class="janus-tab-content">
-                    <h4 style="text-align: center;"><i class="fa-solid fa-brain"></i> 动态记忆流系统 (DMSS)</h4>
-                    
-                    <!-- DMSS状态显示 -->
-                    <div class="dmss-status-panel">
-                        <div class="status-item">
-                            <label>系统状态:</label>
-                            <span id="dmss-system-status" class="status-inactive">未激活</span>
-                        </div>
-                        <div class="status-item">
-                            <label>当前角色:</label>
-                            <span id="dmss-current-char">无</span>
-                        </div>
-                        <div class="status-item">
-                            <label>记忆块数:</label>
-                            <span id="dmss-memory-chunks">0</span>
-                        </div>
-                    </div>
-
-                    <!-- 角色DMSS控制 -->
-                    <div class="dmss-control-panel">
-                        <div class="control-group">
-                            <label class="control-label">
-                                <input type="checkbox" id="dmss-char-toggle" onchange="window.janusHandlers.toggleDmssForChar()">
-                                为当前角色启用DMSS
-                            </label>
-                        </div>
-                        
-                        <div id="dmss-char-actions" class="dmss-actions hidden">
-                            <div class="action-buttons">
-                                <button onclick="window.janusHandlers.viewCharMemories()" class="action-btn">
-                                    <i class="fa-solid fa-eye"></i> 查看记忆
-                                </button>
-                                <button onclick="window.janusHandlers.archiveCharMemories()" class="action-btn">
-                                    <i class="fa-solid fa-archive"></i> 压缩归档
-                                </button>
-                                <button onclick="window.janusHandlers.exportCharMemories()" class="action-btn">
-                                    <i class="fa-solid fa-download"></i> 导出记忆
-                                </button>
-                            </div>
-                            
-                            <div class="action-buttons">
-                                <button onclick="window.janusHandlers.openDmssFolder()" class="action-btn">
-                                    <i class="fa-solid fa-folder-open"></i> 打开文件夹
-                                </button>
-                                <button onclick="window.janusHandlers.validateMemoryFiles()" class="action-btn">
-                                    <i class="fa-solid fa-check-circle"></i> 检查记忆文件完整性
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <h4><i class="fa-solid fa-brain"></i> 动态记忆流系统 (DMSS)</h4>
+                    <p>这里将显示动态记忆流系统界面...</p>
                 </div>
             </div>
         </div>
@@ -1213,152 +1128,6 @@ jQuery(() => {
             color: #dc3545;
         }
 
-        /* DMSS界面样式 */
-        .dmss-status-panel {
-            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
-            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
-            border-radius: 6px;
-            padding: 12px;
-            margin: 10px 0;
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-        }
-
-        .status-item {
-            display: flex;
-            align-items: center;
-            margin: 4px 0;
-            font-size: 12px;
-        }
-
-        .status-item label {
-            margin-right: 8px;
-            color: var(--SmartThemeTextColor);
-            opacity: 0.8;
-        }
-
-        .status-item span {
-            color: var(--SmartThemeTextColor);
-            font-weight: bold;
-        }
-
-        .status-active {
-            color: #28a745 !important;
-        }
-
-        .status-inactive {
-            color: #dc3545 !important;
-        }
-
-        .dmss-control-panel {
-            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
-            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
-            border-radius: 6px;
-            padding: 12px;
-            margin: 10px 0;
-        }
-
-        .control-group {
-            margin-bottom: 10px;
-        }
-
-        .control-label {
-            display: flex;
-            align-items: center;
-            font-size: 13px;
-            color: var(--SmartThemeTextColor);
-            cursor: pointer;
-        }
-
-        .control-label input[type="checkbox"] {
-            margin-right: 8px;
-        }
-
-        .dmss-actions {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
-        }
-
-        .dmss-actions.hidden {
-            display: none;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 8px;
-            flex-wrap: wrap;
-        }
-
-        .action-buttons .action-btn {
-            flex: 1;
-            min-width: 120px;
-            padding: 8px 12px;
-            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
-            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
-            color: var(--SmartThemeTextColor);
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            transition: all 0.3s ease;
-        }
-
-        .action-buttons .action-btn:hover {
-            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.05));
-            border-color: var(--SmartThemeQuoteColor, #007bff);
-        }
-
-        .dmss-info-panel {
-            background: rgba(52, 152, 219, 0.1);
-            border: 1px solid rgba(52, 152, 219, 0.3);
-            border-radius: 6px;
-            padding: 12px;
-            margin: 10px 0;
-        }
-
-        .dmss-info-panel h5 {
-            margin: 0 0 8px 0;
-            color: rgba(52, 152, 219, 0.9);
-            font-size: 13px;
-        }
-
-        .info-content p {
-            margin: 4px 0;
-            font-size: 12px;
-            color: var(--SmartThemeTextColor);
-            opacity: 0.8;
-            line-height: 1.3;
-        }
-
-        .dmss-example-panel {
-            background: rgba(40, 167, 69, 0.1);
-            border: 1px solid rgba(40, 167, 69, 0.3);
-            border-radius: 6px;
-            padding: 12px;
-            margin: 10px 0;
-        }
-
-        .dmss-example-panel h5 {
-            margin: 0 0 8px 0;
-            color: rgba(40, 167, 69, 0.9);
-            font-size: 13px;
-        }
-
-        .example-content pre {
-            margin: 0;
-            padding: 8px;
-            background: rgba(0, 0, 0, 0.1);
-            border-radius: 4px;
-            font-size: 11px;
-            color: var(--SmartThemeTextColor);
-            overflow-x: auto;
-        }
-
-        .example-content code {
-            font-family: 'Courier New', monospace;
-        }
         
         </style>
     `;
