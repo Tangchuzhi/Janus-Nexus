@@ -515,6 +515,8 @@ jQuery(() => {
             
             // 动态加载DMSS核心文件
             loadDMSSFiles();
+            // 加载DMSS独立API与Ping模块
+            loadDmssPingModule();
             
         } catch (error) {
             console.error('[Janusの百宝箱] DMSS系统初始化失败:', error);
@@ -564,6 +566,33 @@ jQuery(() => {
             console.error('[Janusの百宝箱] DMSS核心文件加载失败');
         };
         document.head.appendChild(coreScript);
+    }
+
+    // 加载 DMSS 独立 API & Ping 模块（DMSS/index.js 与 DMSS/style.css）
+    function loadDmssPingModule() {
+        try {
+            const base = 'scripts/extensions/third-party/Janus-Treasure-chest/DMSS/';
+
+            // 避免重复加载
+            if (!document.querySelector('link[data-dmss-style]')) {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = base + 'style.css';
+                link.setAttribute('data-dmss-style', '1');
+                document.head.appendChild(link);
+            }
+
+            if (!document.querySelector('script[data-dmss-script]')) {
+                const script = document.createElement('script');
+                script.src = base + 'index.js';
+                script.setAttribute('data-dmss-script', '1');
+                script.onload = () => console.log('[Janusの百宝箱] DMSS 独立API模块已加载');
+                script.onerror = () => console.error('[Janusの百宝箱] DMSS 独立API模块加载失败');
+                document.head.appendChild(script);
+            }
+        } catch (e) {
+            console.error('[Janusの百宝箱] 加载 DMSS 独立API模块异常:', e);
+        }
     }
 
     // DMSS功能处理函数
