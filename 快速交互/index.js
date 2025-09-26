@@ -53,9 +53,9 @@
 
     // 隐藏消息
     function hideMessages(start, end) {
-        if (isNaN(start) || isNaN(end) || start <= 0 || end <= 0) {
+        if (isNaN(start) || isNaN(end) || start < 0 || end < 0) {
             if (typeof toastr !== 'undefined') {
-                toastr.error('请输入有效的、大于0的楼层号。');
+                toastr.error('请输入有效的、大于等于0的楼层号。');
             }
             return;
         }
@@ -64,8 +64,16 @@
             [start, end] = [end, start];
         }
 
-        const range = `${start}-${end}`;
-        callSlashCommand(`/hide ${range}`);
+        // 特殊处理开场白（楼层0）
+        if (start === 0) {
+            hideFirstMessage();
+        }
+
+        // 隐藏其他楼层
+        if (end > 0) {
+            const range = start === 0 ? `1-${end}` : `${start}-${end}`;
+            callSlashCommand(`/hide ${range}`);
+        }
 
         // 更新状态
         if (!context.hiddenRanges.some(r => r.start === start && r.end === end)) {
@@ -77,15 +85,36 @@
 
         updateHiddenStatus();
         if (typeof toastr !== 'undefined') {
-            toastr.success(`已发送隐藏楼层 ${range} 的请求。`);
+            const rangeText = start === 0 && end === 0 ? '开场白' : 
+                             start === 0 ? `开场白和楼层 1-${end}` : 
+                             `楼层 ${start}-${end}`;
+            toastr.success(`已发送隐藏${rangeText}的请求。`);
+        }
+    }
+
+    // 隐藏开场白
+    function hideFirstMessage() {
+        const firstMessageWrapper = document.querySelector('#firstMessageWrapper');
+        if (firstMessageWrapper) {
+            firstMessageWrapper.style.display = 'none';
+            console.log('[快速交互] 已隐藏开场白');
+        }
+    }
+
+    // 显示开场白
+    function showFirstMessage() {
+        const firstMessageWrapper = document.querySelector('#firstMessageWrapper');
+        if (firstMessageWrapper) {
+            firstMessageWrapper.style.display = '';
+            console.log('[快速交互] 已显示开场白');
         }
     }
 
     // 取消隐藏消息
     function unhideMessages(start, end) {
-        if (isNaN(start) || isNaN(end) || start <= 0 || end <= 0) {
+        if (isNaN(start) || isNaN(end) || start < 0 || end < 0) {
             if (typeof toastr !== 'undefined') {
-                toastr.error('请输入有效的、大于0的楼层号。');
+                toastr.error('请输入有效的、大于等于0的楼层号。');
             }
             return;
         }
@@ -94,15 +123,26 @@
             [start, end] = [end, start];
         }
 
-        const range = `${start}-${end}`;
-        callSlashCommand(`/unhide ${range}`);
+        // 特殊处理开场白（楼层0）
+        if (start === 0) {
+            showFirstMessage();
+        }
+
+        // 取消隐藏其他楼层
+        if (end > 0) {
+            const range = start === 0 ? `1-${end}` : `${start}-${end}`;
+            callSlashCommand(`/unhide ${range}`);
+        }
 
         // 更新状态
         context.hiddenRanges = context.hiddenRanges.filter(r => !(r.start === start && r.end === end));
 
         updateHiddenStatus();
         if (typeof toastr !== 'undefined') {
-            toastr.success(`已发送取消隐藏楼层 ${range} 的请求。`);
+            const rangeText = start === 0 && end === 0 ? '开场白' : 
+                             start === 0 ? `开场白和楼层 1-${end}` : 
+                             `楼层 ${start}-${end}`;
+            toastr.success(`已发送取消隐藏${rangeText}的请求。`);
         }
     }
 
@@ -115,9 +155,17 @@
             return;
         }
 
+        // 检查是否有隐藏的开场白
+        const hasHiddenFirstMessage = context.hiddenRanges.some(r => r.start === 0);
+        if (hasHiddenFirstMessage) {
+            showFirstMessage();
+        }
+
         const rangesToUnhide = [...context.hiddenRanges];
         for (const range of rangesToUnhide) {
-            callSlashCommand(`/unhide ${range.start}-${range.end}`);
+            if (range.start > 0) { // 只处理非开场白的范围
+                callSlashCommand(`/unhide ${range.start}-${range.end}`);
+            }
         }
 
         const totalRanges = context.hiddenRanges.length;
@@ -136,9 +184,15 @@
         if (!context.hiddenRanges || context.hiddenRanges.length === 0) {
             statusElement.innerHTML = '<span class="status-text">暂无隐藏的消息</span>';
         } else {
-            const rangesHtml = context.hiddenRanges.map(range =>
-                `<span class="hidden-range">${range.start}-${range.end}楼</span>`
-            ).join('');
+            const rangesHtml = context.hiddenRanges.map(range => {
+                if (range.start === 0 && range.end === 0) {
+                    return '<span class="hidden-range">开场白</span>';
+                } else if (range.start === 0) {
+                    return `<span class="hidden-range">开场白+${range.end}楼</span>`;
+                } else {
+                    return `<span class="hidden-range">${range.start}-${range.end}楼</span>`;
+                }
+            }).join('');
             statusElement.innerHTML = `<span class="status-text">已隐藏:</span> ${rangesHtml}`;
         }
     }

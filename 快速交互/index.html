@@ -4,16 +4,16 @@
     <!-- 消息隐藏工具 -->
     <div class="tool-section">
         <h5><i class="fa-solid fa-eye-slash"></i> 消息隐藏工具</h5>
-        <p class="tool-description">快速隐藏或显示指定楼层范围的消息。</p>
+        <p class="tool-description">快速隐藏或显示指定楼层范围的消息。输入0可隐藏开场白。</p>
 
         <div class="hide-controls">
             <div class="input-group">
                 <label for="start-floor">起始楼层:</label>
-                <input type="number" id="start-floor" min="1" placeholder="例: 1">
+                <input type="number" id="start-floor" min="0" placeholder="例: 0(开场白) 或 1">
             </div>
             <div class="input-group">
                 <label for="end-floor">结束楼层:</label>
-                <input type="number" id="end-floor" min="1" placeholder="例: 5">
+                <input type="number" id="end-floor" min="0" placeholder="例: 0(开场白) 或 5">
             </div>
         </div>
 
