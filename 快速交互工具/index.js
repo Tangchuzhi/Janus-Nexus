@@ -21,18 +21,27 @@
 
     /**
      * 执行斜杠命令（/hide、/unhide 等）
-     * 使用 ST 全局可用的 executeSlashCommandsWithOptions
+     * 通过操作 SillyTavern 的输入框和发送按钮来执行命令
      * @param {string} command - 完整的斜杠命令，例如 "/hide 1-5"
      */
-    async function callSlashCommand(command) {
+    function callSlashCommand(command) {
         try {
-            if (typeof executeSlashCommandsWithOptions === 'function') {
-                await executeSlashCommandsWithOptions(command, { handleParserErrors: true, source: 'QuickTools' });
-            } else if (typeof executeSlashCommands === 'function') {
-                await executeSlashCommands(command, true);
-            } else {
-                throw new Error('找不到斜杠命令执行器');
+            const textarea = document.querySelector('#send_textarea');
+            const sendButton = document.querySelector('#send_but');
+            
+            if (!textarea || !sendButton) {
+                throw new Error('找不到 SillyTavern 的输入框或发送按钮');
             }
+            
+            // 将命令设置到输入框
+            textarea.value = command;
+            
+            // 触发 input 事件以确保 SillyTavern 检测到变化
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            // 点击发送按钮
+            sendButton.click();
+            
             console.log(`[快速交互工具] 已发送命令: ${command}`);
         } catch (e) {
             console.error('[快速交互工具] 发送命令失败:', e);
