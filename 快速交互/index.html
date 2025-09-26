@@ -6,6 +6,9 @@
         <button class="tab-btn active" onclick="switchTab('hide')">
             <i class="fa-solid fa-eye-slash"></i> 消息隐藏
         </button>
+        <button class="tab-btn" onclick="switchTab('summary')">
+            <i class="fa-solid fa-list-check"></i> 一键总结
+        </button>
         <button class="tab-btn" onclick="switchTab('ask')">
             <i class="fa-solid fa-link"></i> 双卡联动
         </button>
@@ -35,6 +38,25 @@
             <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_showAll'))" class="action-btn show-all-btn">
                 <i class="fa-solid fa-eye"></i> 显示全部
             </button>
+        </div>
+    </div>
+
+    <!-- 一键总结标签页 -->
+    <div id="summary-tab" class="tab-content">
+        <div class="summary-controls">
+            <div class="input-group full-width">
+                <label for="summary-prompt">总结提示词:</label>
+                <textarea id="summary-prompt" placeholder="请输入总结提示词..." rows="4"></textarea>
+            </div>
+            
+            <div class="summary-actions">
+                <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_saveSummaryPrompt'))" class="action-btn save-btn">
+                    <i class="fa-solid fa-save"></i> 保存提示词
+                </button>
+                <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_generateSummary'))" class="action-btn summary-btn">
+                    <i class="fa-solid fa-list-check"></i> 生成总结
+                </button>
+            </div>
         </div>
     </div>
 
@@ -94,8 +116,9 @@
 }
 
 .tab-btn.active {
-    border-bottom-color: var(--SmartThemeQuoteColor, #007bff);
-    color: var(--SmartThemeQuoteColor, #007bff);
+    border-bottom-color: #ffc107;
+    color: #ffc107;
+    background: rgba(255, 193, 7, 0.1);
 }
 
 /* 标签页内容样式 */
@@ -289,6 +312,43 @@
     background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
     border-color: var(--SmartThemeQuoteColor, #007bff);
     color: var(--SmartThemeQuoteColor, #007bff);
+}
+
+/* 一键总结工具样式 */
+.summary-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.summary-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.save-btn {
+    background: rgba(255, 193, 7, 0.1);
+    border-color: rgba(255, 193, 7, 0.3);
+    color: #ffc107;
+}
+
+.save-btn:hover {
+    background: rgba(255, 193, 7, 0.2);
+    border-color: #ffc107;
+    color: #ffc107;
+}
+
+.summary-btn {
+    background: rgba(40, 167, 69, 0.1);
+    border-color: rgba(40, 167, 69, 0.3);
+    color: #28a745;
+}
+
+.summary-btn:hover {
+    background: rgba(40, 167, 69, 0.2);
+    border-color: #28a745;
+    color: #28a745;
 }
 @media (max-width: 400px) {
     .hide-controls {

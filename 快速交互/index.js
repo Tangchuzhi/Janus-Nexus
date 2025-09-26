@@ -204,6 +204,104 @@
         console.log(`[快速交互] 已加载 ${characters.length} 个角色`);
     }
 
+    // 一键总结工具 - 保存总结提示词
+    function saveSummaryPrompt() {
+        const summaryPrompt = document.getElementById('summary-prompt');
+        if (!summaryPrompt) {
+            console.error('[快速交互] 找不到总结提示词元素');
+            return;
+        }
+        
+        const prompt = summaryPrompt.value.trim();
+        if (!prompt) {
+            if (typeof toastr !== 'undefined') {
+                toastr.error('请输入总结提示词。');
+            }
+            return;
+        }
+        
+        // 保存到SillyTavern的上下文中
+        try {
+            if (!context.summaryPrompt) {
+                context.summaryPrompt = '';
+            }
+            context.summaryPrompt = prompt;
+            
+            if (typeof toastr !== 'undefined') {
+                toastr.success('总结提示词已保存。');
+            }
+            console.log('[快速交互] 总结提示词已保存:', prompt);
+        } catch (error) {
+            console.error('[快速交互] 保存总结提示词失败:', error);
+            if (typeof toastr !== 'undefined') {
+                toastr.error('保存失败，请重试。');
+            }
+        }
+    }
+
+    // 一键总结工具 - 生成总结
+    function generateSummary() {
+        const summaryPrompt = document.getElementById('summary-prompt');
+        if (!summaryPrompt) {
+            console.error('[快速交互] 找不到总结提示词元素');
+            return;
+        }
+        
+        const prompt = summaryPrompt.value.trim();
+        if (!prompt) {
+            if (typeof toastr !== 'undefined') {
+                toastr.error('请先输入总结提示词。');
+            }
+            return;
+        }
+        
+        try {
+            // 使用inject命令注入总结提示词
+            const injectCommand = `/inject id=summary position=after ephemeral=true ${prompt}`;
+            callSlashCommand(injectCommand);
+            
+            // 使用continue命令生成总结
+            setTimeout(() => {
+                callSlashCommand('/continue');
+            }, 500);
+            
+            if (typeof toastr !== 'undefined') {
+                toastr.success('已开始生成总结，请稍候...');
+            }
+            console.log('[快速交互] 已发送总结生成请求');
+        } catch (error) {
+            console.error('[快速交互] 生成总结失败:', error);
+            if (typeof toastr !== 'undefined') {
+                toastr.error('生成总结失败，请重试。');
+            }
+        }
+    }
+
+    // 加载保存的总结提示词
+    function loadSummaryPrompt() {
+        try {
+            const summaryPrompt = document.getElementById('summary-prompt');
+            if (!summaryPrompt) return;
+            
+            // 从SillyTavern上下文加载保存的提示词
+            if (context.summaryPrompt) {
+                summaryPrompt.value = context.summaryPrompt;
+            } else {
+                // 设置默认的总结提示词
+                const defaultPrompt = `请对以上对话进行总结，包括：
+1. 主要话题和情节发展
+2. 重要角色和他们的行为
+3. 关键事件和转折点
+4. 当前状态和后续可能的发展方向
+
+请用简洁明了的语言进行总结，便于理解整个对话的脉络。`;
+                summaryPrompt.value = defaultPrompt;
+            }
+        } catch (error) {
+            console.error('[快速交互] 加载总结提示词失败:', error);
+        }
+    }
+
 
     // --- 事件监听 ---
     // 这是SillyTavern扩展与HTML交互的标准方式
@@ -225,6 +323,14 @@
 
     document.addEventListener(`${EVENT_PREFIX}ask`, () => {
         sendAskCommand();
+    });
+
+    document.addEventListener(`${EVENT_PREFIX}saveSummaryPrompt`, () => {
+        saveSummaryPrompt();
+    });
+
+    document.addEventListener(`${EVENT_PREFIX}generateSummary`, () => {
+        generateSummary();
     });
 
     // 添加 CSS 样式来隐藏系统消息
@@ -263,6 +369,11 @@
             setTimeout(() => {
                 loadCharacterList();
             }, 500);
+
+            // 加载总结提示词
+            setTimeout(() => {
+                loadSummaryPrompt();
+            }, 600);
 
             console.log('[快速交互] 脚本加载并初始化完成。');
         } catch (error) {
