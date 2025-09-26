@@ -109,6 +109,98 @@
         }
     }
 
+    // 双卡联动工具 - 发送ASK命令
+    function sendAskCommand() {
+        const characterSelect = document.getElementById('character-select');
+        const askPrompt = document.getElementById('ask-prompt');
+        
+        if (!characterSelect || !askPrompt) {
+            console.error('[快速交互] 找不到ASK工具的元素');
+            return;
+        }
+        
+        const selectedCharacter = characterSelect.value;
+        const prompt = askPrompt.value.trim();
+        
+        if (!selectedCharacter) {
+            if (typeof toastr !== 'undefined') {
+                toastr.error('请选择目标角色。');
+            }
+            return;
+        }
+        
+        if (!prompt) {
+            if (typeof toastr !== 'undefined') {
+                toastr.error('请输入询问内容。');
+            }
+            return;
+        }
+        
+        // 构建ASK命令
+        const askCommand = `/ask name=${selectedCharacter} return=toast-text ${prompt}`;
+        callSlashCommand(askCommand);
+        
+        if (typeof toastr !== 'undefined') {
+            toastr.success(`已向 ${selectedCharacter} 发送询问。`);
+        }
+        
+        // 清空输入框
+        askPrompt.value = '';
+    }
+
+    // 加载角色列表
+    function loadCharacterList() {
+        try {
+            // 尝试从SillyTavern获取角色列表
+            if (typeof SillyTavern !== 'undefined' && SillyTavern.getContext) {
+                const context = SillyTavern.getContext();
+                if (context && context.characters) {
+                    populateCharacterSelect(context.characters);
+                    return;
+                }
+            }
+            
+            // 如果无法从SillyTavern获取，尝试从DOM获取
+            const characterElements = document.querySelectorAll('.character_select option, .character-item, [data-character-name]');
+            if (characterElements.length > 0) {
+                const characters = Array.from(characterElements).map(el => {
+                    return {
+                        name: el.textContent || el.dataset.characterName || el.value,
+                        id: el.value || el.dataset.characterId
+                    };
+                }).filter(char => char.name && char.name !== '请选择角色...');
+                
+                populateCharacterSelect(characters);
+                return;
+            }
+            
+            // 如果都获取不到，显示提示
+            console.warn('[快速交互] 无法获取角色列表，请手动输入角色名');
+            
+        } catch (error) {
+            console.error('[快速交互] 加载角色列表失败:', error);
+        }
+    }
+
+    // 填充角色选择下拉框
+    function populateCharacterSelect(characters) {
+        const characterSelect = document.getElementById('character-select');
+        if (!characterSelect) return;
+        
+        // 清空现有选项（保留第一个提示选项）
+        characterSelect.innerHTML = '<option value="">请选择角色...</option>';
+        
+        // 添加角色选项
+        characters.forEach(character => {
+            const option = document.createElement('option');
+            option.value = character.name || character.id;
+            option.textContent = character.name || character.id;
+            characterSelect.appendChild(option);
+        });
+        
+        console.log(`[快速交互] 已加载 ${characters.length} 个角色`);
+    }
+
 
     // --- 事件监听 ---
     // 这是SillyTavern扩展与HTML交互的标准方式
@@ -126,6 +218,10 @@
 
     document.addEventListener(`${EVENT_PREFIX}showAll`, () => {
         showAllMessages();
+    });
+
+    document.addEventListener(`${EVENT_PREFIX}ask`, () => {
+        sendAskCommand();
     });
 
     // 添加 CSS 样式来隐藏系统消息
@@ -160,6 +256,10 @@
             // 添加隐藏样式
             addHideStyles();
 
+            // 加载角色列表
+            setTimeout(() => {
+                loadCharacterList();
+            }, 500);
 
             console.log('[快速交互] 脚本加载并初始化完成。');
         } catch (error) {
