@@ -256,14 +256,9 @@
         }
         
         try {
-            // 使用sys命令发送总结提示词作为系统消息
-            const sysCommand = `/sys name="总结助手" ${prompt}`;
-            callSlashCommand(sysCommand);
-            
-            // 使用continue命令生成总结
-            setTimeout(() => {
-                callSlashCommand('/continue');
-            }, 500);
+            // 使用genraw命令生成总结
+            const genrawCommand = `/genraw as=system ${prompt}`;
+            callSlashCommand(genrawCommand);
             
             if (typeof toastr !== 'undefined') {
                 toastr.success('已开始生成总结，请稍候...');
