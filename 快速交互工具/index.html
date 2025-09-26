@@ -1,0 +1,265 @@
+<div class="quick-tools-container">
+    <h4><i class="fa-solid fa-bolt"></i> 快速交互工具</h4>
+    
+    <!-- 消息隐藏工具 -->
+    <div class="tool-section">
+        <h5><i class="fa-solid fa-eye-slash"></i> 消息隐藏工具</h5>
+        <p class="tool-description">快速隐藏或显示指定楼层范围的消息</p>
+        
+        <div class="hide-controls">
+            <div class="input-group">
+                <label for="start-floor">起始楼层:</label>
+                <input type="number" id="start-floor" min="1" placeholder="例: 1">
+            </div>
+            <div class="input-group">
+                <label for="end-floor">结束楼层:</label>
+                <input type="number" id="end-floor" min="1" placeholder="例: 5">
+            </div>
+        </div>
+        
+        <div class="action-buttons">
+            <button onclick="hideMessages()" class="action-btn hide-btn">
+                <i class="fa-solid fa-eye-slash"></i> 隐藏消息
+            </button>
+            <button onclick="unhideMessages()" class="action-btn unhide-btn">
+                <i class="fa-solid fa-eye"></i> 取消隐藏
+            </button>
+            <button onclick="showAllMessages()" class="action-btn show-all-btn">
+                <i class="fa-solid fa-eye"></i> 显示全部
+            </button>
+        </div>
+        
+        <!-- 快速命令输入 -->
+        <div class="command-input-section">
+            <h6><i class="fa-solid fa-terminal"></i> 快速命令</h6>
+            <div class="command-input-group">
+                <input type="text" id="command-input" placeholder="输入命令: /hide 1-5 或 /unhide 1-5">
+                <button onclick="executeCommand()" class="execute-btn">
+                    <i class="fa-solid fa-play"></i> 执行
+                </button>
+            </div>
+            <div class="command-examples">
+                <span class="example" onclick="setCommand('/hide 1-5')">/hide 1-5</span>
+                <span class="example" onclick="setCommand('/unhide 1-5')">/unhide 1-5</span>
+                <span class="example" onclick="setCommand('/hide 10-15')">/hide 10-15</span>
+            </div>
+        </div>
+        
+        <!-- 当前状态显示 -->
+        <div class="status-section">
+            <h6><i class="fa-solid fa-info-circle"></i> 当前状态</h6>
+            <div id="hidden-status" class="status-display">
+                <span class="status-text">暂无隐藏的消息</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.quick-tools-container {
+    padding: 10px;
+}
+
+.quick-tools-container h4 {
+    margin: 0 0 15px 0;
+    color: var(--SmartThemeTextColor);
+    border-bottom: 2px solid var(--SmartThemeQuoteColor, #007bff);
+    padding-bottom: 8px;
+}
+
+.tool-section {
+    background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.tool-section h5 {
+    margin: 0 0 10px 0;
+    color: var(--SmartThemeTextColor);
+    font-size: 16px;
+}
+
+.tool-section h6 {
+    margin: 15px 0 8px 0;
+    color: var(--SmartThemeTextColor);
+    font-size: 14px;
+}
+
+.tool-description {
+    margin: 0 0 15px 0;
+    color: var(--SmartThemeTextColor);
+    opacity: 0.8;
+    font-size: 13px;
+}
+
+.hide-controls {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 120px;
+}
+
+.input-group label {
+    margin-bottom: 5px;
+    color: var(--SmartThemeTextColor);
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.input-group input {
+    padding: 8px 10px;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+    border-radius: 4px;
+    background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+    color: var(--SmartThemeTextColor);
+    font-size: 13px;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: var(--SmartThemeQuoteColor, #007bff);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    padding: 10px 15px;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.3s ease;
+    background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+    color: var(--SmartThemeTextColor);
+}
+
+.hide-btn:hover {
+    background: rgba(220, 53, 69, 0.1);
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.unhide-btn:hover {
+    background: rgba(40, 167, 69, 0.1);
+    border-color: #28a745;
+    color: #28a745;
+}
+
+.show-all-btn:hover {
+    background: rgba(0, 123, 255, 0.1);
+    border-color: #007bff;
+    color: #007bff;
+}
+
+.command-input-section {
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+    padding-top: 15px;
+    margin-top: 15px;
+}
+
+.command-input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.command-input-group input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+    border-radius: 4px;
+    background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+    color: var(--SmartThemeTextColor);
+    font-size: 13px;
+}
+
+.command-input-group input:focus {
+    outline: none;
+    border-color: var(--SmartThemeQuoteColor, #007bff);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.execute-btn {
+    padding: 8px 15px;
+    border: 1px solid var(--SmartThemeQuoteColor, #007bff);
+    border-radius: 4px;
+    background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
+    color: var(--SmartThemeTextColor);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.3s ease;
+}
+
+.execute-btn:hover {
+    background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.2));
+}
+
+.command-examples {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.example {
+    padding: 4px 8px;
+    background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--SmartThemeTextColor);
+    opacity: 0.8;
+    transition: all 0.3s ease;
+}
+
+.example:hover {
+    opacity: 1;
+    border-color: var(--SmartThemeQuoteColor, #007bff);
+    background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
+}
+
+.status-section {
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+    padding-top: 15px;
+    margin-top: 15px;
+}
+
+.status-display {
+    background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+    border-radius: 4px;
+    padding: 10px;
+    min-height: 40px;
+}
+
+.status-text {
+    color: var(--SmartThemeTextColor);
+    opacity: 0.8;
+    font-size: 12px;
+}
+
+.hidden-range {
+    display: inline-block;
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+    border-radius: 3px;
+    padding: 2px 6px;
+    margin: 2px;
+    font-size: 11px;
+    color: #dc3545;
+}
+</style>
