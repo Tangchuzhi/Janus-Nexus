@@ -79,24 +79,24 @@
 
 .tab-btn {
     flex: 1;
-    padding: 10px 15px;
+    padding: 8px 12px;
     border: none;
     background: transparent;
     color: var(--SmartThemeTextColor);
     cursor: pointer;
-    font-size: 14px;
-    border-bottom: 2px solid transparent;
-    transition: all 0.2s ease;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    font-size: 12px;
 }
 
 .tab-btn:hover {
-    background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.05));
+    background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.05));
 }
 
 .tab-btn.active {
-    border-bottom-color: #ffc107;
-    color: #ffc107;
-    background: rgba(255, 193, 7, 0.1);
+    background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
+    color: var(--SmartThemeTextColor);
+    font-weight: bold;
 }
 
 /* 标签页内容样式 */
