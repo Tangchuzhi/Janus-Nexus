@@ -1,48 +1,59 @@
 (function() {
     'use strict';
-    
+
     console.log('[快速交互工具] 脚本开始加载...');
-    
+
     // 存储隐藏的消息范围
     let hiddenRanges = [];
-    
-    // 获取SillyTavern的executeSlashCommands函数
-    function getExecuteSlashCommands() {
-        // 检查全局作用域
-        if (typeof executeSlashCommands !== 'undefined' && typeof executeSlashCommands === 'function') {
+
+    // 获取SillyTavern的斜杠命令处理器
+    function getSlashCommandHandler() {
+        // 检查全局的斜杠命令处理器
+        if (window.SlashCommandParser && window.SlashCommandParser.executeSlashCommands) {
+            return window.SlashCommandParser.executeSlashCommands.bind(window.SlashCommandParser);
+        }
+
+        // 检查旧版本的全局函数
+        if (typeof executeSlashCommands !== 'undefined') {
             return executeSlashCommands;
         }
-        
-        // 检查window对象
-        if (window.executeSlashCommands && typeof window.executeSlashCommands === 'function') {
-            return window.executeSlashCommands;
+
+        // 检查是否可以通过事件系统调用
+        if (window.eventSource && window.eventSource.emit) {
+            return (command) => {
+                return new Promise((resolve, reject) => {
+                    try {
+                        window.eventSource.emit('executeSlashCommand', { command, resolve, reject });
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+            };
         }
-        
-        // 检查可能的其他位置
-        if (window.SillyTavern && window.SillyTavern.executeSlashCommands) {
-            return window.SillyTavern.executeSlashCommands;
-        }
-        
-        console.error('[快速交互工具] 未找到executeSlashCommands函数');
+
+        console.error('[快速交互工具] 未找到可用的命令执行方法');
         return null;
     }
-    
+
     // 调用SillyTavern的斜杠命令
     async function callSlashCommand(command) {
-        const executeSlashCommandsFn = getExecuteSlashCommands();
-        if (!executeSlashCommandsFn) {
+        const handler = getSlashCommandHandler();
+        if (!handler) {
             throw new Error('无法找到SillyTavern的命令执行函数');
         }
-        
+
         try {
             console.log(`[快速交互工具] 执行命令: ${command}`);
-            
-            // 根据SillyTavern的实现，executeSlashCommands需要完整的命令文本
-            const result = await executeSlashCommandsFn(command);
-            
-            // 等待一小段时间确保命令执行完成
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
+
+            // 确保命令格式正确
+            const formattedCommand = command.startsWith('/') ? command : `/${command}`;
+
+            // 执行命令
+            const result = await handler(formattedCommand);
+
+            // 等待DOM更新
+            await new Promise(resolve => setTimeout(resolve, 150));
+
             return result;
         } catch (error) {
             console.error('[快速交互工具] 命令执行失败:', error);
