@@ -6,53 +6,31 @@
     // 存储隐藏的消息范围
     let hiddenRanges = [];
 
-    // 获取SillyTavern的斜杠命令处理器
-    function getSlashCommandHandler() {
-        // 检查全局的斜杠命令处理器
-        if (window.SlashCommandParser && window.SlashCommandParser.executeSlashCommands) {
-            return window.SlashCommandParser.executeSlashCommands.bind(window.SlashCommandParser);
-        }
-
-        // 检查旧版本的全局函数
-        if (typeof executeSlashCommands !== 'undefined') {
-            return executeSlashCommands;
-        }
-
-        // 检查是否可以通过事件系统调用
-        if (window.eventSource && window.eventSource.emit) {
-            return (command) => {
-                return new Promise((resolve, reject) => {
-                    try {
-                        window.eventSource.emit('executeSlashCommand', { command, resolve, reject });
-                    } catch (error) {
-                        reject(error);
-                    }
-                });
-            };
-        }
-
-        console.error('[快速交互工具] 未找到可用的命令执行方法');
-        return null;
-    }
-
-    // 调用SillyTavern的斜杠命令
+    // 调用SillyTavern的斜杠命令 - 使用正确的API
     async function callSlashCommand(command) {
-        const handler = getSlashCommandHandler();
-        if (!handler) {
-            throw new Error('无法找到SillyTavern的命令执行函数');
-        }
-
         try {
             console.log(`[快速交互工具] 执行命令: ${command}`);
 
-            // 确保命令格式正确
-            const formattedCommand = command.startsWith('/') ? command : `/${command}`;
+            // 使用SillyTavern的官方API方式
+            const response = await fetch('/api/slash-commands/execute', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    command: command,
+                    source: 'extension'
+                })
+            });
 
-            // 执行命令
-            const result = await handler(formattedCommand);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-            // 等待DOM更新
-            await new Promise(resolve => setTimeout(resolve, 150));
+            const result = await response.json();
+
+            // 等待一小段时间确保命令执行完成
+            await new Promise(resolve => setTimeout(resolve, 100));
 
             return result;
         } catch (error) {
@@ -60,143 +38,168 @@
             throw error;
         }
     }
-    
+
     // 隐藏指定范围的消息
     async function hideMessagesInRange(startFloor, endFloor) {
         if (startFloor > endFloor) {
             [startFloor, endFloor] = [endFloor, startFloor];
         }
-        
+
         try {
             const range = `${startFloor}-${endFloor}`;
             await callSlashCommand(`/hide ${range}`);
-            
+
             // 记录隐藏范围
             const existingRangeIndex = hiddenRanges.findIndex(r => r.start === startFloor && r.end === endFloor);
             if (existingRangeIndex === -1) {
                 hiddenRanges.push({ start: startFloor, end: endFloor });
             }
-            
+
             updateHiddenStatus();
-            toastr.success(`已隐藏楼层 ${range}`, '隐藏成功');
+
+            // 使用SillyTavern的通知系统
+            if (typeof toastr !== 'undefined') {
+                toastr.success(`已隐藏楼层 ${range}`, '隐藏成功');
+            }
             return true;
         } catch (error) {
             console.error('[快速交互工具] 隐藏消息失败:', error);
-            toastr.error(`隐藏失败: ${error.message}`, '隐藏失败');
+            if (typeof toastr !== 'undefined') {
+                toastr.error(`隐藏失败: ${error.message}`, '隐藏失败');
+            }
             return false;
         }
     }
-    
+
     // 取消隐藏指定范围的消息
     async function unhideMessagesInRange(startFloor, endFloor) {
         if (startFloor > endFloor) {
             [startFloor, endFloor] = [endFloor, startFloor];
         }
-        
+
         try {
             const range = `${startFloor}-${endFloor}`;
             await callSlashCommand(`/unhide ${range}`);
-            
+
             // 移除记录的隐藏范围
             hiddenRanges = hiddenRanges.filter(r => !(r.start === startFloor && r.end === endFloor));
-            
+
             updateHiddenStatus();
-            toastr.success(`已取消隐藏楼层 ${range}`, '取消隐藏成功');
+
+            if (typeof toastr !== 'undefined') {
+                toastr.success(`已取消隐藏楼层 ${range}`, '取消隐藏成功');
+            }
             return true;
         } catch (error) {
             console.error('[快速交互工具] 取消隐藏消息失败:', error);
-            toastr.error(`取消隐藏失败: ${error.message}`, '取消隐藏失败');
+            if (typeof toastr !== 'undefined') {
+                toastr.error(`取消隐藏失败: ${error.message}`, '取消隐藏失败');
+            }
             return false;
         }
     }
-    
+
     // 显示所有隐藏的消息
     async function showAllHiddenMessages() {
         if (hiddenRanges.length === 0) {
-            toastr.info('没有隐藏的消息', '显示全部');
+            if (typeof toastr !== 'undefined') {
+                toastr.info('没有隐藏的消息', '显示全部');
+            }
             return false;
         }
-        
+
         try {
             // 逐个取消隐藏所有范围
             const rangesToUnhide = [...hiddenRanges]; // 创建副本
-            
+
             for (const range of rangesToUnhide) {
                 const rangeStr = `${range.start}-${range.end}`;
                 await callSlashCommand(`/unhide ${rangeStr}`);
             }
-            
+
             const totalRanges = rangesToUnhide.length;
             hiddenRanges = [];
             updateHiddenStatus();
-            
-            toastr.success(`已显示所有隐藏的消息 (${totalRanges} 个范围)`, '显示全部成功');
+
+            if (typeof toastr !== 'undefined') {
+                toastr.success(`已显示所有隐藏的消息 (${totalRanges} 个范围)`, '显示全部成功');
+            }
             return true;
         } catch (error) {
             console.error('[快速交互工具] 显示全部消息失败:', error);
-            toastr.error(`显示全部失败: ${error.message}`, '显示全部失败');
+            if (typeof toastr !== 'undefined') {
+                toastr.error(`显示全部失败: ${error.message}`, '显示全部失败');
+            }
             return false;
         }
     }
-    
+
     // 更新隐藏状态显示
     function updateHiddenStatus() {
         const statusElement = document.getElementById('hidden-status');
         if (!statusElement) return;
-        
+
         if (hiddenRanges.length === 0) {
             statusElement.innerHTML = '<span class="status-text">暂无隐藏的消息</span>';
         } else {
-            const rangesHtml = hiddenRanges.map(range => 
+            const rangesHtml = hiddenRanges.map(range =>
                 `<span class="hidden-range">${range.start}-${range.end}楼</span>`
             ).join('');
             statusElement.innerHTML = `<span class="status-text">已隐藏:</span> ${rangesHtml}`;
         }
     }
-    
+
     // 全局函数，供HTML调用
     window.hideMessages = async function() {
         const startFloor = parseInt(document.getElementById('start-floor').value);
         const endFloor = parseInt(document.getElementById('end-floor').value);
-        
+
         if (isNaN(startFloor) || isNaN(endFloor)) {
-            toastr.error('请输入有效的楼层号', '输入错误');
+            if (typeof toastr !== 'undefined') {
+                toastr.error('请输入有效的楼层号', '输入错误');
+            }
             return;
         }
-        
+
         if (startFloor <= 0 || endFloor <= 0) {
-            toastr.error('楼层号必须大于0', '输入错误');
+            if (typeof toastr !== 'undefined') {
+                toastr.error('楼层号必须大于0', '输入错误');
+            }
             return;
         }
-        
+
         await hideMessagesInRange(startFloor, endFloor);
     };
-    
+
     window.unhideMessages = async function() {
         const startFloor = parseInt(document.getElementById('start-floor').value);
         const endFloor = parseInt(document.getElementById('end-floor').value);
-        
+
         if (isNaN(startFloor) || isNaN(endFloor)) {
-            toastr.error('请输入有效的楼层号', '输入错误');
+            if (typeof toastr !== 'undefined') {
+                toastr.error('请输入有效的楼层号', '输入错误');
+            }
             return;
         }
-        
+
         if (startFloor <= 0 || endFloor <= 0) {
-            toastr.error('楼层号必须大于0', '输入错误');
+            if (typeof toastr !== 'undefined') {
+                toastr.error('楼层号必须大于0', '输入错误');
+            }
             return;
         }
-        
+
         await unhideMessagesInRange(startFloor, endFloor);
     };
-    
+
     window.showAllMessages = async function() {
         await showAllHiddenMessages();
     };
-    
+
     // 初始化状态显示
     setTimeout(() => {
         updateHiddenStatus();
     }, 500);
-    
+
     console.log('[快速交互工具] 脚本加载完成');
 })();
