@@ -17,7 +17,7 @@
             </div>
         </div>
 
-        <!-- 第一行：隐藏和取消隐藏按钮 -->
+        <!-- 第一行：三个操作按钮 -->
         <div class="action-buttons">
             <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_hide'))" class="action-btn hide-btn">
                 <i class="fa-solid fa-eye-slash"></i> 隐藏消息
@@ -25,16 +25,14 @@
             <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_unhide'))" class="action-btn unhide-btn">
                 <i class="fa-solid fa-eye"></i> 取消隐藏
             </button>
-        </div>
-
-        <!-- 第二行：状态显示和显示全部按钮 -->
-        <div class="status-row">
-            <div id="hidden-status" class="status-display-flat">
-                <span class="status-text">正在加载状态...</span>
-            </div>
             <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_showAll'))" class="action-btn show-all-btn">
                 <i class="fa-solid fa-eye"></i> 显示全部
             </button>
+        </div>
+
+        <!-- 第二行：隐藏状态显示 -->
+        <div id="hidden-status" class="status-display-compact">
+            <span class="status-text">正在加载状态...</span>
         </div>
     </div>
 </div>
@@ -140,23 +138,18 @@
     border-color: #007bff;
     color: #007bff;
 }
-/* 状态行布局 */
-.status-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 10px;
-}
-
-.status-display-flat {
-    flex: 1;
+/* 紧凑状态显示 */
+.status-display-compact {
     background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
     border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
     border-radius: 4px;
     padding: 8px 12px;
+    margin-top: 10px;
     min-height: 32px;
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
 }
 .status-text {
     color: var(--SmartThemeTextColor);
@@ -169,10 +162,10 @@
     border: 1px solid rgba(220, 53, 69, 0.3);
     border-radius: 3px;
     padding: 2px 6px;
-    margin: 0 2px;
     font-size: 11px;
     color: #dc3545;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 @media (max-width: 400px) {
     .hide-controls {
