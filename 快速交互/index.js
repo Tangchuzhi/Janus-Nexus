@@ -280,4 +280,29 @@
     // 当脚本加载后即开始尝试初始化
     tryInit();
 
+    // 标签页切换功能
+    window.switchTab = function(tabName) {
+        // 隐藏所有标签页内容
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        // 移除所有标签按钮的active状态
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // 显示选中的标签页
+        const targetTab = document.getElementById(tabName + '-tab');
+        if (targetTab) {
+            targetTab.classList.add('active');
+        }
+        
+        // 激活对应的标签按钮
+        const targetBtn = document.querySelector(`[onclick="switchTab('${tabName}')"]`);
+        if (targetBtn) {
+            targetBtn.classList.add('active');
+        }
+    };
+
 })();
