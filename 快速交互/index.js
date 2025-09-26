@@ -148,12 +148,6 @@
         // 构建ASK命令 - 使用return=none避免显示长内容
         const askCommand = `/ask name=${selectedCharacter} return=none ${prompt}`;
         callSlashCommand(askCommand);
-        
-        if (typeof toastr !== 'undefined') {
-            toastr.success(`已向 ${selectedCharacter} 发送互动内容。`);
-        }
-        
-        // 清空输入框
         askPrompt.value = '';
     }
 
