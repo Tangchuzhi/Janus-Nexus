@@ -6,38 +6,44 @@
     // 存储隐藏的消息范围
     let hiddenRanges = [];
     
-    // 获取SillyTavern的triggerSlash函数
-    function getTriggerSlash() {
-        // 尝试多种可能的triggerSlash位置
-        if (window.triggerSlash && typeof window.triggerSlash === 'function') {
-            return window.triggerSlash;
+    // 获取SillyTavern的executeSlashCommands函数
+    function getExecuteSlashCommands() {
+        // 检查全局作用域
+        if (typeof executeSlashCommands !== 'undefined' && typeof executeSlashCommands === 'function') {
+            return executeSlashCommands;
         }
         
-        // 检查是否在全局作用域
-        if (typeof triggerSlash !== 'undefined' && typeof triggerSlash === 'function') {
-            return triggerSlash;
+        // 检查window对象
+        if (window.executeSlashCommands && typeof window.executeSlashCommands === 'function') {
+            return window.executeSlashCommands;
         }
         
-        // 检查SillyTavern的其他可能位置
-        if (window.SillyTavern && window.SillyTavern.triggerSlash) {
-            return window.SillyTavern.triggerSlash;
+        // 检查可能的其他位置
+        if (window.SillyTavern && window.SillyTavern.executeSlashCommands) {
+            return window.SillyTavern.executeSlashCommands;
         }
         
-        console.error('[快速交互工具] 未找到triggerSlash函数');
+        console.error('[快速交互工具] 未找到executeSlashCommands函数');
         return null;
     }
     
     // 调用SillyTavern的斜杠命令
     async function callSlashCommand(command) {
-        const triggerSlashFn = getTriggerSlash();
-        if (!triggerSlashFn) {
+        const executeSlashCommandsFn = getExecuteSlashCommands();
+        if (!executeSlashCommandsFn) {
             throw new Error('无法找到SillyTavern的命令执行函数');
         }
         
         try {
             console.log(`[快速交互工具] 执行命令: ${command}`);
-            await triggerSlashFn(command);
-            return true;
+            
+            // 根据SillyTavern的实现，executeSlashCommands需要完整的命令文本
+            const result = await executeSlashCommandsFn(command);
+            
+            // 等待一小段时间确保命令执行完成
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            return result;
         } catch (error) {
             console.error('[快速交互工具] 命令执行失败:', error);
             throw error;
