@@ -161,6 +161,28 @@
         showAllMessages();
     });
 
+    // 添加 CSS 样式来隐藏系统消息
+    function addHideStyles() {
+        const styleId = 'quick-tools-hide-styles';
+        if (document.getElementById(styleId)) return; // 避免重复添加
+        
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+            /* 完全隐藏被标记为系统消息的聊天消息 */
+            .mes[is_system="true"] {
+                display: none !important;
+            }
+            
+            /* 确保隐藏的消息不会占用空间 */
+            .mes[is_system="true"] + .mes {
+                margin-top: 0;
+            }
+        `;
+        document.head.appendChild(style);
+        console.log('[快速交互工具] 已添加隐藏样式');
+    }
+
     // --- 初始化 ---
     // 采用重试方式等待 SillyTavern 和 DOM 准备就绪
     function tryInit(retry = 0) {
@@ -171,6 +193,9 @@
             if (!context.hiddenRanges) {
                 context.hiddenRanges = [];
             }
+
+            // 添加隐藏样式
+            addHideStyles();
 
             // 确保UI已加载
             setTimeout(() => {
