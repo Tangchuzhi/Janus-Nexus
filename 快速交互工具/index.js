@@ -1,109 +1,177 @@
 (function() {
-    'use strict';
-    console.log('[快速交互工具] 脚本已加载并采用标准事件驱动模式。');
-    function dispatchCommand(command) {
-        const event = new CustomEvent('st:slash_command', {
-            detail: {
-                command: command,
-            },
-        });
-        document.dispatchEvent(event);
+    'true';
 
-        console.log(`[快速交互工具] 已派发命令事件: ${command}`);
+    // 确保只在顶层窗口运行，避免在iframe中重复执行
+    if (window.self !== window.top) {
+        return;
     }
 
-    let hiddenRanges = [];
+    const QUICK_TOOLS_ID = 'quick-tools-message-hider';
+    const EVENT_PREFIX = 'QuickTools_';
 
+    // 存储状态，使用SillyTavern的上下文对象来持久化
+    let context;
+
+    function getContext() {
+        if (typeof SillyTavern === 'object' && SillyTavern.getContext) {
+            return SillyTavern.getContext();
+        }
+        throw new Error('无法获取SillyTavern上下文，请确保在正确的环境中运行。');
+    }
+
+    /**
+     * SillyTavern的标准命令执行函数
+     * @param {string} command - 完整的斜杠命令，例如 "/hide 1-5"
+     */
+    function callSlashCommand(command) {
+        // 这是在SillyTavern扩展中执行命令的唯一标准方式
+        SillyTavern.systemRequest('send', {
+            type: 'cmd',
+            mes: command
+        });
+        console.log(`[快速交互工具] 已发送命令: ${command}`);
+    }
+
+    // 隐藏消息
+    function hideMessages(start, end) {
+        if (isNaN(start) || isNaN(end) || start <= 0 || end <= 0) {
+            SillyTavern.systemRequest('showToast', {
+                type: 'error',
+                message: '请输入有效的、大于0的楼层号。'
+            });
+            return;
+        }
+
+        if (start > end) {
+            [start, end] = [end, start];
+        }
+
+        const range = `${start}-${end}`;
+        callSlashCommand(`/hide ${range}`);
+
+        // 更新状态
+        if (!context.hiddenRanges.some(r => r.start === start && r.end === end)) {
+            context.hiddenRanges.push({
+                start,
+                end
+            });
+        }
+
+        updateHiddenStatus();
+        SillyTavern.systemRequest('showToast', {
+            type: 'success',
+            message: `已发送隐藏楼层 ${range} 的请求。`
+        });
+    }
+
+    // 取消隐藏消息
+    function unhideMessages(start, end) {
+        if (isNaN(start) || isNaN(end) || start <= 0 || end <= 0) {
+            SillyTavern.systemRequest('showToast', {
+                type: 'error',
+                message: '请输入有效的、大于0的楼层号。'
+            });
+            return;
+        }
+
+        if (start > end) {
+            [start, end] = [end, start];
+        }
+
+        const range = `${start}-${end}`;
+        callSlashCommand(`/unhide ${range}`);
+
+        // 更新状态
+        context.hiddenRanges = context.hiddenRanges.filter(r => !(r.start === start && r.end === end));
+
+        updateHiddenStatus();
+        SillyTavern.systemRequest('showToast', {
+            type: 'success',
+            message: `已发送取消隐藏楼层 ${range} 的请求。`
+        });
+    }
+
+    // 显示所有
+    function showAllMessages() {
+        if (context.hiddenRanges.length === 0) {
+            SillyTavern.systemRequest('showToast', {
+                type: 'info',
+                message: '当前没有已记录的隐藏消息。'
+            });
+            return;
+        }
+
+        const rangesToUnhide = [...context.hiddenRanges];
+        for (const range of rangesToUnhide) {
+            callSlashCommand(`/unhide ${range.start}-${range.end}`);
+        }
+
+        const totalRanges = context.hiddenRanges.length;
+        context.hiddenRanges = []; // 清空状态
+        updateHiddenStatus();
+        SillyTavern.systemRequest('showToast', {
+            type: 'success',
+            message: `已发送显示全部 ${totalRanges} 个范围的请求。`
+        });
+    }
+
+    // 更新UI显示
     function updateHiddenStatus() {
         const statusElement = document.getElementById('hidden-status');
         if (!statusElement) return;
 
-        if (hiddenRanges.length === 0) {
+        if (!context.hiddenRanges || context.hiddenRanges.length === 0) {
             statusElement.innerHTML = '<span class="status-text">暂无隐藏的消息</span>';
         } else {
-            const rangesHtml = hiddenRanges.map(range =>
+            const rangesHtml = context.hiddenRanges.map(range =>
                 `<span class="hidden-range">${range.start}-${range.end}楼</span>`
             ).join('');
             statusElement.innerHTML = `<span class="status-text">已隐藏:</span> ${rangesHtml}`;
         }
     }
 
-    // --- 将你的UI交互函数与新的命令派发机制连接起来 ---
-
-    // 隐藏消息
-    window.hideMessages = function() {
-        const startFloor = parseInt(document.getElementById('start-floor').value);
-        const endFloor = parseInt(document.getElementById('end-floor').value);
-
-        if (isNaN(startFloor) || isNaN(endFloor) || startFloor <= 0 || endFloor <= 0) {
-            toastr.error('请输入有效的、大于0的楼层号', '输入错误');
-            return;
-        }
-
-        const [start, end] = startFloor > endFloor ? [endFloor, startFloor] : [startFloor, endFloor];
-        const range = `${start}-${end}`;
-
-        // 使用新的派发函数
-        dispatchCommand(`/hide ${range}`);
-
-        // 更新本地状态
-        if (!hiddenRanges.some(r => r.start === start && r.end === end)) {
-            hiddenRanges.push({ start, end });
-        }
-        updateHiddenStatus();
-
-        toastr.success(`已发送隐藏请求: ${range}楼`, '操作成功');
-    };
-
-    // 取消隐藏消息
-    window.unhideMessages = function() {
-        const startFloor = parseInt(document.getElementById('start-floor').value);
-        const endFloor = parseInt(document.getElementById('end-floor').value);
-
-        if (isNaN(startFloor) || isNaN(endFloor) || startFloor <= 0 || endFloor <= 0) {
-            toastr.error('请输入有效的、大于0的楼层号', '输入错误');
-            return;
-        }
-
-        const [start, end] = startFloor > endFloor ? [endFloor, startFloor] : [startFloor, endFloor];
-        const range = `${start}-${end}`;
-
-        // 使用新的派发函数
-        dispatchCommand(`/unhide ${range}`);
-
-        // 更新本地状态
-        hiddenRanges = hiddenRanges.filter(r => !(r.start === start && r.end === end));
-        updateHiddenStatus();
-
-        toastr.success(`已发送取消隐藏请求: ${range}楼`, '操作成功');
-    };
-
-    // 显示所有（基于本脚本记录的）
-    window.showAllMessages = function() {
-        if (hiddenRanges.length === 0) {
-            toastr.info('根据记录，没有需要取消隐藏的消息', '提示');
-            return;
-        }
-
-        // 创建一个副本进行迭代，同时清空原数组
-        const rangesToUnhide = [...hiddenRanges];
-        hiddenRanges = [];
-
-        // 批量发送取消隐藏命令
-        for (const range of rangesToUnhide) {
-            dispatchCommand(`/unhide ${range.start}-${range.end}`);
-        }
-
-        updateHiddenStatus();
-        toastr.success(`已为 ${rangesToUnhide.length} 个范围发送“显示全部”请求`, '操作成功');
-    };
-
-    // 初始加载时更新一次状态显示
-    document.addEventListener('DOMContentLoaded', () => {
-        // 可以在这里从localStorage加载之前保存的hiddenRanges
-        // 例如: hiddenRanges = JSON.parse(localStorage.getItem('myPluginHiddenRanges')) || [];
-        updateHiddenStatus();
+    // --- 事件监听 ---
+    // 这是SillyTavern扩展与HTML交互的标准方式
+    document.addEventListener(`${EVENT_PREFIX}hide`, () => {
+        const start = parseInt(document.getElementById('start-floor').value);
+        const end = parseInt(document.getElementById('end-floor').value);
+        hideMessages(start, end);
     });
 
-    console.log('[快速交互工具] UI功能已绑定到 window 对象。');
+    document.addEventListener(`${EVENT_PREFIX}unhide`, () => {
+        const start = parseInt(document.getElementById('start-floor').value);
+        const end = parseInt(document.getElementById('end-floor').value);
+        unhideMessages(start, end);
+    });
+
+    document.addEventListener(`${EVENT_PREFIX}showAll`, () => {
+        showAllMessages();
+    });
+
+    // --- 初始化 ---
+    // 监听SillyTavern的 'tavern:ready' 事件，确保在所有模块加载完毕后执行
+    document.addEventListener('tavern:ready', () => {
+        try {
+            context = getContext();
+
+            // 初始化状态存储
+            if (!context.hiddenRanges) {
+                context.hiddenRanges = [];
+            }
+
+            // 确保UI已加载
+            setTimeout(() => {
+                updateHiddenStatus();
+            }, 500); // 延迟以确保DOM元素可用
+
+            console.log('[快速交互工具] 脚本加载并初始化完成。');
+        } catch (error) {
+            console.error('[快速交互工具] 初始化失败:', error);
+            SillyTavern.systemRequest('showToast', {
+                type: 'error',
+                message: '快速交互工具初始化失败，请检查控制台。'
+            });
+        }
+    });
+
 })();
