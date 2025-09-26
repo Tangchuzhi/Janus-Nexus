@@ -979,15 +979,21 @@ jQuery(() => {
             </div>
         `);
         console.log('[Janusの百宝箱] 扩展界面已加载完成');
-        
+
         setTimeout(() => {
             getVersionFromManifest();
             setTimeout(() => {
                 updateVersionDisplay();
                 // 启动自动版本检查，每1分钟检查一次
                 startVersionCheckInterval();
+        
+                // 加载默认显示的快速交互工具
+                setTimeout(() => {
+                    loadQuickToolsContent();
+                }, 500);
             }, 1000);
         }, 500);
+
         
         // 不显示加载成功通知
     }, 2000);
