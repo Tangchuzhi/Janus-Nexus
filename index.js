@@ -258,8 +258,12 @@ jQuery(() => {
             case 'quickTools':
                 content = `
                     <div class="janus-tab-content">
-                        <h4><i class="fa-solid fa-bolt"></i> 快速交互工具</h4>
-                        <p>这里将显示快速交互工具界面...</p>
+                        <div id="quick-tools-content">
+                            <div style="text-align: center; padding: 20px;">
+                                <i class="fa-solid fa-spinner fa-spin"></i>
+                                <p>正在加载快速交互工具...</p>
+                            </div>
+                        </div>
                     </div>
                 `;
                 break;
