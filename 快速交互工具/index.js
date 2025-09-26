@@ -6,141 +6,120 @@
     // 存储隐藏的消息范围
     let hiddenRanges = [];
     
-    // 获取聊天消息元素
-    function getChatMessages() {
-        // 尝试多种可能的聊天容器选择器
-        const selectors = [
-            '#chat .mes',
-            '.mes',
-            '#sheld .mes',
-            '.chat-container .mes',
-            '.messages-container .mes'
-        ];
-        
-        for (const selector of selectors) {
-            const messages = document.querySelectorAll(selector);
-            if (messages.length > 0) {
-                return Array.from(messages);
-            }
+    // 获取SillyTavern的triggerSlash函数
+    function getTriggerSlash() {
+        // 尝试多种可能的triggerSlash位置
+        if (window.triggerSlash && typeof window.triggerSlash === 'function') {
+            return window.triggerSlash;
         }
         
-        console.warn('[快速交互工具] 未找到聊天消息元素');
-        return [];
+        // 检查是否在全局作用域
+        if (typeof triggerSlash !== 'undefined' && typeof triggerSlash === 'function') {
+            return triggerSlash;
+        }
+        
+        // 检查SillyTavern的其他可能位置
+        if (window.SillyTavern && window.SillyTavern.triggerSlash) {
+            return window.SillyTavern.triggerSlash;
+        }
+        
+        console.error('[快速交互工具] 未找到triggerSlash函数');
+        return null;
     }
     
-    // 获取消息的楼层号
-    function getMessageFloor(messageElement, index) {
-        // 尝试从元素中获取楼层号
-        const floorElement = messageElement.querySelector('.mes_count, .message-floor, .floor-number');
-        if (floorElement) {
-            const floorText = floorElement.textContent.trim();
-            const floorNumber = parseInt(floorText.replace(/[^\d]/g, ''));
-            if (!isNaN(floorNumber)) {
-                return floorNumber;
-            }
+    // 调用SillyTavern的斜杠命令
+    async function callSlashCommand(command) {
+        const triggerSlashFn = getTriggerSlash();
+        if (!triggerSlashFn) {
+            throw new Error('无法找到SillyTavern的命令执行函数');
         }
         
-        // 如果没有找到楼层号，使用索引+1作为楼层号
-        return index + 1;
+        try {
+            console.log(`[快速交互工具] 执行命令: ${command}`);
+            await triggerSlashFn(command);
+            return true;
+        } catch (error) {
+            console.error('[快速交互工具] 命令执行失败:', error);
+            throw error;
+        }
     }
     
     // 隐藏指定范围的消息
-    function hideMessagesInRange(startFloor, endFloor) {
+    async function hideMessagesInRange(startFloor, endFloor) {
         if (startFloor > endFloor) {
             [startFloor, endFloor] = [endFloor, startFloor];
         }
         
-        const messages = getChatMessages();
-        if (messages.length === 0) {
-            toastr.warning('未找到聊天消息', '隐藏失败');
-            return false;
-        }
-        
-        let hiddenCount = 0;
-        
-        messages.forEach((message, index) => {
-            const floor = getMessageFloor(message, index);
-            if (floor >= startFloor && floor <= endFloor) {
-                message.style.display = 'none';
-                message.setAttribute('data-janus-hidden', 'true');
-                message.setAttribute('data-janus-floor', floor.toString());
-                hiddenCount++;
-            }
-        });
-        
-        if (hiddenCount > 0) {
+        try {
+            const range = `${startFloor}-${endFloor}`;
+            await callSlashCommand(`/hide ${range}`);
+            
             // 记录隐藏范围
-            const existingRange = hiddenRanges.find(r => r.start === startFloor && r.end === endFloor);
-            if (!existingRange) {
-                hiddenRanges.push({ start: startFloor, end: endFloor, count: hiddenCount });
+            const existingRangeIndex = hiddenRanges.findIndex(r => r.start === startFloor && r.end === endFloor);
+            if (existingRangeIndex === -1) {
+                hiddenRanges.push({ start: startFloor, end: endFloor });
             }
             
             updateHiddenStatus();
-            toastr.success(`已隐藏 ${hiddenCount} 条消息 (${startFloor}-${endFloor}楼)`, '隐藏成功');
+            toastr.success(`已隐藏楼层 ${range}`, '隐藏成功');
             return true;
-        } else {
-            toastr.info(`在 ${startFloor}-${endFloor}楼 范围内未找到消息`, '未找到消息');
+        } catch (error) {
+            console.error('[快速交互工具] 隐藏消息失败:', error);
+            toastr.error(`隐藏失败: ${error.message}`, '隐藏失败');
             return false;
         }
     }
     
     // 取消隐藏指定范围的消息
-    function unhideMessagesInRange(startFloor, endFloor) {
+    async function unhideMessagesInRange(startFloor, endFloor) {
         if (startFloor > endFloor) {
             [startFloor, endFloor] = [endFloor, startFloor];
         }
         
-        const messages = document.querySelectorAll('[data-janus-hidden="true"]');
-        if (messages.length === 0) {
-            toastr.info('没有隐藏的消息', '取消隐藏');
-            return false;
-        }
-        
-        let unhiddenCount = 0;
-        
-        messages.forEach(message => {
-            const floor = parseInt(message.getAttribute('data-janus-floor'));
-            if (floor >= startFloor && floor <= endFloor) {
-                message.style.display = '';
-                message.removeAttribute('data-janus-hidden');
-                message.removeAttribute('data-janus-floor');
-                unhiddenCount++;
-            }
-        });
-        
-        if (unhiddenCount > 0) {
+        try {
+            const range = `${startFloor}-${endFloor}`;
+            await callSlashCommand(`/unhide ${range}`);
+            
             // 移除记录的隐藏范围
             hiddenRanges = hiddenRanges.filter(r => !(r.start === startFloor && r.end === endFloor));
             
             updateHiddenStatus();
-            toastr.success(`已显示 ${unhiddenCount} 条消息 (${startFloor}-${endFloor}楼)`, '取消隐藏成功');
+            toastr.success(`已取消隐藏楼层 ${range}`, '取消隐藏成功');
             return true;
-        } else {
-            toastr.info(`在 ${startFloor}-${endFloor}楼 范围内未找到隐藏的消息`, '未找到隐藏消息');
+        } catch (error) {
+            console.error('[快速交互工具] 取消隐藏消息失败:', error);
+            toastr.error(`取消隐藏失败: ${error.message}`, '取消隐藏失败');
             return false;
         }
     }
     
     // 显示所有隐藏的消息
-    function showAllHiddenMessages() {
-        const hiddenMessages = document.querySelectorAll('[data-janus-hidden="true"]');
-        if (hiddenMessages.length === 0) {
+    async function showAllHiddenMessages() {
+        if (hiddenRanges.length === 0) {
             toastr.info('没有隐藏的消息', '显示全部');
             return false;
         }
         
-        hiddenMessages.forEach(message => {
-            message.style.display = '';
-            message.removeAttribute('data-janus-hidden');
-            message.removeAttribute('data-janus-floor');
-        });
-        
-        const totalCount = hiddenMessages.length;
-        hiddenRanges = [];
-        updateHiddenStatus();
-        
-        toastr.success(`已显示所有隐藏的消息 (${totalCount} 条)`, '显示全部成功');
-        return true;
+        try {
+            // 逐个取消隐藏所有范围
+            const rangesToUnhide = [...hiddenRanges]; // 创建副本
+            
+            for (const range of rangesToUnhide) {
+                const rangeStr = `${range.start}-${range.end}`;
+                await callSlashCommand(`/unhide ${rangeStr}`);
+            }
+            
+            const totalRanges = rangesToUnhide.length;
+            hiddenRanges = [];
+            updateHiddenStatus();
+            
+            toastr.success(`已显示所有隐藏的消息 (${totalRanges} 个范围)`, '显示全部成功');
+            return true;
+        } catch (error) {
+            console.error('[快速交互工具] 显示全部消息失败:', error);
+            toastr.error(`显示全部失败: ${error.message}`, '显示全部失败');
+            return false;
+        }
     }
     
     // 更新隐藏状态显示
@@ -152,41 +131,14 @@
             statusElement.innerHTML = '<span class="status-text">暂无隐藏的消息</span>';
         } else {
             const rangesHtml = hiddenRanges.map(range => 
-                `<span class="hidden-range">${range.start}-${range.end}楼 (${range.count}条)</span>`
+                `<span class="hidden-range">${range.start}-${range.end}楼</span>`
             ).join('');
             statusElement.innerHTML = `<span class="status-text">已隐藏:</span> ${rangesHtml}`;
         }
     }
     
-    // 解析命令
-    function parseCommand(command) {
-        const trimmedCommand = command.trim();
-        
-        // 解析 /hide 或 /unhide 命令
-        const hideMatch = trimmedCommand.match(/^\/hide\s+(\d+)-(\d+)$/i);
-        const unhideMatch = trimmedCommand.match(/^\/unhide\s+(\d+)-(\d+)$/i);
-        
-        if (hideMatch) {
-            return {
-                action: 'hide',
-                startFloor: parseInt(hideMatch[1]),
-                endFloor: parseInt(hideMatch[2])
-            };
-        }
-        
-        if (unhideMatch) {
-            return {
-                action: 'unhide',
-                startFloor: parseInt(unhideMatch[1]),
-                endFloor: parseInt(unhideMatch[2])
-            };
-        }
-        
-        return null;
-    }
-    
     // 全局函数，供HTML调用
-    window.hideMessages = function() {
+    window.hideMessages = async function() {
         const startFloor = parseInt(document.getElementById('start-floor').value);
         const endFloor = parseInt(document.getElementById('end-floor').value);
         
@@ -200,10 +152,10 @@
             return;
         }
         
-        hideMessagesInRange(startFloor, endFloor);
+        await hideMessagesInRange(startFloor, endFloor);
     };
     
-    window.unhideMessages = function() {
+    window.unhideMessages = async function() {
         const startFloor = parseInt(document.getElementById('start-floor').value);
         const endFloor = parseInt(document.getElementById('end-floor').value);
         
@@ -217,57 +169,12 @@
             return;
         }
         
-        unhideMessagesInRange(startFloor, endFloor);
+        await unhideMessagesInRange(startFloor, endFloor);
     };
     
-    window.showAllMessages = function() {
-        showAllHiddenMessages();
+    window.showAllMessages = async function() {
+        await showAllHiddenMessages();
     };
-    
-    window.executeCommand = function() {
-        const commandInput = document.getElementById('command-input');
-        const command = commandInput.value.trim();
-        
-        if (!command) {
-            toastr.warning('请输入命令', '输入为空');
-            return;
-        }
-        
-        const parsedCommand = parseCommand(command);
-        
-        if (!parsedCommand) {
-            toastr.error('无效的命令格式\n正确格式: /hide 1-5 或 /unhide 1-5', '命令错误');
-            return;
-        }
-        
-        if (parsedCommand.action === 'hide') {
-            hideMessagesInRange(parsedCommand.startFloor, parsedCommand.endFloor);
-        } else if (parsedCommand.action === 'unhide') {
-            unhideMessagesInRange(parsedCommand.startFloor, parsedCommand.endFloor);
-        }
-        
-        // 清空输入框
-        commandInput.value = '';
-    };
-    
-    window.setCommand = function(command) {
-        const commandInput = document.getElementById('command-input');
-        if (commandInput) {
-            commandInput.value = command;
-        }
-    };
-    
-    // 添加回车键执行命令
-    setTimeout(() => {
-        const commandInput = document.getElementById('command-input');
-        if (commandInput) {
-            commandInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    executeCommand();
-                }
-            });
-        }
-    }, 100);
     
     // 初始化状态显示
     setTimeout(() => {
