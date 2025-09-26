@@ -17,27 +17,28 @@
             </div>
         </div>
 
+        <!-- 第一行：隐藏和取消隐藏按钮 -->
         <div class="action-buttons">
-            <!--
-                使用 document.dispatchEvent 发送自定义事件，
-                这是SillyTavern中HTML与JS脚本交互的标准方式。
-            -->
             <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_hide'))" class="action-btn hide-btn">
                 <i class="fa-solid fa-eye-slash"></i> 隐藏消息
             </button>
             <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_unhide'))" class="action-btn unhide-btn">
                 <i class="fa-solid fa-eye"></i> 取消隐藏
             </button>
-            <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_showAll'))" class="action-btn show-all-btn">
-                <i class="fa-solid fa-eye"></i> 显示全部
-            </button>
         </div>
 
-        <!-- 当前状态显示 -->
-        <div class="status-section">
-            <h6><i class="fa-solid fa-info-circle"></i> 当前状态</h6>
-            <div id="hidden-status" class="status-display">
-                <span class="status-text">正在加载状态...</span>
+        <!-- 第二行：当前状态和显示全部 -->
+        <div class="status-and-show-all">
+            <div class="status-section">
+                <h6><i class="fa-solid fa-info-circle"></i> 当前状态</h6>
+                <div id="hidden-status" class="status-display">
+                    <span class="status-text">正在加载状态...</span>
+                </div>
+            </div>
+            <div class="show-all-section">
+                <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_showAll'))" class="action-btn show-all-btn">
+                    <i class="fa-solid fa-eye"></i> 显示全部
+                </button>
             </div>
         </div>
     </div>
@@ -144,10 +145,28 @@
     border-color: #007bff;
     color: #007bff;
 }
+/* 第二行布局：状态和显示全部按钮 */
+.status-and-show-all {
+    display: flex;
+    gap: 15px;
+    margin-top: 15px;
+    align-items: flex-start;
+}
+
 .status-section {
+    flex: 1;
     border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
     padding-top: 15px;
-    margin-top: 15px;
+}
+
+.show-all-section {
+    display: flex;
+    align-items: flex-end;
+    padding-top: 15px;
+}
+
+.show-all-section .action-btn {
+    min-width: 100px;
 }
 .status-display {
     background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
@@ -185,6 +204,21 @@
     .input-group input {
         padding: 6px 8px;
         font-size: 12px;
+    }
+    
+    /* 小屏幕下第二行改为垂直布局 */
+    .status-and-show-all {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .show-all-section {
+        align-items: stretch;
+        padding-top: 0;
+    }
+    
+    .show-all-section .action-btn {
+        width: 100%;
     }
 }
 </style>
