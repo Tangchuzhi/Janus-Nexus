@@ -27,19 +27,14 @@
             </button>
         </div>
 
-        <!-- 第二行：当前状态和显示全部 -->
-        <div class="status-and-show-all">
-            <div class="status-section">
-                <h6><i class="fa-solid fa-info-circle"></i> 当前状态</h6>
-                <div id="hidden-status" class="status-display">
-                    <span class="status-text">正在加载状态...</span>
-                </div>
+        <!-- 第二行：状态显示和显示全部按钮 -->
+        <div class="status-row">
+            <div id="hidden-status" class="status-display-flat">
+                <span class="status-text">正在加载状态...</span>
             </div>
-            <div class="show-all-section">
-                <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_showAll'))" class="action-btn show-all-btn">
-                    <i class="fa-solid fa-eye"></i> 显示全部
-                </button>
-            </div>
+            <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_showAll'))" class="action-btn show-all-btn">
+                <i class="fa-solid fa-eye"></i> 显示全部
+            </button>
         </div>
     </div>
 </div>
@@ -115,7 +110,7 @@
 .action-buttons {
     display: flex;
     gap: 10px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     flex-wrap: wrap;
 }
 .action-btn {
@@ -145,35 +140,23 @@
     border-color: #007bff;
     color: #007bff;
 }
-/* 第二行布局：状态和显示全部按钮 */
-.status-and-show-all {
+/* 状态行布局 */
+.status-row {
     display: flex;
-    gap: 15px;
-    margin-top: 15px;
-    align-items: flex-start;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
 }
 
-.status-section {
+.status-display-flat {
     flex: 1;
-    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
-    padding-top: 15px;
-}
-
-.show-all-section {
-    display: flex;
-    align-items: flex-end;
-    padding-top: 15px;
-}
-
-.show-all-section .action-btn {
-    min-width: 100px;
-}
-.status-display {
     background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
     border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
     border-radius: 4px;
-    padding: 10px;
-    min-height: 40px;
+    padding: 8px 12px;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
 }
 .status-text {
     color: var(--SmartThemeTextColor);
@@ -186,9 +169,10 @@
     border: 1px solid rgba(220, 53, 69, 0.3);
     border-radius: 3px;
     padding: 2px 6px;
-    margin: 2px;
+    margin: 0 2px;
     font-size: 11px;
     color: #dc3545;
+    white-space: nowrap;
 }
 @media (max-width: 400px) {
     .hide-controls {
@@ -204,21 +188,6 @@
     .input-group input {
         padding: 6px 8px;
         font-size: 12px;
-    }
-    
-    /* 小屏幕下第二行改为垂直布局 */
-    .status-and-show-all {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .show-all-section {
-        align-items: stretch;
-        padding-top: 0;
-    }
-    
-    .show-all-section .action-btn {
-        width: 100%;
     }
 }
 </style>
