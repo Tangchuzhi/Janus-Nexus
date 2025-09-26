@@ -147,6 +147,45 @@ jQuery(() => {
             }
         }
     }
+
+    // 加载快速交互工具内容
+    async function loadQuickToolsContent() {
+        try {
+            const response = await fetch('scripts/extensions/third-party/Janus-Treasure-chest/快速交互工具/index.html');
+            if (response.ok) {
+                const html = await response.text();
+                const contentDiv = document.getElementById('quick-tools-content');
+                if (contentDiv) {
+                    contentDiv.innerHTML = html;
+                
+                    // 加载JavaScript
+                    const script = document.createElement('script');
+                    script.src = 'scripts/extensions/third-party/Janus-Treasure-chest/快速交互工具/index.js';
+                    script.onload = () => {
+                        console.log('[Janusの百宝箱] 快速交互工具脚本加载完成');
+                    };
+                    script.onerror = () => {
+                        console.error('[Janusの百宝箱] 快速交互工具脚本加载失败');
+                    };
+                    document.head.appendChild(script);
+                }
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        } catch (error) {
+            console.error('[Janusの百宝箱] 加载快速交互工具失败:', error);
+            const contentDiv = document.getElementById('quick-tools-content');
+            if (contentDiv) {
+                contentDiv.innerHTML = `
+                    <div class="janus-tab-content">
+                        <h4><i class="fa-solid fa-bolt"></i> 快速交互工具</h4>
+                        <p style="color: #dc3545;">加载失败: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    }
+
     
     // 加载游戏加载器
     async function loadGameLoader() {
