@@ -887,11 +887,11 @@ class SudokuGame {
             // 更新样式
             const isError = this.hasError(row, col);
             if (isError) {
-                cell.style.background = '#ffebee';
-                cell.style.color = '#d32f2f';
+                cell.style.background = 'rgba(231, 76, 60, 0.2)';
+                cell.style.color = '#e74c3c';
             } else {
-                cell.style.background = 'white';
-                cell.style.color = '#333';
+                cell.style.background = 'var(--SmartThemeInputColor, white)';
+                cell.style.color = 'var(--SmartThemeTextColor, #333)';
             }
         }
     }
@@ -1203,9 +1203,9 @@ class SudokuGame {
             }
 
             .sudoku-game-container {
-                background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 249, 250, 0.95));
+                background: var(--SmartThemeBodyColor, rgba(255, 255, 255, 0.95));
                 backdrop-filter: blur(20px);
-                color: #2c3e50;
+                color: var(--SmartThemeTextColor, #2c3e50);
                 padding: 0;
                 border-radius: 16px;
                 width: 90%;
@@ -1213,7 +1213,7 @@ class SudokuGame {
                 min-width: 320px;
                 text-align: center;
                 box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-                border: 1px solid rgba(255, 255, 255, 0.3);
+                border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.3));
                 overflow: hidden;
                 display: flex;
                 flex-direction: column;
@@ -1221,14 +1221,6 @@ class SudokuGame {
                 margin: auto;
                 max-height: 90vh;
                 transition: all 0.3s ease;
-            }
-
-            /* 夜间模式数独弹窗 */
-            .dark-mode .sudoku-game-container {
-                background: linear-gradient(135deg, rgba(30, 30, 30, 0.95), rgba(45, 45, 45, 0.95));
-                color: #ffffff;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-                border: 1px solid rgba(255, 255, 255, 0.1);
             }
 
             .sudoku-game-header {
@@ -1341,18 +1333,12 @@ class SudokuGame {
 
             /* 数独网格容器 */
             .sudoku-grid-container {
-                background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 249, 250, 0.95));
+                background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.95));
                 border-radius: 12px;
                 padding: 15px;
                 box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-                border: 2px solid rgba(52, 152, 219, 0.2);
+                border: 2px solid var(--SmartThemeBorderColor, rgba(52, 152, 219, 0.2));
                 margin-bottom: 20px;
-            }
-
-            .dark-mode .sudoku-grid-container {
-                background: linear-gradient(135deg, rgba(35, 35, 35, 0.95), rgba(45, 45, 45, 0.95));
-                border-color: rgba(85, 85, 85, 0.6);
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             }
 
             /* 数独网格 */
@@ -1363,29 +1349,24 @@ class SudokuGame {
                 gap: 1px;
                 width: 360px;
                 height: 360px;
-                background: #34495e;
-                border: 3px solid #34495e;
+                background: var(--SmartThemeBorderColor, #34495e);
+                border: 3px solid var(--SmartThemeBorderColor, #34495e);
                 border-radius: 8px;
                 overflow: hidden;
                 box-sizing: border-box;
                 aspect-ratio: 1;
             }
 
-            .dark-mode .sudoku-grid {
-                background: #2c3e50;
-                border-color: #2c3e50;
-            }
-
             /* 数独单元格 */
             .sudoku-cell {
-                background: #ffffff;
+                background: var(--SmartThemeInputColor, #ffffff);
                 border: none;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 font-size: 18px;
                 font-weight: bold;
-                color: #2c3e50;
+                color: var(--SmartThemeTextColor, #2c3e50);
                 cursor: pointer;
                 transition: all 0.2s ease;
                 outline: none;
@@ -1397,12 +1378,12 @@ class SudokuGame {
             }
 
             .sudoku-cell:focus {
-                background: rgba(52, 152, 219, 0.2);
-                box-shadow: inset 0 0 0 2px rgba(52, 152, 219, 0.5);
+                background: var(--SmartThemeChatTintColor, rgba(52, 152, 219, 0.2));
+                box-shadow: inset 0 0 0 2px var(--SmartThemeQuoteColor, rgba(52, 152, 219, 0.5));
             }
 
             .sudoku-cell:hover:not(.sudoku-cell-given) {
-                background: rgba(52, 152, 219, 0.1);
+                background: var(--SmartThemeChatTintColor, rgba(52, 152, 219, 0.1));
             }
 
             /* 3x3块的边界 - 右边界（第3、6列） */
