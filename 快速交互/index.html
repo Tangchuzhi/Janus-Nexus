@@ -235,13 +235,13 @@
 
 /* 发送按钮样式 */
 .send-btn {
-    background: rgba(40, 167, 69, 0.1);
-    border: 1px solid rgba(40, 167, 69, 0.3);
+    background: var(--SmartThemeBodyColor, #1e1e1e);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
     border-radius: 4px;
-    color: #28a745;
+    color: var(--SmartThemeTextColor);
     padding: 8px 12px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 14px;
     min-width: 40px;
     height: 40px;
     display: flex;
@@ -251,9 +251,9 @@
 }
 
 .send-btn:hover {
-    background: rgba(40, 167, 69, 0.2);
-    border-color: #28a745;
-    color: #28a745;
+    background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+    border-color: var(--SmartThemeQuoteColor, #007bff);
+    color: var(--SmartThemeQuoteColor, #007bff);
 }
 @media (max-width: 400px) {
     .hide-controls {
