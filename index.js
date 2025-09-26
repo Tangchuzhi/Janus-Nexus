@@ -371,7 +371,14 @@ jQuery(() => {
         
         contentArea.innerHTML = content;
         console.log(`[Janusの百宝箱] 切换到标签页: ${tabName}`);
-        
+
+        // 如果是快速交互工具标签页，加载内容
+        if (tabName === 'quickTools') {
+            setTimeout(() => {
+                loadQuickToolsContent();
+            }, 100);
+        }
+      
         // 如果是打包助手标签页，加载内容
         if (tabName === 'presetHelper') {
             setTimeout(() => {
