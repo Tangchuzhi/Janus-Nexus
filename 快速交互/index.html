@@ -171,7 +171,7 @@
 }
 
 .character-select {
-    background: var(--SmartThemeBodyColor);
+    background: var(--SmartThemeInputColor, #ffffff);
     border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
     border-radius: 4px;
     color: var(--SmartThemeTextColor);
@@ -192,7 +192,7 @@
 
 .full-width textarea {
     width: 100%;
-    background: var(--SmartThemeBodyColor);
+    background: var(--SmartThemeInputColor, #ffffff);
     border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
     border-radius: 4px;
     color: var(--SmartThemeTextColor);
@@ -235,12 +235,12 @@
 
 /* 发送按钮样式 */
 .send-btn {
-    flex: 1;
     min-width: 40px;
-    padding: 10px 15px;
+    width: 40px;
+    padding: 8px;
     border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
     border-radius: 4px;
-    background: var(--SmartThemeBodyColor);
+    background: var(--SmartThemeInputColor, #ffffff);
     color: var(--SmartThemeTextColor);
     cursor: pointer;
     font-size: 14px;
@@ -249,6 +249,7 @@
     align-items: center;
     justify-content: center;
     height: 40px;
+    flex-shrink: 0;
 }
 
 .send-btn:hover {
