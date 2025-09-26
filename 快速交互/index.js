@@ -68,14 +68,6 @@
         callSlashCommand(`/hide ${range}`);
 
         // 更新状态
-        if (!context.hiddenRanges.some(r => r.start === start && r.end === end)) {
-            context.hiddenRanges.push({
-                start,
-                end
-            });
-        }
-
-        updateHiddenStatus();
         if (typeof toastr !== 'undefined') {
             const rangeText = start === 0 && end === 0 ? '开场白' : 
                              start === 0 ? `开场白和楼层 1-${end}` : 
@@ -101,10 +93,6 @@
         const range = `${start}-${end}`;
         callSlashCommand(`/unhide ${range}`);
 
-        // 更新状态
-        context.hiddenRanges = context.hiddenRanges.filter(r => !(r.start === start && r.end === end));
-
-        updateHiddenStatus();
         if (typeof toastr !== 'undefined') {
             const rangeText = start === 0 && end === 0 ? '开场白' : 
                              start === 0 ? `开场白和楼层 1-${end}` : 
@@ -115,46 +103,13 @@
 
     // 显示所有
     function showAllMessages() {
-        if (context.hiddenRanges.length === 0) {
-            if (typeof toastr !== 'undefined') {
-                toastr.info('当前没有已记录的隐藏消息。');
-            }
-            return;
-        }
-
-        const rangesToUnhide = [...context.hiddenRanges];
-        for (const range of rangesToUnhide) {
-            callSlashCommand(`/unhide ${range.start}-${range.end}`);
-        }
-
-        const totalRanges = context.hiddenRanges.length;
-        context.hiddenRanges = []; // 清空状态
-        updateHiddenStatus();
+        // 直接发送 /unhide 命令，让 SillyTavern 处理所有隐藏的消息
+        callSlashCommand('/unhide');
         if (typeof toastr !== 'undefined') {
-            toastr.success(`已发送显示全部 ${totalRanges} 个范围的请求。`);
+            toastr.success('已发送显示全部消息的请求。');
         }
     }
 
-    // 更新UI显示
-    function updateHiddenStatus() {
-        const statusElement = document.getElementById('hidden-status');
-        if (!statusElement) return;
-
-        if (!context.hiddenRanges || context.hiddenRanges.length === 0) {
-            statusElement.innerHTML = '<span class="status-text">暂无隐藏的消息</span>';
-        } else {
-            const rangesHtml = context.hiddenRanges.map(range => {
-                if (range.start === 0 && range.end === 0) {
-                    return '<span class="hidden-range">开场白</span>';
-                } else if (range.start === 0) {
-                    return `<span class="hidden-range">开场白+${range.end}楼</span>`;
-                } else {
-                    return `<span class="hidden-range">${range.start}-${range.end}楼</span>`;
-                }
-            }).join('');
-            statusElement.innerHTML = `<span class="status-text">已隐藏:</span> ${rangesHtml}`;
-        }
-    }
 
     // --- 事件监听 ---
     // 这是SillyTavern扩展与HTML交互的标准方式
@@ -202,18 +157,10 @@
         try {
             context = getContext();
 
-            // 初始化状态存储
-            if (!context.hiddenRanges) {
-                context.hiddenRanges = [];
-            }
 
             // 添加隐藏样式
             addHideStyles();
 
-            // 确保UI已加载
-            setTimeout(() => {
-                updateHiddenStatus();
-            }, 300);
 
             console.log('[快速交互] 脚本加载并初始化完成。');
         } catch (error) {
