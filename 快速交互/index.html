@@ -3,9 +3,7 @@
 
     <!-- 消息隐藏工具 -->
     <div class="tool-section">
-        <h5><i class="fa-solid fa-eye-slash"></i> 消息隐藏工具</h5>
-        <p class="tool-description">快速隐藏或显示指定楼层范围的消息。</p>
-
+        <h6><i class="fa-solid fa-eye-slash"></i> 消息隐藏工具</h6>
         <div class="hide-controls">
             <div class="input-group">
                 <label for="start-floor">起始楼层:</label>
@@ -30,11 +28,35 @@
             </button>
         </div>
 
+        <!-- 双卡联动工具 -->
+        <div class="tool-section">
+            <h6><i class="fa-solid fa-link"></i> 双卡联动工具</h6>
+           
+            <div class="ask-controls">
+                <div class="input-group">
+                    <label for="character-select">目标角色:</label>
+                    <select id="character-select" class="character-select">
+                        <option value="">请选择角色...</option>
+                    </select>
+                </div>
+                
+                <div class="input-group full-width">
+                    <label for="ask-prompt">互动内容:</label>
+                    <textarea id="ask-prompt" placeholder="请输入互动内容..." rows="3"></textarea>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_ask'))" class="action-btn ask-btn">
+                    <i class="fa-solid fa-paper-plane"></i> 发送
+                </button>
+            </div>
+        </div>
+
     </div>
 </div>
 
 <style>
-/* 你的CSS样式保持不变，此处省略 */
 .quick-tools-container {
     padding: 10px;
 }
@@ -133,6 +155,71 @@
     background: rgba(0, 123, 255, 0.1);
     border-color: #007bff;
     color: #007bff;
+}
+
+/* 双卡联动工具样式 */
+.tool-section {
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+    padding-top: 15px;
+    margin-top: 15px;
+}
+
+.ask-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.character-select {
+    background: var(--SmartThemeBodyColor, #1e1e1e);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+    border-radius: 4px;
+    color: var(--SmartThemeTextColor);
+    padding: 8px 12px;
+    font-size: 14px;
+    min-width: 200px;
+}
+
+.character-select:focus {
+    outline: none;
+    border-color: var(--SmartThemeQuoteColor, #007bff);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.full-width {
+    width: 100%;
+}
+
+.full-width textarea {
+    width: 100%;
+    background: var(--SmartThemeBodyColor, #1e1e1e);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+    border-radius: 4px;
+    color: var(--SmartThemeTextColor);
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.full-width textarea:focus {
+    outline: none;
+    border-color: var(--SmartThemeQuoteColor, #007bff);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.ask-btn {
+    background: rgba(40, 167, 69, 0.1);
+    border-color: rgba(40, 167, 69, 0.3);
+    color: #28a745;
+}
+
+.ask-btn:hover {
+    background: rgba(40, 167, 69, 0.2);
+    border-color: #28a745;
+    color: #28a745;
 }
 @media (max-width: 400px) {
     .hide-controls {
