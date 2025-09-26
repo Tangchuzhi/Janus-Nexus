@@ -1,11 +1,11 @@
 <div class="quick-tools-container">
     <h4><i class="fa-solid fa-bolt"></i> 快速交互工具</h4>
-    
+
     <!-- 消息隐藏工具 -->
     <div class="tool-section">
         <h5><i class="fa-solid fa-eye-slash"></i> 消息隐藏工具</h5>
-        <p class="tool-description">快速隐藏或显示指定楼层范围的消息（AI和玩家都看不到）</p>
-        
+        <p class="tool-description">快速隐藏或显示指定楼层范围的消息。</p>
+
         <div class="hide-controls">
             <div class="input-group">
                 <label for="start-floor">起始楼层:</label>
@@ -16,24 +16,29 @@
                 <input type="number" id="end-floor" min="1" placeholder="例: 5">
             </div>
         </div>
-        
+
         <div class="action-buttons">
-            <button onclick="hideMessages()" class="action-btn hide-btn">
+            <!--
+                重要改动：
+                使用 document.dispatchEvent 发送自定义事件，
+                这是SillyTavern中HTML与JS脚本交互的标准方式。
+            -->
+            <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_hide'))" class="action-btn hide-btn">
                 <i class="fa-solid fa-eye-slash"></i> 隐藏消息
             </button>
-            <button onclick="unhideMessages()" class="action-btn unhide-btn">
+            <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_unhide'))" class="action-btn unhide-btn">
                 <i class="fa-solid fa-eye"></i> 取消隐藏
             </button>
-            <button onclick="showAllMessages()" class="action-btn show-all-btn">
+            <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_showAll'))" class="action-btn show-all-btn">
                 <i class="fa-solid fa-eye"></i> 显示全部
             </button>
         </div>
-        
+
         <!-- 当前状态显示 -->
         <div class="status-section">
             <h6><i class="fa-solid fa-info-circle"></i> 当前状态</h6>
             <div id="hidden-status" class="status-display">
-                <span class="status-text">暂无隐藏的消息</span>
+                <span class="status-text">正在加载状态...</span>
             </div>
         </div>
     </div>
