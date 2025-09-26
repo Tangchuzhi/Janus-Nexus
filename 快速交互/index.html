@@ -1,9 +1,18 @@
 <div class="quick-tools-container">
     <h4 style="text-align: center;"><i class="fa-solid fa-bolt"></i> 快速交互</h4>
 
-    <!-- 消息隐藏工具 -->
-    <div class="tool-section">
-        <h6><i class="fa-solid fa-eye-slash"></i> 消息隐藏工具</h6>
+    <!-- 标签页导航 -->
+    <div class="tab-navigation">
+        <button class="tab-btn active" onclick="switchTab('hide')">
+            <i class="fa-solid fa-eye-slash"></i> 消息隐藏
+        </button>
+        <button class="tab-btn" onclick="switchTab('ask')">
+            <i class="fa-solid fa-link"></i> 双卡联动
+        </button>
+    </div>
+
+    <!-- 消息隐藏工具标签页 -->
+    <div id="hide-tab" class="tab-content active">
         <div class="hide-controls">
             <div class="input-group">
                 <label for="start-floor">起始楼层:</label>
@@ -27,31 +36,28 @@
                 <i class="fa-solid fa-eye"></i> 显示全部
             </button>
         </div>
+    </div>
 
-        <!-- 双卡联动工具 -->
-        <div class="tool-section">
-            <h6><i class="fa-solid fa-link"></i> 双卡联动工具</h6>
-           
-            <div class="ask-controls">
-                <div class="input-group full-width">
-                    <label for="ask-prompt">互动内容:</label>
-                    <textarea id="ask-prompt" placeholder="请输入互动内容..." rows="3"></textarea>
+    <!-- 双卡联动工具标签页 -->
+    <div id="ask-tab" class="tab-content">
+        <div class="ask-controls">
+            <div class="input-group full-width">
+                <label for="ask-prompt">互动内容:</label>
+                <textarea id="ask-prompt" placeholder="请输入互动内容..." rows="3"></textarea>
+            </div>
+            
+            <div class="character-row">
+                <div class="input-group">
+                    <label for="character-select">目标角色:</label>
+                    <select id="character-select" class="character-select">
+                        <option value="">请选择角色...</option>
+                    </select>
                 </div>
-                
-                <div class="character-row">
-                    <div class="input-group">
-                        <label for="character-select">目标角色:</label>
-                        <select id="character-select" class="character-select">
-                            <option value="">请选择角色...</option>
-                        </select>
-                    </div>
-                    <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_ask'))" class="send-btn">
-                        <i class="fa-solid fa-paper-plane"></i>
-                    </button>
-                </div>
+                <button onclick="document.dispatchEvent(new CustomEvent('QuickTools_ask'))" class="send-btn">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
             </div>
         </div>
-
     </div>
 </div>
 
@@ -62,8 +68,43 @@
 .quick-tools-container h4 {
     margin: 0 0 15px 0;
     color: var(--SmartThemeTextColor);
-    border-bottom: 2px solid var(--SmartThemeQuoteColor, #007bff);
-    padding-bottom: 8px;
+}
+
+/* 标签页导航样式 */
+.tab-navigation {
+    display: flex;
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 10px 15px;
+    border: none;
+    background: transparent;
+    color: var(--SmartThemeTextColor);
+    cursor: pointer;
+    font-size: 14px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+    background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.05));
+}
+
+.tab-btn.active {
+    border-bottom-color: var(--SmartThemeQuoteColor, #007bff);
+    color: var(--SmartThemeQuoteColor, #007bff);
+}
+
+/* 标签页内容样式 */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
 }
 .tool-section {
     background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.05));
@@ -140,20 +181,12 @@
     background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
     color: var(--SmartThemeTextColor);
 }
-.hide-btn:hover {
-    background: rgba(220, 53, 69, 0.1);
-    border-color: #dc3545;
-    color: #dc3545;
-}
-.unhide-btn:hover {
-    background: rgba(40, 167, 69, 0.1);
-    border-color: #28a745;
-    color: #28a745;
-}
+.hide-btn:hover,
+.unhide-btn:hover,
 .show-all-btn:hover {
-    background: rgba(0, 123, 255, 0.1);
-    border-color: #007bff;
-    color: #007bff;
+    background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
+    border-color: var(--SmartThemeQuoteColor, #007bff);
+    color: var(--SmartThemeQuoteColor, #007bff);
 }
 
 /* 双卡联动工具样式 */
@@ -272,5 +305,26 @@
         padding: 6px 8px;
         font-size: 12px;
     }
-}
+    }
 </style>
+
+<script>
+// 标签页切换功能
+function switchTab(tabName) {
+    // 隐藏所有标签页内容
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // 移除所有标签按钮的active状态
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // 显示选中的标签页
+    document.getElementById(tabName + '-tab').classList.add('active');
+    
+    // 激活对应的标签按钮
+    event.target.classList.add('active');
+}
+</script>
