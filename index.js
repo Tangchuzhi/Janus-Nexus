@@ -148,7 +148,7 @@ jQuery(() => {
         }
     }
 
-    // 加载快速交互工具内容
+    // 加载快速交互内容
     async function loadQuickToolsContent() {
         try {
             const response = await fetch('scripts/extensions/third-party/Janus-Treasure-chest/快速交互/index.html');
@@ -372,7 +372,7 @@ jQuery(() => {
         contentArea.innerHTML = content;
         console.log(`[Janusの百宝箱] 切换到标签页: ${tabName}`);
 
-        // 如果是快速交互工具标签页，加载内容
+        // 如果是快速交互标签页，加载内容
         if (tabName === 'quickTools') {
             setTimeout(() => {
                 loadQuickToolsContent();
@@ -987,7 +987,7 @@ jQuery(() => {
                 // 启动自动版本检查，每1分钟检查一次
                 startVersionCheckInterval();
         
-                // 加载默认显示的快速交互工具
+                // 加载默认显示的快速交互
                 setTimeout(() => {
                     loadQuickToolsContent();
                 }, 500);
