@@ -64,16 +64,8 @@
             [start, end] = [end, start];
         }
 
-        // 特殊处理开场白（楼层0）
-        if (start === 0) {
-            hideFirstMessage();
-        }
-
-        // 隐藏其他楼层
-        if (end > 0) {
-            const range = start === 0 ? `1-${end}` : `${start}-${end}`;
-            callSlashCommand(`/hide ${range}`);
-        }
+        const range = `${start}-${end}`;
+        callSlashCommand(`/hide ${range}`);
 
         // 更新状态
         if (!context.hiddenRanges.some(r => r.start === start && r.end === end)) {
@@ -92,23 +84,6 @@
         }
     }
 
-    // 隐藏开场白
-    function hideFirstMessage() {
-        const firstMessageWrapper = document.querySelector('#firstMessageWrapper');
-        if (firstMessageWrapper) {
-            firstMessageWrapper.style.display = 'none';
-            console.log('[快速交互] 已隐藏开场白');
-        }
-    }
-
-    // 显示开场白
-    function showFirstMessage() {
-        const firstMessageWrapper = document.querySelector('#firstMessageWrapper');
-        if (firstMessageWrapper) {
-            firstMessageWrapper.style.display = '';
-            console.log('[快速交互] 已显示开场白');
-        }
-    }
 
     // 取消隐藏消息
     function unhideMessages(start, end) {
@@ -123,16 +98,8 @@
             [start, end] = [end, start];
         }
 
-        // 特殊处理开场白（楼层0）
-        if (start === 0) {
-            showFirstMessage();
-        }
-
-        // 取消隐藏其他楼层
-        if (end > 0) {
-            const range = start === 0 ? `1-${end}` : `${start}-${end}`;
-            callSlashCommand(`/unhide ${range}`);
-        }
+        const range = `${start}-${end}`;
+        callSlashCommand(`/unhide ${range}`);
 
         // 更新状态
         context.hiddenRanges = context.hiddenRanges.filter(r => !(r.start === start && r.end === end));
@@ -155,17 +122,9 @@
             return;
         }
 
-        // 检查是否有隐藏的开场白
-        const hasHiddenFirstMessage = context.hiddenRanges.some(r => r.start === 0);
-        if (hasHiddenFirstMessage) {
-            showFirstMessage();
-        }
-
         const rangesToUnhide = [...context.hiddenRanges];
         for (const range of rangesToUnhide) {
-            if (range.start > 0) { // 只处理非开场白的范围
-                callSlashCommand(`/unhide ${range.start}-${range.end}`);
-            }
+            callSlashCommand(`/unhide ${range.start}-${range.end}`);
         }
 
         const totalRanges = context.hiddenRanges.length;
