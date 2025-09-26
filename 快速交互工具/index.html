@@ -45,17 +45,16 @@
 </div>
 
 <style>
+/* 你的CSS样式保持不变，此处省略 */
 .quick-tools-container {
     padding: 10px;
 }
-
 .quick-tools-container h4 {
     margin: 0 0 15px 0;
     color: var(--SmartThemeTextColor);
     border-bottom: 2px solid var(--SmartThemeQuoteColor, #007bff);
     padding-bottom: 8px;
 }
-
 .tool-section {
     background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.05));
     border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
@@ -63,40 +62,34 @@
     padding: 15px;
     margin-bottom: 15px;
 }
-
 .tool-section h5 {
     margin: 0 0 10px 0;
     color: var(--SmartThemeTextColor);
     font-size: 16px;
 }
-
 .tool-section h6 {
     margin: 15px 0 8px 0;
     color: var(--SmartThemeTextColor);
     font-size: 14px;
 }
-
 .tool-description {
     margin: 0 0 15px 0;
     color: var(--SmartThemeTextColor);
     opacity: 0.8;
     font-size: 13px;
 }
-
 .hide-controls {
     display: flex;
     gap: 15px;
     margin-bottom: 15px;
     align-items: flex-end;
 }
-
 .input-group {
     display: flex;
     flex-direction: column;
     flex: 1;
     min-width: 120px;
 }
-
 .input-group label {
     margin-bottom: 5px;
     color: var(--SmartThemeTextColor);
@@ -104,7 +97,6 @@
     font-weight: bold;
     white-space: nowrap;
 }
-
 .input-group input {
     padding: 8px 10px;
     border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
@@ -115,20 +107,17 @@
     width: 100%;
     box-sizing: border-box;
 }
-
 .input-group input:focus {
     outline: none;
     border-color: var(--SmartThemeQuoteColor, #007bff);
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
 }
-
 .action-buttons {
     display: flex;
     gap: 10px;
     margin-bottom: 15px;
     flex-wrap: wrap;
 }
-
 .action-btn {
     flex: 1;
     min-width: 100px;
@@ -141,31 +130,26 @@
     background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
     color: var(--SmartThemeTextColor);
 }
-
 .hide-btn:hover {
     background: rgba(220, 53, 69, 0.1);
     border-color: #dc3545;
     color: #dc3545;
 }
-
 .unhide-btn:hover {
     background: rgba(40, 167, 69, 0.1);
     border-color: #28a745;
     color: #28a745;
 }
-
 .show-all-btn:hover {
     background: rgba(0, 123, 255, 0.1);
     border-color: #007bff;
     color: #007bff;
 }
-
 .status-section {
     border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
     padding-top: 15px;
     margin-top: 15px;
 }
-
 .status-display {
     background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
     border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
@@ -173,13 +157,11 @@
     padding: 10px;
     min-height: 40px;
 }
-
 .status-text {
     color: var(--SmartThemeTextColor);
     opacity: 0.8;
     font-size: 12px;
 }
-
 .hidden-range {
     display: inline-block;
     background: rgba(220, 53, 69, 0.1);
@@ -190,22 +172,17 @@
     font-size: 11px;
     color: #dc3545;
 }
-
-/* 确保输入框在小窗口下也保持同一行 */
 @media (max-width: 400px) {
     .hide-controls {
         flex-direction: row;
         gap: 10px;
     }
-    
     .input-group {
         min-width: 100px;
     }
-    
     .input-group label {
         font-size: 11px;
     }
-    
     .input-group input {
         padding: 6px 8px;
         font-size: 12px;
