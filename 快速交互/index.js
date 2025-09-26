@@ -116,11 +116,20 @@
         
         if (!characterSelect || !askPrompt) {
             console.error('[快速交互] 找不到ASK工具的元素');
+            if (typeof toastr !== 'undefined') {
+                toastr.error('ASK工具初始化失败，请刷新页面重试。');
+            }
             return;
         }
         
         const selectedCharacter = characterSelect.value;
         const prompt = askPrompt.value.trim();
+        
+        console.log('[快速交互] ASK命令调试:', {
+            selectedCharacter,
+            prompt,
+            promptLength: prompt.length
+        });
         
         if (!selectedCharacter) {
             if (typeof toastr !== 'undefined') {
@@ -131,17 +140,17 @@
         
         if (!prompt) {
             if (typeof toastr !== 'undefined') {
-                toastr.error('请输入询问内容。');
+                toastr.error('请输入互动内容。');
             }
             return;
         }
         
-        // 构建ASK命令
-        const askCommand = `/ask name=${selectedCharacter} return=toast-text ${prompt}`;
+        // 构建ASK命令 - 使用return=none避免显示长内容
+        const askCommand = `/ask name=${selectedCharacter} return=none ${prompt}`;
         callSlashCommand(askCommand);
         
         if (typeof toastr !== 'undefined') {
-            toastr.success(`已向 ${selectedCharacter} 发送询问。`);
+            toastr.success(`已向 ${selectedCharacter} 发送互动内容。`);
         }
         
         // 清空输入框
