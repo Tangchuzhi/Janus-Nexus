@@ -103,10 +103,32 @@
 
     // 显示所有
     function showAllMessages() {
-        // 直接发送 /unhide 命令，让 SillyTavern 处理所有隐藏的消息
-        callSlashCommand('/unhide');
-        if (typeof toastr !== 'undefined') {
-            toastr.success('已发送显示全部消息的请求。');
+        // 获取当前聊天中的最大楼层号
+        const messages = document.querySelectorAll('.mes:not([is_system="true"])');
+        let maxFloor = 0;
+        
+        messages.forEach(message => {
+            const floorElement = message.querySelector('.mes_num');
+            if (floorElement) {
+                const floorNum = parseInt(floorElement.textContent);
+                if (!isNaN(floorNum) && floorNum > maxFloor) {
+                    maxFloor = floorNum;
+                }
+            }
+        });
+        
+        // 显示从0到最大楼层的所有消息
+        if (maxFloor > 0) {
+            callSlashCommand(`/unhide 0-${maxFloor}`);
+            if (typeof toastr !== 'undefined') {
+                toastr.success(`已发送显示全部消息的请求 (0-${maxFloor}楼)。`);
+            }
+        } else {
+            // 如果没有找到楼层信息，尝试显示开场白
+            callSlashCommand('/unhide 0');
+            if (typeof toastr !== 'undefined') {
+                toastr.success('已发送显示开场白的请求。');
+            }
         }
     }
 
