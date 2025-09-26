@@ -42,9 +42,9 @@
             // 点击发送按钮
             sendButton.click();
             
-            console.log(`[快速交互工具] 已发送命令: ${command}`);
+            console.log(`[快速交互] 已发送命令: ${command}`);
         } catch (e) {
-            console.error('[快速交互工具] 发送命令失败:', e);
+            console.error('[快速交互] 发送命令失败:', e);
             if (typeof toastr !== 'undefined') {
                 toastr.error(`命令执行失败: ${e.message}`);
             }
@@ -180,7 +180,7 @@
             }
         `;
         document.head.appendChild(style);
-        console.log('[快速交互工具] 已添加隐藏样式');
+        console.log('[快速交互] 已添加隐藏样式');
     }
 
     // --- 初始化 ---
@@ -202,14 +202,14 @@
                 updateHiddenStatus();
             }, 300);
 
-            console.log('[快速交互工具] 脚本加载并初始化完成。');
+            console.log('[快速交互] 脚本加载并初始化完成。');
         } catch (error) {
             if (retry < 20) {
                 setTimeout(() => tryInit(retry + 1), 250);
             } else {
-                console.error('[快速交互工具] 初始化失败:', error);
+                console.error('[快速交互] 初始化失败:', error);
                 if (typeof toastr !== 'undefined') {
-                    toastr.error('快速交互工具初始化失败，请检查控制台。');
+                    toastr.error('快速交互初始化失败，请检查控制台。');
                 }
             }
         }
