@@ -151,7 +151,7 @@ jQuery(() => {
     // 加载快速交互工具内容
     async function loadQuickToolsContent() {
         try {
-            const response = await fetch('scripts/extensions/third-party/Janus-Treasure-chest/快速交互工具/index.html');
+            const response = await fetch('scripts/extensions/third-party/Janus-Treasure-chest/快速交互/index.html');
             if (response.ok) {
                 const html = await response.text();
                 const contentDiv = document.getElementById('quick-tools-content');
@@ -160,12 +160,12 @@ jQuery(() => {
                 
                     // 加载JavaScript
                     const script = document.createElement('script');
-                    script.src = 'scripts/extensions/third-party/Janus-Treasure-chest/快速交互工具/index.js';
+                    script.src = 'scripts/extensions/third-party/Janus-Treasure-chest/快速交互/index.js';
                     script.onload = () => {
-                        console.log('[Janusの百宝箱] 快速交互工具脚本加载完成');
+                        console.log('[Janusの百宝箱] 快速交互脚本加载完成');
                     };
                     script.onerror = () => {
-                        console.error('[Janusの百宝箱] 快速交互工具脚本加载失败');
+                        console.error('[Janusの百宝箱] 快速交互脚本加载失败');
                     };
                     document.head.appendChild(script);
                 }
@@ -173,12 +173,12 @@ jQuery(() => {
                 throw new Error(`HTTP ${response.status}`);
             }
         } catch (error) {
-            console.error('[Janusの百宝箱] 加载快速交互工具失败:', error);
+            console.error('[Janusの百宝箱] 加载快速交互失败:', error);
             const contentDiv = document.getElementById('quick-tools-content');
             if (contentDiv) {
                 contentDiv.innerHTML = `
                     <div class="janus-tab-content">
-                        <h4><i class="fa-solid fa-bolt"></i> 快速交互工具</h4>
+                        <h4 style="text-align: center;"><i class="fa-solid fa-bolt"></i> 快速交互</h4>
                         <p style="color: #dc3545;">加载失败: ${error.message}</p>
                     </div>
                 `;
@@ -258,12 +258,12 @@ jQuery(() => {
             case 'quickTools':
                 content = `
                     <div class="janus-tab-content">
-                        <div id="quick-tools-content">
-                            <div style="text-align: center; padding: 20px;">
-                                <i class="fa-solid fa-spinner fa-spin"></i>
-                                <p>正在加载快速交互工具...</p>
-                            </div>
+                    <div id="quick-tools-content">
+                        <div style="text-align: center; padding: 20px;">
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+                            <p>正在加载快速交互...</p>
                         </div>
+                    </div>
                     </div>
                 `;
                 break;
@@ -571,7 +571,7 @@ jQuery(() => {
             
             <!-- 菜单栏标签页 -->
             <div class="janus-tab-bar">
-                <button onclick="window.janusHandlers.switchTab('quickTools')" class="menu_button janus-tab-btn active" data-tab="quickTools" title="快速交互工具">
+                <button onclick="window.janusHandlers.switchTab('quickTools')" class="menu_button janus-tab-btn active" data-tab="quickTools" title="快速交互">
                     <i class="fa-solid fa-bolt"></i> 快速交互
                 </button>
                 <button onclick="window.janusHandlers.switchTab('presetHelper')" class="menu_button janus-tab-btn" data-tab="presetHelper" title="打包助手">
@@ -588,7 +588,7 @@ jQuery(() => {
                     <div id="quick-tools-content">
                         <div style="text-align: center; padding: 20px;">
                             <i class="fa-solid fa-spinner fa-spin"></i>
-                            <p>正在加载快速交互工具...</p>
+                            <p>正在加载快速交互...</p>
                         </div>
                     </div>
                 </div>
