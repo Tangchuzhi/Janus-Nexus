@@ -256,9 +256,9 @@
         }
         
         try {
-            // 使用inject命令注入总结提示词
-            const injectCommand = `/inject id=summary position=after ephemeral=true ${prompt}`;
-            callSlashCommand(injectCommand);
+            // 使用sys命令发送总结提示词作为系统消息
+            const sysCommand = `/sys name="总结助手" ${prompt}`;
+            callSlashCommand(sysCommand);
             
             // 使用continue命令生成总结
             setTimeout(() => {

@@ -101,14 +101,18 @@
 
 .tab-btn {
     flex: 1;
-    padding: 10px 15px;
+    padding: 6px 8px;
     border: none;
     background: transparent;
     color: var(--SmartThemeTextColor);
     cursor: pointer;
-    font-size: 14px;
+    font-size: 12px;
+    font-weight: normal;
     border-bottom: 2px solid transparent;
     transition: all 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .tab-btn:hover {
@@ -118,7 +122,8 @@
 .tab-btn.active {
     border-bottom-color: #ffc107;
     color: #ffc107;
-    background: rgba(255, 193, 7, 0.1);
+    background: rgba(255, 193, 7, 0.2);
+    font-weight: normal;
 }
 
 /* 标签页内容样式 */
