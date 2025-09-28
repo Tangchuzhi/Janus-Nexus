@@ -734,16 +734,20 @@
             for (const worldName of selectedWorldBooks) {
                 try {
                     const finalName = tagPrefix ? `${tagPrefix}${worldName}` : worldName;
+                    debugLog(`开始打包世界书: ${worldName} -> ${finalName}`);
                     
-                    // 获取世界书数据
+                    // 获取世界书数据 - 使用与加载时相同的方法
                     const worldResponse = await fetch('/api/worldinfo/get', {
                         method: 'POST',
                         headers: context.getRequestHeaders(),
                         body: JSON.stringify({ name: worldName }),
                     });
                     
+                    debugLog(`世界书API响应状态: ${worldResponse.status}`);
+                    
                     if (worldResponse.ok) {
                         const worldData = await worldResponse.json();
+                        debugLog(`获取到世界书数据:`, worldData);
                         
                         // 确保世界书名称正确
                         const worldBookToSave = { ...worldData };
@@ -752,7 +756,8 @@
                         packageObj.world_books[finalName] = worldBookToSave;
                         debugLog(`已打包世界书: ${finalName} (${Object.keys(worldData.entries || {}).length} 个条目)`);
                     } else {
-                        debugLog(`世界书 ${worldName} 获取失败`);
+                        const errorText = await worldResponse.text();
+                        debugLog(`世界书 ${worldName} 获取失败: ${worldResponse.status} - ${errorText}`);
                     }
                 } catch (error) {
                     debugLog(`世界书 ${worldName} 打包失败: ${error.message}`);
@@ -1050,8 +1055,8 @@
                     try {
                         debugLog(`准备导入世界书: ${worldName}`);
                         
-                        // 使用世界书API导入
-                        const response = await fetch('/api/worldinfo/import', {
+                        // 使用世界书API编辑/创建功能
+                        const response = await fetch('/api/worldinfo/edit', {
                             method: 'POST',
                             headers: context.getRequestHeaders(),
                             body: JSON.stringify({
