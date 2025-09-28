@@ -434,49 +434,54 @@ class SudokuGame {
                 left: 0;
                 width: 100%;
                 height: 100%;
-                background: rgba(0, 0, 0, 0.8);
+                background: rgba(0, 0, 0, 0.6);
                 z-index: 10002;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                backdrop-filter: blur(5px);
             ">
                 <div style="
-                    background: linear-gradient(135deg, rgba(46, 204, 113, 0.95), rgba(39, 174, 96, 0.95));
-                    color: white;
+                    background: var(--SmartThemeBodyColor, #ffffff);
+                    color: var(--SmartThemeTextColor, #333333);
                     padding: 30px;
                     border-radius: 16px;
                     text-align: center;
                     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
                     max-width: 400px;
                     margin: 20px;
+                    border: 2px solid var(--SmartThemeBodyColor, #ffffff);
+                    backdrop-filter: blur(10px);
                 ">
                     <h2 style="margin: 0 0 20px 0; font-size: 24px;">🎉 恭喜完成！</h2>
                     <p style="margin: 10px 0; font-size: 16px;">用时：${timeText}</p>
                     <p style="margin: 10px 0; font-size: 16px;">难度：${difficultyText}</p>
                     <button onclick="document.getElementById('sudoku-win-dialog').remove(); window.sudokuGame.startNewGame();" style="
-                        background: rgba(255, 255, 255, 0.2);
-                        color: white;
-                        border: 1px solid rgba(255, 255, 255, 0.3);
+                        background: var(--SmartThemeBodyColor, #ffffff);
+                        color: var(--SmartThemeTextColor, #333333);
+                        border: 2px solid var(--SmartThemeBodyColor, #ffffff);
                         padding: 10px 20px;
                         border-radius: 8px;
                         cursor: pointer;
                         font-size: 14px;
                         margin: 10px 5px;
                         transition: all 0.3s ease;
-                    " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                        backdrop-filter: blur(5px);
+                    " onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
                         再来一局
                     </button>
                     <button onclick="document.getElementById('sudoku-win-dialog').remove();" style="
-                        background: rgba(255, 255, 255, 0.2);
-                        color: white;
-                        border: 1px solid rgba(255, 255, 255, 0.3);
+                        background: var(--SmartThemeBodyColor, #ffffff);
+                        color: var(--SmartThemeTextColor, #333333);
+                        border: 2px solid var(--SmartThemeBodyColor, #ffffff);
                         padding: 10px 20px;
                         border-radius: 8px;
                         cursor: pointer;
                         font-size: 14px;
                         margin: 10px 5px;
                         transition: all 0.3s ease;
-                    " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                        backdrop-filter: blur(5px);
+                    " onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
                         继续欣赏
                     </button>
                 </div>
@@ -1185,7 +1190,6 @@ class SudokuGame {
                 left: 0;
                 width: 100%;
                 height: 100%;
-                background: rgba(0, 0, 0, 0.8);
                 z-index: 10001;
                 display: flex;
                 align-items: center;
@@ -1198,27 +1202,30 @@ class SudokuGame {
                 background: var(--SmartThemeBodyColor, #ffffff);
                 color: var(--SmartThemeTextColor, #333333);
                 padding: 0;
-                border-radius: 8px;
+                border-radius: 12px;
                 width: 90%;
                 max-width: 600px;
                 min-width: 320px;
                 text-align: center;
-                border: 1px solid var(--SmartThemeBorderColor, #cccccc);
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
                 overflow: hidden;
                 display: flex;
                 flex-direction: column;
                 position: relative;
                 margin: auto;
                 max-height: 90vh;
+                backdrop-filter: blur(10px);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             }
 
             .sudoku-game-header {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
+                background: var(--SmartThemeBodyColor, #ffffff);
                 padding: 15px 20px;
-                border-bottom: 1px solid var(--SmartThemeBorderColor, #cccccc);
+                border-bottom: 2px solid var(--SmartThemeBodyColor, #ffffff);
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
+                backdrop-filter: blur(5px);
             }
 
             .sudoku-game-title {
@@ -1229,22 +1236,24 @@ class SudokuGame {
             }
 
             .sudoku-game-close {
-                background: var(--SmartThemeInputColor, #f8f9fa);
-                border: 1px solid var(--SmartThemeBorderColor, #cccccc);
+                background: var(--SmartThemeBodyColor, #ffffff);
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
                 color: var(--SmartThemeTextColor, #333333);
                 cursor: pointer;
-                border-radius: 4px;
+                border-radius: 6px;
                 width: 28px;
                 height: 28px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 font-size: 14px;
+                backdrop-filter: blur(5px);
             }
 
             .sudoku-game-close:hover {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.1));
+                background: var(--SmartThemeBodyColor, #ffffff);
                 color: var(--SmartThemeTextColor, #333333);
+                opacity: 0.8;
             }
 
             .sudoku-game-content {
@@ -1255,6 +1264,7 @@ class SudokuGame {
                 align-items: center;
                 min-height: 300px;
                 background: var(--SmartThemeBodyColor, #ffffff);
+                backdrop-filter: blur(5px);
             }
 
             /* 数独游戏控制面板 */
@@ -1267,46 +1277,51 @@ class SudokuGame {
             }
 
             .sudoku-control-btn {
-                background: var(--SmartThemeInputColor, #f8f9fa);
+                background: var(--SmartThemeBodyColor, #ffffff);
                 color: var(--SmartThemeTextColor, #333333);
-                border: 1px solid var(--SmartThemeBorderColor, #cccccc);
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
                 padding: 8px 16px;
-                border-radius: 4px;
+                border-radius: 6px;
                 cursor: pointer;
                 font-size: 14px;
                 font-weight: 500;
                 min-width: 80px;
+                backdrop-filter: blur(5px);
             }
 
             .sudoku-control-btn:hover {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.1));
+                background: var(--SmartThemeBodyColor, #ffffff);
                 color: var(--SmartThemeTextColor, #333333);
+                opacity: 0.8;
             }
 
             /* 难度选择下拉框 */
             .sudoku-difficulty-select {
-                background: var(--SmartThemeInputColor, #f8f9fa);
-                border: 1px solid var(--SmartThemeBorderColor, #cccccc);
-                border-radius: 4px;
+                background: var(--SmartThemeBodyColor, #ffffff);
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
+                border-radius: 6px;
                 padding: 8px 12px;
                 font-size: 14px;
                 color: var(--SmartThemeTextColor, #333333);
                 cursor: pointer;
                 min-width: 80px;
+                backdrop-filter: blur(5px);
             }
 
             .sudoku-difficulty-select:focus {
                 outline: none;
-                border-color: var(--SmartThemeQuoteColor, #007bff);
+                border-color: var(--SmartThemeBodyColor, #ffffff);
+                opacity: 0.8;
             }
 
             /* 数独网格容器 */
             .sudoku-grid-container {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
-                border-radius: 8px;
+                background: var(--SmartThemeBodyColor, #ffffff);
+                border-radius: 12px;
                 padding: 15px;
-                border: 1px solid var(--SmartThemeBorderColor, #cccccc);
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
                 margin-bottom: 20px;
+                backdrop-filter: blur(5px);
             }
 
             /* 数独网格 */
@@ -1317,17 +1332,18 @@ class SudokuGame {
                 gap: 1px;
                 width: 360px;
                 height: 360px;
-                background: var(--SmartThemeBorderColor, #cccccc);
-                border: 2px solid var(--SmartThemeBorderColor, #cccccc);
-                border-radius: 4px;
+                background: var(--SmartThemeBodyColor, #ffffff);
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
+                border-radius: 8px;
                 overflow: hidden;
                 box-sizing: border-box;
                 aspect-ratio: 1;
+                backdrop-filter: blur(5px);
             }
 
             /* 数独单元格 */
             .sudoku-cell {
-                background: var(--SmartThemeInputColor, #ffffff);
+                background: var(--SmartThemeBodyColor, #ffffff);
                 border: none;
                 display: flex;
                 align-items: center;
@@ -1342,15 +1358,18 @@ class SudokuGame {
                 width: 100%;
                 height: 100%;
                 aspect-ratio: 1;
+                backdrop-filter: blur(3px);
             }
 
             .sudoku-cell:focus {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.1));
-                border: 1px solid var(--SmartThemeQuoteColor, #007bff);
+                background: var(--SmartThemeBodyColor, #ffffff);
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
+                opacity: 0.8;
             }
 
             .sudoku-cell:hover:not(.sudoku-cell-given) {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
+                background: var(--SmartThemeBodyColor, #ffffff);
+                opacity: 0.7;
             }
 
             /* 3x3块的边界 - 右边界（第3、6列） */
@@ -1363,40 +1382,46 @@ class SudokuGame {
             .sudoku-cell:nth-child(57), .sudoku-cell:nth-child(60),
             .sudoku-cell:nth-child(66), .sudoku-cell:nth-child(69),
             .sudoku-cell:nth-child(75), .sudoku-cell:nth-child(78) {
-                border-right: 3px solid var(--SmartThemeBorderColor, #cccccc);
+                border-right: 3px solid var(--SmartThemeBodyColor, #ffffff);
             }
 
             /* 3x3块的边界 - 下边界（第3、6行） */
             .sudoku-cell:nth-child(n+19):nth-child(-n+27),
             .sudoku-cell:nth-child(n+46):nth-child(-n+54) {
-                border-bottom: 3px solid var(--SmartThemeBorderColor, #cccccc);
+                border-bottom: 3px solid var(--SmartThemeBodyColor, #ffffff);
             }
 
 
             /* 预设数字样式 */
             .sudoku-cell-given {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
+                background: var(--SmartThemeBodyColor, #ffffff);
                 color: var(--SmartThemeTextColor, #333333);
                 font-weight: 900;
                 cursor: default;
+                opacity: 0.9;
             }
 
             /* 用户输入数字样式 */
             .sudoku-cell-user {
-                color: var(--SmartThemeQuoteColor, #007bff);
+                color: var(--SmartThemeTextColor, #333333);
                 font-weight: 700;
+                background: var(--SmartThemeBodyColor, #ffffff);
+                opacity: 0.8;
             }
 
             /* 错误高亮 */
             .sudoku-cell-error {
-                background: rgba(231, 76, 60, 0.2);
-                color: #e74c3c;
+                background: var(--SmartThemeBodyColor, #ffffff);
+                color: var(--SmartThemeTextColor, #333333);
+                opacity: 0.6;
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
             }
 
             /* 正确输入提示 */
             .sudoku-cell-correct {
-                background: rgba(46, 204, 113, 0.2);
-                color: #27ae60;
+                background: var(--SmartThemeBodyColor, #ffffff);
+                color: var(--SmartThemeTextColor, #333333);
+                opacity: 1;
                 animation: correctPulse 1s ease-in-out;
             }
 
@@ -1416,6 +1441,10 @@ class SudokuGame {
                 font-weight: 500;
                 justify-content: center;
                 flex-wrap: wrap;
+                background: var(--SmartThemeBodyColor, #ffffff);
+                padding: 10px;
+                border-radius: 8px;
+                backdrop-filter: blur(5px);
             }
 
             .sudoku-info-item {
