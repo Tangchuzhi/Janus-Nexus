@@ -1047,31 +1047,92 @@
                 debugLog(`快速回复集导入完成，共导入 ${Object.keys(packageData.quick_reply_sets).length} 个集`);
             }
             
-            // 导入世界书
+            // 导入世界书 - 使用slash命令系统
             if (packageData.world_books) {
-                debugLog('开始导入世界书...');
+                debugLog('开始使用slash命令系统导入世界书...');
                 
                 for (const [worldName, worldData] of Object.entries(packageData.world_books)) {
                     try {
                         debugLog(`准备导入世界书: ${worldName}`);
                         
-                        // 使用世界书API编辑/创建功能
-                        const response = await fetch('/api/worldinfo/edit', {
-                            method: 'POST',
-                            headers: context.getRequestHeaders(),
-                            body: JSON.stringify({
-                                name: worldName,
-                                data: worldData
-                            }),
-                        });
+                        // 构建slash命令序列
+                        let slashCommands = '';
                         
-                        if (response.ok) {
-                            const result = await response.json();
-                            debugLog(`世界书 ${worldName} 导入成功`);
-                            importedCount++;
-                        } else {
-                            debugLog(`世界书 ${worldName} 导入失败: ${response.status}`);
+                        // 1. 启用严格转义
+                        slashCommands += '/parser-flag STRICT_ESCAPING on ||\n';
+                        
+                        // 2. 创建世界书条目
+                        if (worldData.entries && Object.keys(worldData.entries).length > 0) {
+                            for (const [entryId, entry] of Object.entries(worldData.entries)) {
+                                // 转义条目内容
+                                const escapedContent = (entry.content || '')
+                                    .replace(/"/g, '\\"')
+                                    .replace(/\n/g, '\\n')
+                                    .replace(/\r/g, '\\r');
+                                
+                                const escapedKey = (entry.key || '')
+                                    .replace(/"/g, '\\"');
+                                
+                                const escapedComment = (entry.comment || '')
+                                    .replace(/"/g, '\\"');
+                                
+                                // 构建createentry命令
+                                slashCommands += `/createentry file=${worldName} key="${escapedKey}" "${escapedContent}" ||\n`;
+                                
+                                // 如果有注释，设置注释字段
+                                if (escapedComment) {
+                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=comment "${escapedComment}" ||\n`;
+                                }
+                                
+                                // 设置其他字段
+                                if (entry.order !== undefined) {
+                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=order ${entry.order} ||\n`;
+                                }
+                                if (entry.position !== undefined) {
+                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=position ${entry.position} ||\n`;
+                                }
+                                if (entry.disable !== undefined) {
+                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=disable ${entry.disable} ||\n`;
+                                }
+                                if (entry.constant !== undefined) {
+                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=constant ${entry.constant} ||\n`;
+                                }
+                                if (entry.vectorized !== undefined) {
+                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=vectorized ${entry.vectorized} ||\n`;
+                                }
+                                if (entry.selective !== undefined) {
+                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=selective ${entry.selective} ||\n`;
+                                }
+                                if (entry.depth !== undefined) {
+                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=depth ${entry.depth} ||\n`;
+                                }
+                                if (entry.probability !== undefined) {
+                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=probability ${entry.probability} ||\n`;
+                                }
+                                if (entry.caseSensitive !== undefined) {
+                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=caseSensitive ${entry.caseSensitive} ||\n`;
+                                }
+                                if (entry.matchWholeWords !== undefined) {
+                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=matchWholeWords ${entry.matchWholeWords} ||\n`;
+                                }
+                            }
                         }
+                        
+                        // 3. 关闭严格转义
+                        slashCommands += '/parser-flag STRICT_ESCAPING off ||\n';
+                        
+                        debugLog(`执行世界书slash命令序列:\n${slashCommands}`);
+                        debugLog(`世界书 ${worldName} 包含 ${Object.keys(worldData.entries || {}).length} 个条目`);
+                        
+                        // 执行slash命令序列
+                        await triggerSlash(slashCommands);
+                        
+                        // 等待一下让世界书有时间正确创建
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        debugLog(`世界书 ${worldName} 导入成功`);
+                        importedCount++;
+                        
                     } catch (error) {
                         debugLog(`世界书 ${worldName} 导入失败: ${error.message}`);
                     }
