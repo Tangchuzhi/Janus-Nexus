@@ -32,6 +32,9 @@
                 <button class="resource-tab-btn" onclick="switchResourceTab('quickreplies')">
                     <i class="fa-solid fa-bolt"></i> 快速回复
                 </button>
+                <button class="resource-tab-btn" onclick="switchResourceTab('worldbooks')">
+                    <i class="fa-solid fa-book-atlas"></i> 世界书
+                </button>
             </div>
             
             <div id="presets-content" class="resource-content active">
@@ -48,6 +51,12 @@
             
             <div id="quickreplies-content" class="resource-content">
                 <div id="quickreplies-list" class="resource-list">
+                    <div class="loading-state">加载中...</div>
+                </div>
+            </div>
+            
+            <div id="worldbooks-content" class="resource-content">
+                <div id="worldbooks-list" class="resource-list">
                     <div class="loading-state">加载中...</div>
                 </div>
             </div>

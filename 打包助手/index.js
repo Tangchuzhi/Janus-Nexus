@@ -8,6 +8,7 @@
     let selectedPresets = [];
     let selectedRegexes = [];
     let selectedQuickReplies = [];
+    let selectedWorldBooks = [];
     let packageData = null;
     
     // 调试日志函数
@@ -262,6 +263,111 @@
         }
     }
     
+    // 加载世界书列表
+    async function loadWorldBooks() {
+        try {
+            debugLog('开始加载世界书...');
+            
+            // 使用 SillyTavern 的 API 获取世界书列表
+            const context = SillyTavern.getContext();
+            
+            // 方法1: 尝试从API获取世界书数据
+            try {
+                const response = await fetch('/api/settings/get', {
+                    method: 'POST',
+                    headers: context.getRequestHeaders(),
+                    body: JSON.stringify({}),
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const worldNames = data.world_names || [];
+                    
+                    debugLog(`从API获取到 ${worldNames.length} 个世界书`);
+                    
+                    const container = document.getElementById('worldbooks-list');
+                    if (!container) return;
+                    
+                    container.innerHTML = '';
+                    
+                    if (worldNames.length === 0) {
+                        container.innerHTML = '<div class="empty-state">未找到世界书</div>';
+                        return;
+                    }
+                    
+                    // 为每个世界书获取详细信息
+                    for (const worldName of worldNames) {
+                        try {
+                            const worldResponse = await fetch('/api/worldinfo/get', {
+                                method: 'POST',
+                                headers: context.getRequestHeaders(),
+                                body: JSON.stringify({ name: worldName }),
+                            });
+                            
+                            if (worldResponse.ok) {
+                                const worldData = await worldResponse.json();
+                                const entryCount = worldData.entries ? Object.keys(worldData.entries).length : 0;
+                                
+                                const itemDiv = document.createElement('div');
+                                itemDiv.className = 'resource-item';
+                                itemDiv.innerHTML = `
+                                    <input type="checkbox" id="worldbook-${worldName}" onchange="toggleWorldBook('${worldName}')">
+                                    <div class="resource-item-info">
+                                        <div class="resource-item-name">${worldName}</div>
+                                        <div class="resource-item-desc">${entryCount} 个条目</div>
+                                    </div>
+                                `;
+                                container.appendChild(itemDiv);
+                            } else {
+                                debugLog(`获取世界书 ${worldName} 详情失败`);
+                            }
+                        } catch (worldError) {
+                            debugLog(`获取世界书 ${worldName} 详情出错: ${worldError.message}`);
+                        }
+                    }
+                }
+            } catch (apiError) {
+                debugLog('API获取失败，尝试其他方法: ' + apiError.message);
+            }
+            
+            // 方法2: 如果API失败，尝试从全局对象获取
+            if (window.world_names && Array.isArray(window.world_names)) {
+                const worldNames = window.world_names;
+                debugLog(`从全局对象获取到 ${worldNames.length} 个世界书`);
+                
+                const container = document.getElementById('worldbooks-list');
+                if (!container) return;
+                
+                container.innerHTML = '';
+                
+                if (worldNames.length === 0) {
+                    container.innerHTML = '<div class="empty-state">未找到世界书</div>';
+                    return;
+                }
+                
+                worldNames.forEach(worldName => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'resource-item';
+                    itemDiv.innerHTML = `
+                        <input type="checkbox" id="worldbook-${worldName}" onchange="toggleWorldBook('${worldName}')">
+                        <div class="resource-item-info">
+                            <div class="resource-item-name">${worldName}</div>
+                            <div class="resource-item-desc">世界书</div>
+                        </div>
+                    `;
+                    container.appendChild(itemDiv);
+                });
+            }
+            
+        } catch (error) {
+            debugLog('世界书加载错误: ' + error.message);
+            const container = document.getElementById('worldbooks-list');
+            if (container) {
+                container.innerHTML = `<div class="empty-state">加载失败: ${error.message}</div>`;
+            }
+        }
+    }
+    
     // 加载快速回复列表
     async function loadQuickReplies() {
         try {
@@ -395,9 +501,19 @@
         debugLog(`快速回复选择: ${selectedQuickReplies.length} 个`);
     }
     
+    // 切换世界书选择
+    function toggleWorldBook(name) {
+        if (selectedWorldBooks.includes(name)) {
+            selectedWorldBooks = selectedWorldBooks.filter(n => n !== name);
+        } else {
+            selectedWorldBooks.push(name);
+        }
+        debugLog(`世界书选择: ${selectedWorldBooks.length} 个`);
+    }
+    
     // 创建打包文件
     async function createPackage() {
-        if (selectedPresets.length === 0 && selectedRegexes.length === 0 && selectedQuickReplies.length === 0) {
+        if (selectedPresets.length === 0 && selectedRegexes.length === 0 && selectedQuickReplies.length === 0 && selectedWorldBooks.length === 0) {
             showStatus('请至少选择一个项目', 'error');
             return;
         }
@@ -421,7 +537,8 @@
                 tag_prefix: tagPrefix,
                 presets: {},
                 regexes: {},
-                quick_reply_sets: {}
+                quick_reply_sets: {},
+                world_books: {}
             };
             
             // 打包预设
@@ -611,6 +728,36 @@
                     debugLog(`快速回复集 ${setName} 打包失败: ${error.message}`);
                 }
             }
+            showProgress(70);
+            
+            // 打包世界书
+            for (const worldName of selectedWorldBooks) {
+                try {
+                    const finalName = tagPrefix ? `${tagPrefix}${worldName}` : worldName;
+                    
+                    // 获取世界书数据
+                    const worldResponse = await fetch('/api/worldinfo/get', {
+                        method: 'POST',
+                        headers: context.getRequestHeaders(),
+                        body: JSON.stringify({ name: worldName }),
+                    });
+                    
+                    if (worldResponse.ok) {
+                        const worldData = await worldResponse.json();
+                        
+                        // 确保世界书名称正确
+                        const worldBookToSave = { ...worldData };
+                        worldBookToSave.name = finalName;
+                        
+                        packageObj.world_books[finalName] = worldBookToSave;
+                        debugLog(`已打包世界书: ${finalName} (${Object.keys(worldData.entries || {}).length} 个条目)`);
+                    } else {
+                        debugLog(`世界书 ${worldName} 获取失败`);
+                    }
+                } catch (error) {
+                    debugLog(`世界书 ${worldName} 打包失败: ${error.message}`);
+                }
+            }
             showProgress(80);
             
             // 生成并下载文件
@@ -628,7 +775,7 @@
             
             showProgress(100);
             showStatus('打包完成', 'success');
-            debugLog(`打包完成: ${Object.keys(packageObj.presets).length} 预设, ${Object.keys(packageObj.regexes).length} 正则, ${Object.keys(packageObj.quick_reply_sets).length} 快速回复集`);
+            debugLog(`打包完成: ${Object.keys(packageObj.presets).length} 预设, ${Object.keys(packageObj.regexes).length} 正则, ${Object.keys(packageObj.quick_reply_sets).length} 快速回复集, ${Object.keys(packageObj.world_books).length} 世界书`);
             
         } catch (error) {
             showProgress(100);
@@ -698,13 +845,14 @@
         html += `<p><strong>预设:</strong> ${data.presets ? Object.keys(data.presets).length : 0} 个</p>`;
         html += `<p><strong>正则:</strong> ${data.regexes ? Object.keys(data.regexes).length : 0} 个</p>`;
         html += `<p><strong>快速回复集:</strong> ${data.quick_reply_sets ? Object.keys(data.quick_reply_sets).length : 0} 个</p>`;
+        html += `<p><strong>世界书:</strong> ${data.world_books ? Object.keys(data.world_books).length : 0} 个</p>`;
         
         detailsEl.innerHTML = html;
         const packageInfo = document.getElementById('package-info');
         if (packageInfo) {
             packageInfo.style.display = 'block';
         }
-        debugLog(`包信息: ${Object.keys(data.presets || {}).length} 预设, ${Object.keys(data.regexes || {}).length} 正则, ${Object.keys(data.quick_reply_sets || {}).length} 快速回复集`);
+        debugLog(`包信息: ${Object.keys(data.presets || {}).length} 预设, ${Object.keys(data.regexes || {}).length} 正则, ${Object.keys(data.quick_reply_sets || {}).length} 快速回复集, ${Object.keys(data.world_books || {}).length} 世界书`);
     }
     
     // 导入包
@@ -718,7 +866,8 @@
             showStatus('导入中...', 'info');
             let totalItems = (packageData.presets ? Object.keys(packageData.presets).length : 0) + 
                              (packageData.regexes ? Object.keys(packageData.regexes).length : 0) +
-                             (packageData.quick_reply_sets ? Object.keys(packageData.quick_reply_sets).length : 0);
+                             (packageData.quick_reply_sets ? Object.keys(packageData.quick_reply_sets).length : 0) +
+                             (packageData.world_books ? Object.keys(packageData.world_books).length : 0);
             let importedCount = 0;
             
             // 导入预设
@@ -893,6 +1042,39 @@
                 debugLog(`快速回复集导入完成，共导入 ${Object.keys(packageData.quick_reply_sets).length} 个集`);
             }
             
+            // 导入世界书
+            if (packageData.world_books) {
+                debugLog('开始导入世界书...');
+                
+                for (const [worldName, worldData] of Object.entries(packageData.world_books)) {
+                    try {
+                        debugLog(`准备导入世界书: ${worldName}`);
+                        
+                        // 使用世界书API导入
+                        const response = await fetch('/api/worldinfo/import', {
+                            method: 'POST',
+                            headers: context.getRequestHeaders(),
+                            body: JSON.stringify({
+                                name: worldName,
+                                data: worldData
+                            }),
+                        });
+                        
+                        if (response.ok) {
+                            const result = await response.json();
+                            debugLog(`世界书 ${worldName} 导入成功`);
+                            importedCount++;
+                        } else {
+                            debugLog(`世界书 ${worldName} 导入失败: ${response.status}`);
+                        }
+                    } catch (error) {
+                        debugLog(`世界书 ${worldName} 导入失败: ${error.message}`);
+                    }
+                }
+                
+                debugLog(`世界书导入完成，共导入 ${Object.keys(packageData.world_books).length} 个世界书`);
+            }
+            
             showProgress(100);
             showStatus(`导入完成！成功导入 ${importedCount} 个项目，即将自动刷新页面`, 'success');
             debugLog('导入完成');
@@ -921,12 +1103,15 @@
         showProgress(10);
         
         await loadPresets();
-        showProgress(40);
+        showProgress(30);
         
         await loadRegexes();
-        showProgress(70);
+        showProgress(50);
         
         await loadQuickReplies();
+        showProgress(70);
+        
+        await loadWorldBooks();
         showProgress(100);
     }
     
@@ -940,6 +1125,7 @@
         window.togglePreset = togglePreset;
         window.toggleRegex = toggleRegex;
         window.toggleQuickReply = toggleQuickReply;
+        window.toggleWorldBook = toggleWorldBook;
         window.createPackage = createPackage;
         window.handleFileSelect = handleFileSelect;
         window.triggerFileSelect = triggerFileSelect;
