@@ -1047,100 +1047,41 @@
                 debugLog(`快速回复集导入完成，共导入 ${Object.keys(packageData.quick_reply_sets).length} 个集`);
             }
             
-            // 导入世界书 - 使用slash命令系统
+            // 导入世界书 - 使用SillyTavern的saveWorldInfo函数
             if (packageData.world_books) {
-                debugLog('开始使用slash命令系统导入世界书...');
+                debugLog('开始导入世界书...');
                 
                 for (const [worldName, worldData] of Object.entries(packageData.world_books)) {
                     try {
                         debugLog(`准备导入世界书: ${worldName}`);
+                        debugLog(`世界书数据:`, worldData);
                         
-                        // 构建slash命令序列
-                        let slashCommands = '';
-                        
-                        // 1. 启用严格转义
-                        slashCommands += '/parser-flag STRICT_ESCAPING on ||\n';
-                        
-                        // 2. 创建世界书条目
-                        if (worldData.entries && Object.keys(worldData.entries).length > 0) {
-                            for (const [entryId, entry] of Object.entries(worldData.entries)) {
-                                debugLog(`处理条目 ${entryId}: key=${entry.key}, content长度=${entry.content ? entry.content.length : 0}`);
-                                
-                                // 转义条目内容
-                                const escapedContent = (entry.content || '')
-                                    .replace(/"/g, '\\"')
-                                    .replace(/\n/g, '\\n')
-                                    .replace(/\r/g, '\\r');
-                                
-                                // 处理key数组 - 如果是数组，转换为逗号分隔的字符串
-                                let keyString = '';
-                                if (Array.isArray(entry.key)) {
-                                    keyString = entry.key.join(',');
-                                } else if (entry.key) {
-                                    keyString = entry.key.toString();
-                                }
-                                const escapedKey = keyString.replace(/"/g, '\\"');
-                                
-                                const escapedComment = (entry.comment || '')
-                                    .replace(/"/g, '\\"');
-                                
-                                // 构建createentry命令 - 使用转义后的内容
-                                slashCommands += `/createentry file=${worldName} key="${escapedKey}" "${escapedContent}" ||\n`;
-                                
-                                // 如果有注释，设置注释字段
-                                if (escapedComment) {
-                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=comment "${escapedComment}" ||\n`;
-                                }
-                                
-                                // 设置其他重要字段
-                                if (entry.order !== undefined) {
-                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=order ${entry.order} ||\n`;
-                                }
-                                if (entry.position !== undefined) {
-                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=position ${entry.position} ||\n`;
-                                }
-                                if (entry.disable !== undefined) {
-                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=disable ${entry.disable} ||\n`;
-                                }
-                                if (entry.constant !== undefined) {
-                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=constant ${entry.constant} ||\n`;
-                                }
-                                if (entry.vectorized !== undefined) {
-                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=vectorized ${entry.vectorized} ||\n`;
-                                }
-                                if (entry.selective !== undefined) {
-                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=selective ${entry.selective} ||\n`;
-                                }
-                                if (entry.depth !== undefined) {
-                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=depth ${entry.depth} ||\n`;
-                                }
-                                if (entry.probability !== undefined) {
-                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=probability ${entry.probability} ||\n`;
-                                }
-                                if (entry.caseSensitive !== undefined && entry.caseSensitive !== null) {
-                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=caseSensitive ${entry.caseSensitive} ||\n`;
-                                }
-                                if (entry.matchWholeWords !== undefined && entry.matchWholeWords !== null) {
-                                    slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=matchWholeWords ${entry.matchWholeWords} ||\n`;
-                                }
+                        // 使用SillyTavern的saveWorldInfo函数直接保存世界书数据
+                        if (window.saveWorldInfo && typeof window.saveWorldInfo === 'function') {
+                            debugLog(`使用全局saveWorldInfo函数保存世界书: ${worldName}`);
+                            await window.saveWorldInfo(worldName, worldData, true); // immediately = true
+                            debugLog(`世界书 ${worldName} 导入成功`);
+                            importedCount++;
+                        } else {
+                            // 备用方法：直接调用API
+                            debugLog(`使用API直接保存世界书: ${worldName}`);
+                            const response = await fetch('/api/worldinfo/edit', {
+                                method: 'POST',
+                                headers: context.getRequestHeaders(),
+                                body: JSON.stringify({ 
+                                    name: worldName, 
+                                    data: worldData 
+                                }),
+                            });
+                            
+                            if (response.ok) {
+                                debugLog(`世界书 ${worldName} 导入成功`);
+                                importedCount++;
+                            } else {
+                                const errorText = await response.text();
+                                debugLog(`世界书 ${worldName} 导入失败: ${response.status} - ${errorText}`);
                             }
                         }
-                        
-                        // 3. 关闭严格转义
-                        slashCommands += '/parser-flag STRICT_ESCAPING off ||\n';
-                        
-                        debugLog(`执行世界书slash命令序列:\n${slashCommands}`);
-                        debugLog(`世界书 ${worldName} 包含 ${Object.keys(worldData.entries || {}).length} 个条目`);
-                        
-                        // 执行slash命令序列
-                        const slashResult = await triggerSlash(slashCommands);
-                        debugLog(`slash命令执行结果:`, slashResult);
-                        
-                        // 等待一下让世界书有时间正确创建
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        
-                        debugLog(`世界书 ${worldName} 导入成功`);
-                        importedCount++;
                         
                     } catch (error) {
                         debugLog(`世界书 ${worldName} 导入失败: ${error.message}`);
