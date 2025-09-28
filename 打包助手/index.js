@@ -1064,19 +1064,27 @@
                         // 2. 创建世界书条目
                         if (worldData.entries && Object.keys(worldData.entries).length > 0) {
                             for (const [entryId, entry] of Object.entries(worldData.entries)) {
+                                debugLog(`处理条目 ${entryId}: key=${entry.key}, content长度=${entry.content ? entry.content.length : 0}`);
+                                
                                 // 转义条目内容
                                 const escapedContent = (entry.content || '')
                                     .replace(/"/g, '\\"')
                                     .replace(/\n/g, '\\n')
                                     .replace(/\r/g, '\\r');
                                 
-                                const escapedKey = (entry.key || '')
-                                    .replace(/"/g, '\\"');
+                                // 处理key数组 - 如果是数组，转换为逗号分隔的字符串
+                                let keyString = '';
+                                if (Array.isArray(entry.key)) {
+                                    keyString = entry.key.join(',');
+                                } else if (entry.key) {
+                                    keyString = entry.key.toString();
+                                }
+                                const escapedKey = keyString.replace(/"/g, '\\"');
                                 
                                 const escapedComment = (entry.comment || '')
                                     .replace(/"/g, '\\"');
                                 
-                                // 构建createentry命令
+                                // 构建createentry命令 - 使用转义后的内容
                                 slashCommands += `/createentry file=${worldName} key="${escapedKey}" "${escapedContent}" ||\n`;
                                 
                                 // 如果有注释，设置注释字段
@@ -1084,7 +1092,7 @@
                                     slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=comment "${escapedComment}" ||\n`;
                                 }
                                 
-                                // 设置其他字段
+                                // 设置其他重要字段
                                 if (entry.order !== undefined) {
                                     slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=order ${entry.order} ||\n`;
                                 }
@@ -1109,10 +1117,10 @@
                                 if (entry.probability !== undefined) {
                                     slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=probability ${entry.probability} ||\n`;
                                 }
-                                if (entry.caseSensitive !== undefined) {
+                                if (entry.caseSensitive !== undefined && entry.caseSensitive !== null) {
                                     slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=caseSensitive ${entry.caseSensitive} ||\n`;
                                 }
-                                if (entry.matchWholeWords !== undefined) {
+                                if (entry.matchWholeWords !== undefined && entry.matchWholeWords !== null) {
                                     slashCommands += `/setentryfield file=${worldName} uid={{pipe}} field=matchWholeWords ${entry.matchWholeWords} ||\n`;
                                 }
                             }
@@ -1125,10 +1133,11 @@
                         debugLog(`世界书 ${worldName} 包含 ${Object.keys(worldData.entries || {}).length} 个条目`);
                         
                         // 执行slash命令序列
-                        await triggerSlash(slashCommands);
+                        const slashResult = await triggerSlash(slashCommands);
+                        debugLog(`slash命令执行结果:`, slashResult);
                         
                         // 等待一下让世界书有时间正确创建
-                        await new Promise(resolve => setTimeout(resolve, 500));
+                        await new Promise(resolve => setTimeout(resolve, 1000));
                         
                         debugLog(`世界书 ${worldName} 导入成功`);
                         importedCount++;
