@@ -1047,40 +1047,40 @@
                 debugLog(`快速回复集导入完成，共导入 ${Object.keys(packageData.quick_reply_sets).length} 个集`);
             }
             
-            // 导入世界书 - 使用SillyTavern的saveWorldInfo函数
+            // 导入世界书 - 使用文件上传方式
             if (packageData.world_books) {
-                debugLog('开始导入世界书...');
+                debugLog('开始使用文件上传方式导入世界书...');
                 
                 for (const [worldName, worldData] of Object.entries(packageData.world_books)) {
                     try {
                         debugLog(`准备导入世界书: ${worldName}`);
-                        debugLog(`世界书数据:`, worldData);
                         
-                        // 使用SillyTavern的saveWorldInfo函数直接保存世界书数据
-                        if (window.saveWorldInfo && typeof window.saveWorldInfo === 'function') {
-                            debugLog(`使用全局saveWorldInfo函数保存世界书: ${worldName}`);
-                            await window.saveWorldInfo(worldName, worldData, true); // immediately = true
-                            debugLog(`世界书 ${worldName} 导入成功`);
+                        // 创建世界书JSON文件
+                        const worldBookJson = JSON.stringify(worldData, null, 2);
+                        const blob = new Blob([worldBookJson], { type: 'application/json' });
+                        const file = new File([blob], `${worldName}.json`, { type: 'application/json' });
+                        
+                        // 使用FormData上传文件
+                        const formData = new FormData();
+                        formData.append('avatar', file);
+                        
+                        debugLog(`上传世界书文件: ${worldName}.json`);
+                        
+                        // 调用世界书导入API
+                        const response = await fetch('/api/worldinfo/import', {
+                            method: 'POST',
+                            headers: context.getRequestHeaders({ omitContentType: true }),
+                            body: formData,
+                            cache: 'no-cache',
+                        });
+                        
+                        if (response.ok) {
+                            const result = await response.json();
+                            debugLog(`世界书 ${worldName} 导入成功:`, result);
                             importedCount++;
                         } else {
-                            // 备用方法：直接调用API
-                            debugLog(`使用API直接保存世界书: ${worldName}`);
-                            const response = await fetch('/api/worldinfo/edit', {
-                                method: 'POST',
-                                headers: context.getRequestHeaders(),
-                                body: JSON.stringify({ 
-                                    name: worldName, 
-                                    data: worldData 
-                                }),
-                            });
-                            
-                            if (response.ok) {
-                                debugLog(`世界书 ${worldName} 导入成功`);
-                                importedCount++;
-                            } else {
-                                const errorText = await response.text();
-                                debugLog(`世界书 ${worldName} 导入失败: ${response.status} - ${errorText}`);
-                            }
+                            const errorText = await response.text();
+                            debugLog(`世界书 ${worldName} 导入失败: ${response.status} - ${errorText}`);
                         }
                         
                     } catch (error) {
