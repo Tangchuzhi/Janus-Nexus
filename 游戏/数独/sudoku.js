@@ -496,13 +496,14 @@ class SudokuGame {
     }
 
     /**
-     * 渲染游戏界面（插件内模式）
+     * 渲染游戏界面（聊天记录模式）
      */
     renderGame() {
         const gameHTML = `
-            <div id="sudoku-game-container" class="sudoku-plugin-container">
+            <div id="sudoku-game-container" class="sudoku-chat-container">
                 <div class="sudoku-game-header">
                     <h3 class="sudoku-game-title">🧩 数独游戏</h3>
+                    <button class="sudoku-game-close">✕</button>
                 </div>
                 <div class="sudoku-game-content">
                     <div class="sudoku-controls">
@@ -1017,10 +1018,10 @@ class SudokuGame {
     }
 
     /**
-     * 初始化游戏（插件内模式）
+     * 初始化游戏（聊天记录模式）
      */
-    async init(containerElement) {
-        // 清理可能存在的游戏容器
+    async init() {
+        // 先关闭可能存在的游戏容器和所有相关元素
         const existingContainer = document.getElementById('sudoku-game-container');
         if (existingContainer) {
             existingContainer.remove();
@@ -1031,6 +1032,14 @@ class SudokuGame {
         if (winDialog) {
             winDialog.remove();
         }
+        
+        // 清理任何可能残留的数独相关元素
+        const existingElements = document.querySelectorAll('[id*="sudoku"]');
+        existingElements.forEach(element => {
+            if (element.id.includes('sudoku')) {
+                element.remove();
+            }
+        });
 
         // 添加数独游戏专用样式
         if (!document.getElementById('sudoku-game-styles')) {
@@ -1040,20 +1049,8 @@ class SudokuGame {
             document.head.appendChild(styleElement);
         }
         
-        // 渲染游戏界面到指定容器
-        const gameHTML = this.renderGame();
-        if (containerElement) {
-            containerElement.innerHTML = gameHTML;
-        } else {
-            // 如果没有指定容器，查找游戏容器
-            const gameContainer = document.querySelector('.janus-content-area');
-            if (gameContainer) {
-                gameContainer.innerHTML = gameHTML;
-            } else {
-                console.error('数独游戏：找不到合适的容器');
-                return false;
-            }
-        }
+        // 插入到聊天记录中
+        this.insertToChat();
         
         // 绑定事件监听器
         this.setupEventListeners();
@@ -1076,9 +1073,81 @@ class SudokuGame {
     }
 
     /**
-     * 设置事件监听器（插件内模式）
+     * 插入数独游戏到聊天记录中
+     */
+    insertToChat() {
+        // 渲染游戏界面
+        const gameHTML = this.renderGame();
+        
+        // 尝试找到聊天容器
+        let chatContainer = null;
+        
+        // 方法1: 查找常见的聊天容器
+        const possibleContainers = [
+            '#chat', 
+            '.chat-container', 
+            '.messages', 
+            '.chat-messages',
+            '.conversation',
+            '#messages',
+            '.message-list'
+        ];
+        
+        for (const selector of possibleContainers) {
+            chatContainer = document.querySelector(selector);
+            if (chatContainer) {
+                console.log('找到聊天容器:', selector);
+                break;
+            }
+        }
+        
+        // 方法2: 如果没找到，尝试查找包含消息的元素
+        if (!chatContainer) {
+            const messageElements = document.querySelectorAll('[class*="message"], [class*="chat"], [id*="message"], [id*="chat"]');
+            for (const element of messageElements) {
+                if (element.children.length > 0) {
+                    chatContainer = element;
+                    console.log('通过消息元素找到聊天容器');
+                    break;
+                }
+            }
+        }
+        
+        // 方法3: 如果还是没找到，使用body作为后备
+        if (!chatContainer) {
+            chatContainer = document.body;
+            console.log('使用body作为聊天容器');
+        }
+        
+        // 插入到聊天容器的末尾
+        if (chatContainer) {
+            chatContainer.insertAdjacentHTML('beforeend', gameHTML);
+            console.log('数独游戏已插入到聊天记录中');
+        } else {
+            console.error('无法找到聊天容器，数独游戏插入失败');
+        }
+    }
+
+    /**
+     * 设置事件监听器
      */
     setupEventListeners() {
+        // 绑定关闭按钮点击事件
+        const closeBtn = document.querySelector('.sudoku-game-close');
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                this.closeGame();
+            };
+        }
+
+        // 绑定ESC键关闭
+        const keydownHandler = (e) => {
+            if (e.key === 'Escape') {
+                this.closeGame();
+            }
+        };
+        document.addEventListener('keydown', keydownHandler);
+
         // 绑定控制按钮事件
         const newGameBtn = document.getElementById('sudoku-new-game');
         const hintBtn = document.getElementById('sudoku-hint');
@@ -1112,14 +1181,22 @@ class SudokuGame {
                 }
             };
         }
+
+        // 保存事件处理器引用以便清理
+        this.keydownHandler = keydownHandler;
     }
 
     /**
-     * 关闭游戏（插件内模式）
+     * 关闭游戏
      */
     closeGame() {
         // 停止计时器
         this.stopTimer();
+
+        // 解绑事件监听器
+        if (this.keydownHandler) {
+            document.removeEventListener('keydown', this.keydownHandler);
+        }
 
         // 移除游戏容器
         const container = document.getElementById('sudoku-game-container');
@@ -1138,6 +1215,14 @@ class SudokuGame {
         if (styles) {
             styles.remove();
         }
+        
+        // 清理任何可能残留的元素
+        const existingElements = document.querySelectorAll('[id*="sudoku"]');
+        existingElements.forEach(element => {
+            if (element.id.includes('sudoku')) {
+                element.remove();
+            }
+        });
     }
 
     /**
@@ -1145,30 +1230,35 @@ class SudokuGame {
      */
     getSudokuStyles() {
         return `
-            /* 数独游戏插件内样式 */
-            .sudoku-plugin-container {
+            /* 数独游戏聊天记录样式 */
+            .sudoku-chat-container {
                 background: var(--SmartThemeBodyColor, #ffffff);
                 color: var(--SmartThemeTextColor, #333333);
                 padding: 0;
-                border-radius: 8px;
+                border-radius: 12px;
                 width: 100%;
+                max-width: 600px;
+                min-width: 320px;
                 text-align: center;
-                border: 1px solid var(--SmartThemeBorderColor, #cccccc);
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
                 overflow: hidden;
                 display: flex;
                 flex-direction: column;
                 position: relative;
-                margin: 0;
-                max-height: none;
+                margin: 20px auto;
+                backdrop-filter: blur(10px);
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+                filter: contrast(1.2);
             }
 
             .sudoku-game-header {
                 background: var(--SmartThemeBodyColor, #ffffff);
                 padding: 15px 20px;
-                border-bottom: 1px solid var(--SmartThemeBorderColor, #cccccc);
+                border-bottom: 2px solid var(--SmartThemeBodyColor, #ffffff);
                 display: flex;
                 align-items: center;
-                justify-content: center;
+                justify-content: space-between;
+                backdrop-filter: blur(5px);
             }
 
             .sudoku-game-title {
@@ -1179,6 +1269,26 @@ class SudokuGame {
                 text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
             }
 
+            .sudoku-game-close {
+                background: var(--SmartThemeBodyColor, #ffffff);
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
+                color: var(--SmartThemeTextColor, #333333);
+                cursor: pointer;
+                border-radius: 6px;
+                width: 28px;
+                height: 28px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                backdrop-filter: blur(5px);
+            }
+
+            .sudoku-game-close:hover {
+                background: var(--SmartThemeBodyColor, #ffffff);
+                color: var(--SmartThemeTextColor, #333333);
+                opacity: 0.8;
+            }
 
             .sudoku-game-content {
                 padding: 20px;
@@ -1188,6 +1298,7 @@ class SudokuGame {
                 align-items: center;
                 min-height: 300px;
                 background: var(--SmartThemeBodyColor, #ffffff);
+                backdrop-filter: blur(5px);
             }
 
             /* 数独游戏控制面板 */
@@ -1200,48 +1311,53 @@ class SudokuGame {
             }
 
             .sudoku-control-btn {
-                background: var(--SmartThemeInputColor, #f8f9fa);
+                background: var(--SmartThemeBodyColor, #ffffff);
                 color: var(--SmartThemeTextColor, #333333);
-                border: 1px solid var(--SmartThemeBorderColor, #cccccc);
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
                 padding: 8px 16px;
-                border-radius: 4px;
+                border-radius: 6px;
                 cursor: pointer;
                 font-size: 14px;
                 font-weight: 500;
                 min-width: 80px;
+                backdrop-filter: blur(5px);
                 text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
             }
 
             .sudoku-control-btn:hover {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.1));
+                background: var(--SmartThemeBodyColor, #ffffff);
                 color: var(--SmartThemeTextColor, #333333);
+                opacity: 0.8;
             }
 
             /* 难度选择下拉框 */
             .sudoku-difficulty-select {
-                background: var(--SmartThemeInputColor, #f8f9fa);
-                border: 1px solid var(--SmartThemeBorderColor, #cccccc);
-                border-radius: 4px;
+                background: var(--SmartThemeBodyColor, #ffffff);
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
+                border-radius: 6px;
                 padding: 8px 12px;
                 font-size: 14px;
                 color: var(--SmartThemeTextColor, #333333);
                 cursor: pointer;
                 min-width: 80px;
+                backdrop-filter: blur(5px);
                 text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
             }
 
             .sudoku-difficulty-select:focus {
                 outline: none;
-                border-color: var(--SmartThemeQuoteColor, #007bff);
+                border-color: var(--SmartThemeBodyColor, #ffffff);
+                opacity: 0.8;
             }
 
             /* 数独网格容器 */
             .sudoku-grid-container {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
-                border-radius: 8px;
+                background: var(--SmartThemeBodyColor, #ffffff);
+                border-radius: 12px;
                 padding: 15px;
-                border: 1px solid var(--SmartThemeBorderColor, #cccccc);
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
                 margin-bottom: 20px;
+                backdrop-filter: blur(5px);
             }
 
             /* 数独网格 */
@@ -1252,18 +1368,18 @@ class SudokuGame {
                 gap: 1px;
                 width: 360px;
                 height: 360px;
-                background: var(--SmartThemeBorderColor, #cccccc);
-                border: 2px solid var(--SmartThemeBorderColor, #cccccc);
-                border-radius: 4px;
+                background: var(--SmartThemeBodyColor, #ffffff);
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
+                border-radius: 8px;
                 overflow: hidden;
                 box-sizing: border-box;
                 aspect-ratio: 1;
-                margin: 0 auto;
+                backdrop-filter: blur(5px);
             }
 
             /* 数独单元格 */
             .sudoku-cell {
-                background: var(--SmartThemeInputColor, #ffffff);
+                background: var(--SmartThemeBodyColor, #ffffff);
                 border: none;
                 display: flex;
                 align-items: center;
@@ -1278,16 +1394,19 @@ class SudokuGame {
                 width: 100%;
                 height: 100%;
                 aspect-ratio: 1;
+                backdrop-filter: blur(3px);
                 text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
             }
 
             .sudoku-cell:focus {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.1));
-                border: 1px solid var(--SmartThemeQuoteColor, #007bff);
+                background: var(--SmartThemeBodyColor, #ffffff);
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
+                opacity: 0.8;
             }
 
             .sudoku-cell:hover:not(.sudoku-cell-given) {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
+                background: var(--SmartThemeBodyColor, #ffffff);
+                opacity: 0.7;
             }
 
             /* 3x3块的边界 - 右边界（第3、6列） */
@@ -1300,45 +1419,49 @@ class SudokuGame {
             .sudoku-cell:nth-child(57), .sudoku-cell:nth-child(60),
             .sudoku-cell:nth-child(66), .sudoku-cell:nth-child(69),
             .sudoku-cell:nth-child(75), .sudoku-cell:nth-child(78) {
-                border-right: 3px solid var(--SmartThemeBorderColor, #cccccc);
+                border-right: 3px solid var(--SmartThemeBodyColor, #ffffff);
             }
 
             /* 3x3块的边界 - 下边界（第3、6行） */
             .sudoku-cell:nth-child(n+19):nth-child(-n+27),
             .sudoku-cell:nth-child(n+46):nth-child(-n+54) {
-                border-bottom: 3px solid var(--SmartThemeBorderColor, #cccccc);
+                border-bottom: 3px solid var(--SmartThemeBodyColor, #ffffff);
             }
 
 
             /* 预设数字样式 */
             .sudoku-cell-given {
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
+                background: var(--SmartThemeBodyColor, #ffffff);
                 color: var(--SmartThemeTextColor, #333333);
                 font-weight: 900;
                 cursor: default;
+                opacity: 0.9;
                 text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
             }
 
             /* 用户输入数字样式 */
             .sudoku-cell-user {
-                color: var(--SmartThemeQuoteColor, #007bff);
+                color: var(--SmartThemeTextColor, #333333);
                 font-weight: 700;
-                background: var(--SmartThemeInputColor, #ffffff);
+                background: var(--SmartThemeBodyColor, #ffffff);
+                opacity: 0.8;
                 text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
             }
 
             /* 错误高亮 */
             .sudoku-cell-error {
-                background: rgba(231, 76, 60, 0.2);
-                color: #e74c3c;
-                border: 1px solid #e74c3c;
+                background: var(--SmartThemeBodyColor, #ffffff);
+                color: var(--SmartThemeTextColor, #333333);
+                opacity: 0.6;
+                border: 2px solid var(--SmartThemeBodyColor, #ffffff);
                 text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
             }
 
             /* 正确输入提示 */
             .sudoku-cell-correct {
-                background: rgba(46, 204, 113, 0.2);
-                color: #27ae60;
+                background: var(--SmartThemeBodyColor, #ffffff);
+                color: var(--SmartThemeTextColor, #333333);
+                opacity: 1;
                 animation: correctPulse 1s ease-in-out;
                 text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
             }
@@ -1359,10 +1482,10 @@ class SudokuGame {
                 font-weight: 500;
                 justify-content: center;
                 flex-wrap: wrap;
-                background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.05));
+                background: var(--SmartThemeBodyColor, #ffffff);
                 padding: 10px;
                 border-radius: 8px;
-                border: 1px solid var(--SmartThemeBorderColor, #cccccc);
+                backdrop-filter: blur(5px);
                 text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
             }
 
@@ -1374,15 +1497,10 @@ class SudokuGame {
 
             /* 响应式设计 */
             @media (max-width: 768px) {
-                .sudoku-game-overlay {
-                    align-items: center;
-                    justify-content: center;
-                }
-                
-                .sudoku-game-container {
+                .sudoku-chat-container {
                     width: 95%;
                     min-width: 320px;
-                    max-height: 90vh;
+                    margin: 15px auto;
                 }
                 
                 .sudoku-game-header {
@@ -1421,15 +1539,10 @@ class SudokuGame {
             }
 
             @media (max-width: 480px) {
-                .sudoku-game-overlay {
-                    align-items: center;
-                    justify-content: center;
-                    padding: 5px;
-                }
-                
-                .sudoku-game-container {
+                .sudoku-chat-container {
                     width: 98%;
                     min-width: 320px;
+                    margin: 10px auto;
                     border-radius: 12px;
                 }
                 
@@ -1475,12 +1588,12 @@ class SudokuGame {
 
             /* 大屏幕优化 */
             @media (min-width: 1200px) {
-                .sudoku-game-container {
+                .sudoku-chat-container {
                     max-width: 700px;
                 }
                 
                 .sudoku-game-content {
-                    padding: 50px 30px;
+                    padding: 30px;
                     min-height: 400px;
                 }
             }
@@ -1491,20 +1604,8 @@ class SudokuGame {
 // 创建全局游戏实例
 window.sudokuGame = new SudokuGame();
 
-// 导出游戏启动函数（插件内模式）
-window.startSudokuGame = async function(containerElement) {
-    try {
-        await window.sudokuGame.init(containerElement);
-        // 游戏界面已经直接添加到指定容器中，不需要返回任何内容
-        return '';
-    } catch (error) {
-        console.error('启动数独游戏失败:', error);
-        return '<div style="color: red; text-align: center; padding: 20px;">数独游戏启动失败，请检查控制台错误信息。</div>';
-    }
-};
-
-// 导出游戏启动函数（弹窗模式，向后兼容）
-window.startSudokuGamePopup = async function() {
+// 导出游戏启动函数
+window.startSudokuGame = async function() {
     try {
         await window.sudokuGame.init();
         // 游戏界面已经直接添加到DOM中，不需要返回任何内容
