@@ -1052,6 +1052,10 @@
                 debugLog('开始导入世界书...');
                 debugLog(`发现 ${Object.keys(packageData.world_books).length} 个世界书需要导入`);
                 
+                // 确保context变量可用
+                const context = SillyTavern.getContext();
+                debugLog('Context获取成功:', context);
+                
                 for (const [worldName, worldData] of Object.entries(packageData.world_books)) {
                     try {
                         debugLog(`准备导入世界书: ${worldName}`);
