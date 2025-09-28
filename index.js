@@ -187,28 +187,6 @@ jQuery(() => {
     }
 
     
-    // 加载游戏加载器
-    async function loadGameLoader() {
-        // 如果游戏加载器已经加载，直接返回
-        if (window.gameLoader) {
-            console.log('[Janusの百宝箱] 游戏加载器已存在');
-            return;
-        }
-        
-        try {
-            const script = document.createElement('script');
-            script.src = 'scripts/extensions/third-party/Janus-Treasure-chest/游戏/game-loader.js';
-            script.onload = () => {
-                console.log('[Janusの百宝箱] 游戏加载器脚本加载完成');
-            };
-            script.onerror = () => {
-                console.error('[Janusの百宝箱] 游戏加载器脚本加载失败');
-            };
-            document.head.appendChild(script);
-        } catch (error) {
-            console.error('[Janusの百宝箱] 加载游戏加载器失败:', error);
-        }
-    }
     
     // 加载外接口游戏管理器
     async function loadExternalGameManager() {
@@ -284,83 +262,34 @@ jQuery(() => {
                     <div class="janus-tab-content">
                         <h4 style="text-align: center;"><i class="fa-solid fa-gamepad"></i> 游戏中心</h4>
                         
-                        <!-- 游戏分类标签 -->
-                        <div class="game-category-tabs">
-                            <button onclick="window.janusHandlers.switchGameCategory('builtin')" class="game-category-btn active" data-category="builtin">
-                                <i class="fa-solid fa-cube"></i> 内置游戏
-                            </button>
-                            <button onclick="window.janusHandlers.switchGameCategory('external')" class="game-category-btn" data-category="external">
-                                <i class="fa-solid fa-plug"></i> 外接游戏
-                            </button>
-                        </div>
-                        
-                        <!-- 内置游戏区域 -->
-                        <div id="builtin-games" class="game-category-content active">
-                            <div class="game-grid">
-                                <div class="game-item" onclick="window.janusHandlers.launchGame('polly')">
-                                    <div class="game-icon">🎮</div>
-                                    <div class="game-name">波利大冒险</div>
-                                    <div class="game-desc">桌宠游戏</div>
-                                </div>
-                                <div class="game-item" onclick="window.janusHandlers.launchGame('snake')">
-                                    <div class="game-icon">🐍</div>
-                                    <div class="game-name">贪吃蛇</div>
-                                    <div class="game-desc">操作游戏</div>
-                                </div>
-                                <div class="game-item" onclick="window.janusHandlers.launchGame('2048')">
-                                    <div class="game-icon">🔢</div>
-                                    <div class="game-name">2048</div>
-                                    <div class="game-desc">合并游戏</div>
-                                </div>
-                                <div class="game-item" onclick="window.janusHandlers.launchGame('cat')">
-                                    <div class="game-icon">🐱</div>
-                                    <div class="game-name">进击的小猫</div>
-                                    <div class="game-desc">射击冒险</div>
-                                </div>
-                                <div class="game-item" onclick="window.janusHandlers.launchGame('flora')">
-                                    <div class="game-icon">🏛️</div>
-                                    <div class="game-name">芙罗拉的神庙</div>
-                                    <div class="game-desc">迷宫探索</div>
-                                </div>
-                                <div class="game-item" onclick="window.janusHandlers.launchGame('sudoku')">
-                                    <div class="game-icon">🧩</div>
-                                    <div class="game-name">数独</div>
-                                    <div class="game-desc">推理游戏</div>
+                        <div class="external-interface">
+                            <h5><i class="fa-solid fa-info-circle"></i> 外接游戏说明</h5>
+                            <div class="supported-formats">
+                                <div class="url-types" style="color: var(--SmartThemeTextColor, inherit);">
+                                    <strong>支持导入的游戏文件/URL：</strong><br>
+                                    - Javascript（需包含startGame函数）<br>
+                                    - Html（完整前端代码）<br>
+                                    - Json（游戏配置）<br>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <!-- 外接口区域 -->
-                        <div id="external-games" class="game-category-content">
-                            <div class="external-interface">
-                                <h5><i class="fa-solid fa-info-circle"></i> 外接游戏说明</h5>
-                                <div class="supported-formats">
-                                    <div class="url-types" style="color: var(--SmartThemeTextColor, inherit);">
-                                        <strong>支持导入的游戏文件/URL：</strong><br>
-                                        - Javascript（需包含startGame函数）<br>
-                                        - Html（完整前端代码）<br>
-                                        - Json（游戏配置）<br>
-                                    </div>
+                            
+                            <div class="import-section">
+                                <h6><i class="fa-solid fa-upload"></i> 导入游戏</h6>
+                                <div class="import-controls">
+                                    <input type="file" id="game-file-input" accept=".js,.json" style="display: none;" onchange="if(this.files[0]) window.janusHandlers.importGameFromFile(this.files[0])">
+                                    <button onclick="document.getElementById('game-file-input').click()" class="import-btn">
+                                        <i class="fa-solid fa-folder-open"></i> 选择游戏文件
+                                    </button>
+                                    <button onclick="window.janusHandlers.importGameFromUrl()" class="import-btn">
+                                        <i class="fa-solid fa-link"></i> 从URL导入
+                                    </button>
                                 </div>
-                                
-                                <div class="import-section">
-                                    <h6><i class="fa-solid fa-upload"></i> 导入游戏</h6>
-                                    <div class="import-controls">
-                                        <input type="file" id="game-file-input" accept=".js,.json" style="display: none;" onchange="if(this.files[0]) window.janusHandlers.importGameFromFile(this.files[0])">
-                                        <button onclick="document.getElementById('game-file-input').click()" class="import-btn">
-                                            <i class="fa-solid fa-folder-open"></i> 选择游戏文件
-                                        </button>
-                                        <button onclick="window.janusHandlers.importGameFromUrl()" class="import-btn">
-                                            <i class="fa-solid fa-link"></i> 从URL导入
-                                        </button>
-                                    </div>
-                                </div>
-                                
-                                <div class="imported-games">
-                                    <h6><i class="fa-solid fa-list"></i> 已导入的游戏</h6>
-                                    <div id="imported-games-list">
-                                        <div class="no-games">暂无导入的游戏</div>
-                                    </div>
+                            </div>
+                            
+                            <div class="imported-games">
+                                <h6><i class="fa-solid fa-list"></i> 已导入的游戏</h6>
+                                <div id="imported-games-list">
+                                    <div class="no-games">暂无导入的游戏</div>
                                 </div>
                             </div>
                         </div>
@@ -386,67 +315,16 @@ jQuery(() => {
             }, 100);
         }
         
-        // 如果是游戏标签页，加载游戏加载器和外接口管理器
+        // 如果是游戏标签页，加载外接口管理器
         if (tabName === 'games') {
             setTimeout(() => {
-                loadGameLoader();
                 loadExternalGameManager();
             }, 100);
         }
         
     }
     
-    // 游戏分类切换
-    function switchGameCategory(category) {
-        // 更新按钮状态
-        document.querySelectorAll('.game-category-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        document.querySelector(`[data-category="${category}"]`).classList.add('active');
-        
-        // 更新内容显示
-        document.querySelectorAll('.game-category-content').forEach(content => {
-            content.classList.remove('active');
-        });
-        document.getElementById(`${category}-games`).classList.add('active');
-        
-        console.log(`[Janusの百宝箱] 切换到游戏分类: ${category}`);
-    }
     
-    // 启动游戏
-    async function launchGame(gameType) {
-        console.log(`[Janusの百宝箱] 启动游戏: ${gameType}`);
-        
-        try {
-            // 使用游戏加载器启动游戏
-            const result = await window.gameLoader.launchGame(gameType);
-            
-            // 内置游戏简化逻辑：直接显示toastr提示
-            if (result.success) {
-                toastr.success('游戏已启动', '启动成功', { timeOut: 2000 });
-            } else {
-                // 如果游戏启动失败，可能是待施工的游戏
-                toastr.info('该游戏正在施工中', '施工中', { timeOut: 2000 });
-            }
-            
-        } catch (error) {
-            console.error(`[Janusの百宝箱] 启动游戏失败:`, error);
-            toastr.info('该游戏正在施工中', '施工中', { timeOut: 2000 });
-        }
-    }
-    
-    // 获取游戏名称
-    function getGameName(gameType) {
-        const gameNames = {
-            'polly': '波利大冒险',
-            'snake': '贪吃蛇',
-            '2048': '2048',
-            'cat': '进击的小猫',
-            'flora': '芙罗拉的神庙',
-            'sudoku': '数独'
-        };
-        return gameNames[gameType] || '未知游戏';
-    }
     
     // 从URL导入游戏
     async function importGameFromUrl() {
@@ -552,8 +430,6 @@ jQuery(() => {
     // 模块功能处理函数
     window.janusHandlers = {
         switchTab: switchTab,
-        switchGameCategory: switchGameCategory,
-        launchGame: launchGame,
         importGameFromUrl: importGameFromUrl,
         importGameFromFile: importGameFromFile,
         launchExternalGame: launchExternalGame,
@@ -669,92 +545,6 @@ jQuery(() => {
             padding: 5px;
         }
         
-        /* 游戏分类标签样式 */
-        .game-category-tabs {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 15px;
-            border-bottom: 1px solid var(--SmartThemeBorderColor, #ddd);
-            padding-bottom: 8px;
-        }
-        
-        .game-category-btn {
-            flex: 1;
-            padding: 8px 12px;
-            border: none;
-            background: transparent;
-            color: var(--SmartThemeTextColor);
-            cursor: pointer;
-            border-radius: 4px;
-            transition: all 0.3s ease;
-            font-size: 12px;
-        }
-        
-        .game-category-btn.active {
-            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.1));
-            color: var(--SmartThemeTextColor, white);
-            font-weight: bold;
-        }
-        
-        .game-category-btn:hover {
-            background: var(--SmartThemeQuoteColor, rgba(0, 123, 255, 0.05));
-        }
-        
-        /* 游戏分类内容 */
-        .game-category-content {
-            display: none;
-        }
-        
-        .game-category-content.active {
-            display: block;
-        }
-        
-        /* 游戏网格布局 */
-        .game-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 10px;
-            margin-top: 10px;
-        }
-        
-        .game-item {
-            background: var(--SmartThemeChatTintColor, rgba(255, 255, 255, 0.1));
-            border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
-            border-radius: 8px;
-            padding: 15px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            min-height: 100px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            color: var(--SmartThemeTextColor);
-        }
-        
-        .game-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            border-color: var(--SmartThemeQuoteColor, #007bff);
-        }
-        
-        .game-icon {
-            font-size: 24px;
-            margin-bottom: 8px;
-        }
-        
-        .game-name {
-            font-weight: bold;
-            color: var(--SmartThemeTextColor);
-            margin-bottom: 4px;
-            font-size: 13px;
-        }
-        
-        .game-desc {
-            font-size: 11px;
-            color: var(--SmartThemeTextColor);
-            opacity: 0.7;
-        }
         
         /* 外接口样式 */
         .external-interface {
