@@ -1047,48 +1047,100 @@
                 debugLog(`快速回复集导入完成，共导入 ${Object.keys(packageData.quick_reply_sets).length} 个集`);
             }
             
-            // 导入世界书 - 使用文件上传方式
+            // 导入世界书 - 尝试多种方法
             if (packageData.world_books) {
-                debugLog('开始使用文件上传方式导入世界书...');
+                debugLog('开始导入世界书...');
+                debugLog(`发现 ${Object.keys(packageData.world_books).length} 个世界书需要导入`);
                 
                 for (const [worldName, worldData] of Object.entries(packageData.world_books)) {
                     try {
                         debugLog(`准备导入世界书: ${worldName}`);
+                        debugLog(`世界书条目数量: ${Object.keys(worldData.entries || {}).length}`);
                         
-                        // 创建世界书JSON文件
-                        const worldBookJson = JSON.stringify(worldData, null, 2);
-                        const blob = new Blob([worldBookJson], { type: 'application/json' });
-                        const file = new File([blob], `${worldName}.json`, { type: 'application/json' });
+                        // 方法1: 尝试使用SillyTavern原生的importWorldInfo函数
+                        if (window.importWorldInfo && typeof window.importWorldInfo === 'function') {
+                            debugLog('尝试使用原生importWorldInfo函数');
+                            
+                            // 创建世界书JSON文件
+                            const worldBookJson = JSON.stringify(worldData, null, 2);
+                            const blob = new Blob([worldBookJson], { type: 'application/json' });
+                            const file = new File([blob], `${worldName}.json`, { type: 'application/json' });
+                            
+                            await window.importWorldInfo(file);
+                            debugLog(`世界书 ${worldName} 导入成功 (原生函数)`);
+                            importedCount++;
+                            continue;
+                        }
                         
-                        // 使用FormData上传文件
-                        const formData = new FormData();
-                        formData.append('avatar', file);
+                        // 方法2: 尝试直接使用API创建世界书
+                        debugLog('尝试使用API直接创建世界书');
                         
-                        debugLog(`上传世界书文件: ${worldName}.json`);
-                        
-                        // 调用世界书导入API
-                        const response = await fetch('/api/worldinfo/import', {
+                        // 首先检查世界书是否已存在
+                        const checkResponse = await fetch('/api/worldinfo/get', {
                             method: 'POST',
-                            headers: context.getRequestHeaders({ omitContentType: true }),
-                            body: formData,
-                            cache: 'no-cache',
+                            headers: context.getRequestHeaders(),
+                            body: JSON.stringify({ name: worldName }),
                         });
                         
-                        if (response.ok) {
-                            const result = await response.json();
-                            debugLog(`世界书 ${worldName} 导入成功:`, result);
+                        if (checkResponse.ok) {
+                            const existingData = await checkResponse.json();
+                            debugLog(`世界书 ${worldName} 已存在，条目数: ${Object.keys(existingData.entries || {}).length}`);
+                        }
+                        
+                        // 使用edit API创建/更新世界书
+                        const editResponse = await fetch('/api/worldinfo/edit', {
+                            method: 'POST',
+                            headers: context.getRequestHeaders(),
+                            body: JSON.stringify({
+                                name: worldName,
+                                data: worldData
+                            }),
+                        });
+                        
+                        if (editResponse.ok) {
+                            const result = await editResponse.json();
+                            debugLog(`世界书 ${worldName} 导入成功 (API编辑):`, result);
                             importedCount++;
                         } else {
-                            const errorText = await response.text();
-                            debugLog(`世界书 ${worldName} 导入失败: ${response.status} - ${errorText}`);
+                            const errorText = await editResponse.text();
+                            debugLog(`世界书 ${worldName} API编辑失败: ${editResponse.status} - ${errorText}`);
+                            
+                            // 方法3: 尝试文件上传方式
+                            debugLog('尝试文件上传方式');
+                            
+                            const worldBookJson = JSON.stringify(worldData, null, 2);
+                            const blob = new Blob([worldBookJson], { type: 'application/json' });
+                            const file = new File([blob], `${worldName}.json`, { type: 'application/json' });
+                            
+                            const formData = new FormData();
+                            formData.append('avatar', file);
+                            
+                            const uploadResponse = await fetch('/api/worldinfo/import', {
+                                method: 'POST',
+                                headers: context.getRequestHeaders({ omitContentType: true }),
+                                body: formData,
+                                cache: 'no-cache',
+                            });
+                            
+                            if (uploadResponse.ok) {
+                                const result = await uploadResponse.json();
+                                debugLog(`世界书 ${worldName} 导入成功 (文件上传):`, result);
+                                importedCount++;
+                            } else {
+                                const uploadErrorText = await uploadResponse.text();
+                                debugLog(`世界书 ${worldName} 文件上传失败: ${uploadResponse.status} - ${uploadErrorText}`);
+                            }
                         }
                         
                     } catch (error) {
                         debugLog(`世界书 ${worldName} 导入失败: ${error.message}`);
+                        debugLog(`错误堆栈:`, error.stack);
                     }
                 }
                 
                 debugLog(`世界书导入完成，共导入 ${Object.keys(packageData.world_books).length} 个世界书`);
+            } else {
+                debugLog('没有发现世界书数据需要导入');
             }
             
             showProgress(100);
