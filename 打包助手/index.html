@@ -23,17 +23,21 @@
             </div>
             
             <div class="resource-tabs">
-                <button class="resource-tab-btn active" onclick="switchResourceTab('presets')">
-                    <i class="fa-solid fa-palette"></i> 预设
+                <button class="resource-tab-btn icon-only active" onclick="switchResourceTab('presets')" title="预设">
+                    <i class="fa-solid fa-palette"></i>
+                    <span>预设</span>
                 </button>
-                <button class="resource-tab-btn" onclick="switchResourceTab('regexes')">
-                    <i class="fa-solid fa-code"></i> 正则
+                <button class="resource-tab-btn icon-only" onclick="switchResourceTab('regexes')" title="正则">
+                    <i class="fa-solid fa-code"></i>
+                    <span>正则</span>
                 </button>
-                <button class="resource-tab-btn" onclick="switchResourceTab('quickreplies')">
-                    <i class="fa-solid fa-bolt"></i> 快速回复
+                <button class="resource-tab-btn icon-only" onclick="switchResourceTab('quickreplies')" title="快速回复">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>快速回复</span>
                 </button>
-                <button class="resource-tab-btn" onclick="switchResourceTab('worldbooks')">
-                    <i class="fa-solid fa-book-atlas"></i> 世界书
+                <button class="resource-tab-btn icon-only" onclick="switchResourceTab('worldbooks')" title="世界书">
+                    <i class="fa-solid fa-book-atlas"></i>
+                    <span>世界书</span>
                 </button>
             </div>
             
@@ -232,6 +236,31 @@
     flex-shrink: 0;
     white-space: nowrap;
     min-width: fit-content;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+.resource-tab-btn i {
+    font-size: 16px;
+    margin: 0;
+}
+
+.resource-tab-btn span {
+    font-size: 10px;
+    line-height: 1;
+}
+
+/* 只显示图标的模式 */
+.resource-tab-btn.icon-only span {
+    display: none;
+}
+
+.resource-tab-btn.icon-only {
+    padding: 8px;
+    min-width: 40px;
 }
 
 .resource-tab-btn.active {
@@ -474,17 +503,14 @@
         padding-bottom: 2px;
     }
     
-    .resource-tab-btn {
+    .resource-tab-btn.icon-only {
         flex-shrink: 0;
-        padding: 6px 8px;
-        font-size: 12px;
-        white-space: nowrap;
-        min-width: fit-content;
+        padding: 6px;
+        min-width: 36px;
     }
     
-    .resource-tab-btn i {
-        font-size: 11px;
-        margin-right: 3px;
+    .resource-tab-btn.icon-only i {
+        font-size: 14px;
     }
     
     .preset-btn {
@@ -494,45 +520,37 @@
 
 /* 中等屏幕优化 */
 @media (max-width: 480px) {
-    .resource-tab-btn {
-        padding: 5px 6px;
-        font-size: 11px;
+    .resource-tab-btn.icon-only {
+        padding: 5px;
+        min-width: 32px;
     }
     
-    .resource-tab-btn i {
-        font-size: 10px;
-        margin-right: 2px;
+    .resource-tab-btn.icon-only i {
+        font-size: 13px;
     }
 }
 
 /* 小屏幕优化 */
 @media (max-width: 360px) {
-    .resource-tab-btn {
-        padding: 4px 4px;
-        font-size: 10px;
+    .resource-tab-btn.icon-only {
+        padding: 4px;
+        min-width: 28px;
     }
     
-    .resource-tab-btn i {
-        font-size: 9px;
-        margin-right: 1px;
-    }
-    
-    /* 在极小屏幕上隐藏图标，只显示文字 */
-    .resource-tab-btn i {
-        display: none;
-    }
-    
-    .resource-tab-btn {
-        padding: 4px 6px;
-        font-size: 10px;
+    .resource-tab-btn.icon-only i {
+        font-size: 12px;
     }
 }
 
 /* 极小屏幕优化 */
 @media (max-width: 320px) {
-    .resource-tab-btn {
-        padding: 3px 4px;
-        font-size: 9px;
+    .resource-tab-btn.icon-only {
+        padding: 3px;
+        min-width: 24px;
+    }
+    
+    .resource-tab-btn.icon-only i {
+        font-size: 11px;
     }
 }
 </style>
