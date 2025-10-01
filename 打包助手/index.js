@@ -23,6 +23,11 @@
             
             // 首先检查当前聊天状态
             const context = SillyTavern.getContext();
+            if (!context) {
+                debugLog('警告: 无法获取SillyTavern context，跳过清理');
+                return;
+            }
+            
             const currentChat = context.chat || window.chat || [];
             const currentChatId = context.getCurrentChatId ? context.getCurrentChatId() : null;
             
@@ -1102,11 +1107,17 @@
             if (packageData.quick_reply_sets) {
                 debugLog('开始使用slash命令系统导入快速回复集...');
                 
+                // 确保context变量可用
+                const context = SillyTavern.getContext();
+                if (!context) {
+                    debugLog('警告: 无法获取SillyTavern context，跳过状态记录');
+                }
+                
                 // 记录导入前的状态，用于后续清理
                 const beforeImportState = {
-                    currentChatId: context.getCurrentChatId ? context.getCurrentChatId() : null,
-                    currentChatLength: (context.chat || window.chat || []).length,
-                    charactersCount: Object.keys(context.characters || window.characters || {}).length
+                    currentChatId: context && context.getCurrentChatId ? context.getCurrentChatId() : null,
+                    currentChatLength: (context && context.chat || window.chat || []).length,
+                    charactersCount: Object.keys(context && context.characters || window.characters || {}).length
                 };
                 debugLog('导入前状态:', beforeImportState);
                 
@@ -1156,8 +1167,8 @@
                             // 4. 添加上下文菜单项
                             for (const qr of qrSet.qrList) {
                                 if (qr.contextList && qr.contextList.length > 0) {
-                                    for (const context of qr.contextList) {
-                                        slashCommands += `/qr-contextadd set=${setName} label=${qr.label || ''} id=${qr.id || 0} chain=${context.isChained || false} "${context.set || ''}" ||\n`;
+                                    for (const contextItem of qr.contextList) {
+                                        slashCommands += `/qr-contextadd set=${setName} label=${qr.label || ''} id=${qr.id || 0} chain=${contextItem.isChained || false} "${contextItem.set || ''}" ||\n`;
                                     }
                                 }
                             }
