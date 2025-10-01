@@ -91,6 +91,104 @@
         }
     }
     
+    // 清理多余的assistant聊天窗口
+    async function cleanupAssistantChats() {
+        try {
+            debugLog('开始清理多余的assistant聊天窗口...');
+            
+            // 等待一下让所有窗口完全加载
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // 查找所有assistant相关的聊天窗口
+            const chatItems = document.querySelectorAll('.chat_list_item');
+            let deletedCount = 0;
+            
+            for (const chatItem of chatItems) {
+                try {
+                    // 检查是否是assistant聊天窗口
+                    const chatTitle = chatItem.querySelector('.chat_list_item_title');
+                    const chatSubtitle = chatItem.querySelector('.chat_list_item_subtitle');
+                    
+                    if (chatTitle && chatSubtitle) {
+                        const title = chatTitle.textContent || '';
+                        const subtitle = chatSubtitle.textContent || '';
+                        
+                        // 检查是否是assistant相关的空聊天窗口
+                        if ((title.includes('Assistant') || title.includes('assistant')) && 
+                            (subtitle.includes('[The message is empty]') || subtitle.includes('消息为空'))) {
+                            
+                            debugLog(`发现多余的assistant聊天窗口: ${title}`);
+                            
+                            // 尝试多种方式找到删除按钮
+                            let deleteButton = chatItem.querySelector('.delete_chat_button, .chat_list_item_delete, [title*="删除"], [title*="Delete"]');
+                            
+                            // 如果没找到，尝试其他可能的选择器
+                            if (!deleteButton) {
+                                deleteButton = chatItem.querySelector('button[onclick*="delete"], .menu_button[onclick*="delete"]');
+                            }
+                            
+                            // 如果还是没找到，尝试右键菜单
+                            if (!deleteButton) {
+                                const menuButton = chatItem.querySelector('.menu_button, .chat_list_item_menu');
+                                if (menuButton) {
+                                    menuButton.click();
+                                    await new Promise(resolve => setTimeout(resolve, 200));
+                                    
+                                    // 查找删除选项
+                                    deleteButton = document.querySelector('.menu_item[onclick*="delete"], .menu_item:contains("删除")');
+                                }
+                            }
+                            
+                            if (deleteButton) {
+                                deleteButton.click();
+                                debugLog(`点击删除按钮: ${title}`);
+                                
+                                // 等待删除确认对话框出现
+                                await new Promise(resolve => setTimeout(resolve, 500));
+                                
+                                // 尝试多种方式找到确认删除按钮
+                                let confirmButton = document.querySelector('body > dialog > div.popup-body > div.popup-controls > div.popup-button-ok.menu_button.result-control.menu_button_default.interactable');
+                                
+                                if (!confirmButton) {
+                                    confirmButton = document.querySelector('.popup-button-ok, .menu_button_default, button[onclick*="confirm"]');
+                                }
+                                
+                                if (!confirmButton) {
+                                    confirmButton = document.querySelector('dialog button:contains("确定"), dialog button:contains("确认"), dialog button:contains("OK")');
+                                }
+                                
+                                if (confirmButton) {
+                                    confirmButton.click();
+                                    debugLog(`确认删除: ${title}`);
+                                    deletedCount++;
+                                    
+                                    // 等待删除完成
+                                    await new Promise(resolve => setTimeout(resolve, 300));
+                                } else {
+                                    debugLog(`未找到确认删除按钮: ${title}`);
+                                }
+                            } else {
+                                debugLog(`未找到删除按钮: ${title}`);
+                            }
+                        }
+                    }
+                } catch (itemError) {
+                    debugLog(`处理聊天项时出错: ${itemError.message}`);
+                }
+            }
+            
+            if (deletedCount > 0) {
+                debugLog(`清理完成，删除了 ${deletedCount} 个多余的assistant聊天窗口`);
+                showStatus(`已清理 ${deletedCount} 个多余的assistant聊天窗口`, 'success');
+            } else {
+                debugLog('未发现需要清理的assistant聊天窗口');
+            }
+            
+        } catch (error) {
+            debugLog(`清理assistant聊天窗口时出错: ${error.message}`);
+        }
+    }
+    
     // 显示状态消息 - 使用toastr系统通知
     function showStatus(message, type = 'info') {
         // 使用toastr显示通知
@@ -942,6 +1040,9 @@
                 }
                 
                 debugLog(`快速回复集导入完成，共导入 ${Object.keys(packageData.quick_reply_sets).length} 个集`);
+                
+                // 清理多余的assistant聊天窗口
+                await cleanupAssistantChats();
             }
             
             // 导入世界书
@@ -1058,6 +1159,7 @@
         window.handleFileSelect = handleFileSelect;
         window.triggerFileSelect = triggerFileSelect;
         window.importPackage = importPackage;
+        window.cleanupAssistantChats = cleanupAssistantChats;
         
         
         // 加载资源
