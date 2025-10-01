@@ -865,35 +865,69 @@
         try {
             debugLog('开始清理多余的assistant角色卡和空白对话框...');
             
-            // 构建清理命令序列
-            let cleanupCommands = '';
+            // 获取当前所有角色
+            const context = SillyTavern.getContext();
+            const response = await fetch('/api/characters/all', {
+                method: 'GET',
+                headers: context.getRequestHeaders(),
+            });
             
-            // 1. 启用严格转义
-            cleanupCommands += '/parser-flag STRICT_ESCAPING on ||\n';
+            if (!response.ok) {
+                debugLog('获取角色列表失败');
+                return;
+            }
             
-            // 2. 获取所有角色列表，查找assistant角色
-            cleanupCommands += '/char-list ||\n';
+            const allCharacters = await response.json();
+            debugLog(`找到 ${allCharacters.length} 个角色`);
             
-            // 3. 删除所有名为"assistant"的角色卡（如果有多个）
-            cleanupCommands += '/char-delete assistant ||\n';
+            // 查找所有名为assistant的角色（不同大小写变体）
+            const assistantVariants = ['assistant', 'Assistant', 'ASSISTANT'];
+            const assistantCharacters = allCharacters.filter(char => 
+                assistantVariants.includes(char.name)
+            );
             
-            // 4. 删除所有名为"Assistant"的角色卡（大小写变体）
-            cleanupCommands += '/char-delete Assistant ||\n';
+            debugLog(`找到 ${assistantCharacters.length} 个assistant角色需要清理`);
             
-            // 5. 删除所有名为"ASSISTANT"的角色卡（大写变体）
-            cleanupCommands += '/char-delete ASSISTANT ||\n';
+            if (assistantCharacters.length === 0) {
+                debugLog('没有找到需要清理的assistant角色');
+                return;
+            }
             
-            // 6. 清理可能存在的空白聊天记录
-            cleanupCommands += '/chat-clear ||\n';
-            
-            // 7. 关闭严格转义
-            cleanupCommands += '/parser-flag STRICT_ESCAPING off ||\n';
-            
-            debugLog('执行清理命令序列...');
-            await triggerSlash(cleanupCommands);
-            
-            // 等待清理完成
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // 删除所有assistant角色
+            for (const character of assistantCharacters) {
+                try {
+                    debugLog(`删除角色: ${character.name} (${character.avatar})`);
+                    
+                    // 使用SillyTavern的deleteCharacter函数
+                    if (window.deleteCharacter && typeof window.deleteCharacter === 'function') {
+                        await window.deleteCharacter(character.avatar, { deleteChats: true });
+                        debugLog(`角色 ${character.name} 删除成功`);
+                    } else {
+                        // 备用方法：直接调用API
+                        const deleteResponse = await fetch('/api/characters/delete', {
+                            method: 'POST',
+                            headers: context.getRequestHeaders(),
+                            body: JSON.stringify({
+                                avatar_url: character.avatar,
+                                delete_chats: true
+                            }),
+                            cache: 'no-cache',
+                        });
+                        
+                        if (deleteResponse.ok) {
+                            debugLog(`角色 ${character.name} 删除成功 (API)`);
+                        } else {
+                            debugLog(`角色 ${character.name} 删除失败: ${deleteResponse.status}`);
+                        }
+                    }
+                    
+                    // 等待一下避免请求过快
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                } catch (error) {
+                    debugLog(`删除角色 ${character.name} 时出错: ${error.message}`);
+                }
+            }
             
             debugLog('assistant角色卡清理完成');
             
@@ -1254,6 +1288,7 @@
         window.handleFileSelect = handleFileSelect;
         window.triggerFileSelect = triggerFileSelect;
         window.importPackage = importPackage;
+        window.cleanupAssistantCharacters = cleanupAssistantCharacters;
         
         
         // 加载资源
