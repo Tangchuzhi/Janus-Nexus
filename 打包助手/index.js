@@ -860,6 +860,49 @@
         debugLog(`包信息: ${Object.keys(data.presets || {}).length} 预设, ${Object.keys(data.regexes || {}).length} 正则, ${Object.keys(data.quick_reply_sets || {}).length} 快速回复集, ${Object.keys(data.world_books || {}).length} 世界书`);
     }
     
+    // 清理多余的assistant角色卡和空白对话框
+    async function cleanupAssistantCharacters() {
+        try {
+            debugLog('开始清理多余的assistant角色卡和空白对话框...');
+            
+            // 构建清理命令序列
+            let cleanupCommands = '';
+            
+            // 1. 启用严格转义
+            cleanupCommands += '/parser-flag STRICT_ESCAPING on ||\n';
+            
+            // 2. 获取所有角色列表，查找assistant角色
+            cleanupCommands += '/char-list ||\n';
+            
+            // 3. 删除所有名为"assistant"的角色卡（如果有多个）
+            cleanupCommands += '/char-delete assistant ||\n';
+            
+            // 4. 删除所有名为"Assistant"的角色卡（大小写变体）
+            cleanupCommands += '/char-delete Assistant ||\n';
+            
+            // 5. 删除所有名为"ASSISTANT"的角色卡（大写变体）
+            cleanupCommands += '/char-delete ASSISTANT ||\n';
+            
+            // 6. 清理可能存在的空白聊天记录
+            cleanupCommands += '/chat-clear ||\n';
+            
+            // 7. 关闭严格转义
+            cleanupCommands += '/parser-flag STRICT_ESCAPING off ||\n';
+            
+            debugLog('执行清理命令序列...');
+            await triggerSlash(cleanupCommands);
+            
+            // 等待清理完成
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            debugLog('assistant角色卡清理完成');
+            
+        } catch (error) {
+            debugLog(`清理assistant角色卡时出错: ${error.message}`);
+            // 不抛出错误，继续执行导入流程
+        }
+    }
+
     // 导入包
     async function importPackage() {
         if (!packageData) {
@@ -869,6 +912,10 @@
         
         try {
             showStatus('导入中...', 'info');
+            
+            // 在导入前先清理可能存在的多余assistant角色卡
+            await cleanupAssistantCharacters();
+            
             let totalItems = (packageData.presets ? Object.keys(packageData.presets).length : 0) + 
                              (packageData.regexes ? Object.keys(packageData.regexes).length : 0) +
                              (packageData.quick_reply_sets ? Object.keys(packageData.quick_reply_sets).length : 0) +
@@ -1148,6 +1195,11 @@
             }
             
             showProgress(100);
+            
+            // 导入完成后再次清理可能创建的多余assistant角色卡
+            debugLog('导入完成，执行最终清理...');
+            await cleanupAssistantCharacters();
+            
             showStatus(`导入完成！成功导入 ${importedCount} 个项目，即将自动刷新页面`, 'success');
             debugLog('导入完成');
             
