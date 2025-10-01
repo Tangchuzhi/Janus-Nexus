@@ -16,6 +16,167 @@
         console.log('[打包助手]', message);
     }
     
+    // 清理空的assistant聊天
+    async function cleanupEmptyAssistantChats(beforeImportState = null) {
+        try {
+            debugLog('开始清理空的assistant聊天...');
+            
+            // 首先检查当前聊天状态
+            const context = SillyTavern.getContext();
+            const currentChat = context.chat || window.chat || [];
+            const currentChatId = context.getCurrentChatId ? context.getCurrentChatId() : null;
+            
+            debugLog(`当前聊天ID: ${currentChatId}, 消息数量: ${currentChat.length}`);
+            
+            // 如果有导入前状态，比较变化
+            if (beforeImportState) {
+                debugLog('导入前状态:', beforeImportState);
+                debugLog('当前状态:', {
+                    currentChatId,
+                    currentChatLength: currentChat.length,
+                    charactersCount: Object.keys(context.characters || window.characters || {}).length
+                });
+                
+                // 检查是否有新的聊天被创建
+                const newChatCreated = currentChatId !== beforeImportState.currentChatId;
+                const chatLengthChanged = currentChat.length !== beforeImportState.currentChatLength;
+                
+                if (newChatCreated || chatLengthChanged) {
+                    debugLog('检测到聊天状态变化，可能是slash命令创建的');
+                }
+            }
+            
+            // 检查当前聊天是否为空或只包含assistant消息
+            const isEmptyOrAssistantOnly = currentChat.length === 0 || 
+                currentChat.every(msg => 
+                    msg.role === 'assistant' || 
+                    (msg.name && msg.name.toLowerCase().includes('assistant')) ||
+                    (msg.mes && msg.mes.trim() === '') ||
+                    (msg.message && msg.message.trim() === '')
+                );
+            
+            if (isEmptyOrAssistantOnly) {
+                debugLog('检测到空的或只有assistant的聊天，开始清理...');
+                
+                // 方法1: 使用SillyTavern的clearChat函数清理当前聊天
+                if (window.clearChat && typeof window.clearChat === 'function') {
+                    debugLog('使用clearChat清理当前聊天');
+                    await window.clearChat();
+                }
+                
+                // 方法2: 使用slash命令删除当前聊天
+                if (window.executeSlashCommands && typeof window.executeSlashCommands === 'function') {
+                    debugLog('使用/delchat命令删除当前聊天');
+                    await window.executeSlashCommands('/delchat', true, null, false);
+                } else if (window.SillyTavern && window.SillyTavern.executeSlashCommands) {
+                    debugLog('使用SillyTavern.executeSlashCommands执行/delchat');
+                    await window.SillyTavern.executeSlashCommands('/delchat', true, null, false);
+                }
+            } else {
+                debugLog('当前聊天包含有效内容，跳过清理');
+            }
+            
+            // 方法3: 尝试通过API清理聊天
+            try {
+                const context = SillyTavern.getContext();
+                const currentChatId = context.getCurrentChatId ? context.getCurrentChatId() : null;
+                
+                if (currentChatId) {
+                    debugLog(`尝试通过API删除聊天: ${currentChatId}`);
+                    
+                    // 检查当前聊天是否为空或只包含assistant消息
+                    const chatMessages = context.getChatMessages ? context.getChatMessages() : [];
+                    const isEmptyOrAssistantOnly = chatMessages.length === 0 || 
+                        chatMessages.every(msg => 
+                            msg.role === 'assistant' || 
+                            (msg.name && msg.name.toLowerCase().includes('assistant')) ||
+                            (msg.mes && msg.mes.trim() === '')
+                        );
+                    
+                    if (isEmptyOrAssistantOnly) {
+                        debugLog('检测到空的或只有assistant的聊天，尝试删除');
+                        
+                        // 尝试删除聊天文件
+                        const deleteResponse = await fetch('/api/chat/delete', {
+                            method: 'POST',
+                            headers: context.getRequestHeaders(),
+                            body: JSON.stringify({ chat_id: currentChatId }),
+                        });
+                        
+                        if (deleteResponse.ok) {
+                            debugLog('成功删除空的assistant聊天');
+                        } else {
+                            debugLog('删除聊天失败，但继续处理');
+                        }
+                    }
+                }
+            } catch (apiError) {
+                debugLog(`API清理失败: ${apiError.message}`);
+            }
+            
+            // 方法4: 清理可能创建的assistant角色卡
+            try {
+                debugLog('检查并清理可能创建的assistant角色卡...');
+                
+                // 获取所有角色
+                const characters = context.characters || window.characters || {};
+                
+                // 查找名为"Assistant"或"assistant"的角色，特别是那些可能是由slash命令创建的
+                const assistantCharacters = Object.entries(characters).filter(([id, char]) => 
+                    char.name && (
+                        char.name.toLowerCase() === 'assistant' || 
+                        char.name === 'Assistant - Assistant' ||
+                        (char.name.includes('Assistant') && char.name.includes(' - '))
+                    )
+                );
+                
+                if (assistantCharacters.length > 0) {
+                    debugLog(`发现 ${assistantCharacters.length} 个可疑的assistant角色，检查是否需要清理...`);
+                    
+                    for (const [charId, char] of assistantCharacters) {
+                        // 检查该角色是否有聊天记录
+                        const hasChats = char.chat && char.chat !== '';
+                        const hasValidChats = hasChats && !char.chat.includes('assistant');
+                        
+                        // 如果角色没有聊天记录，或者聊天记录是空的assistant聊天，则删除
+                        if (!hasChats || (hasChats && !hasValidChats)) {
+                            debugLog(`清理可疑的assistant角色: ${char.name} (ID: ${charId})`);
+                            
+                            // 尝试删除角色
+                            try {
+                                const deleteResponse = await fetch('/api/characters/delete', {
+                                    method: 'POST',
+                                    headers: context.getRequestHeaders(),
+                                    body: JSON.stringify({ avatar: char.avatar }),
+                                });
+                                
+                                if (deleteResponse.ok) {
+                                    debugLog(`成功删除assistant角色: ${char.name}`);
+                                } else {
+                                    debugLog(`删除assistant角色失败: ${deleteResponse.status}`);
+                                }
+                            } catch (deleteError) {
+                                debugLog(`删除assistant角色失败: ${deleteError.message}`);
+                            }
+                        } else {
+                            debugLog(`保留assistant角色: ${char.name} (有有效聊天记录)`);
+                        }
+                    }
+                } else {
+                    debugLog('未发现可疑的assistant角色');
+                }
+            } catch (charError) {
+                debugLog(`角色清理失败: ${charError.message}`);
+            }
+            
+            debugLog('assistant聊天清理完成');
+            
+        } catch (error) {
+            debugLog(`清理assistant聊天时出错: ${error.message}`);
+            // 不抛出错误，避免影响主流程
+        }
+    }
+    
     // 实现triggerSlash函数，用于执行slash命令序列
     async function triggerSlash(commandText) {
         debugLog('triggerSlash被调用');
@@ -860,83 +1021,6 @@
         debugLog(`包信息: ${Object.keys(data.presets || {}).length} 预设, ${Object.keys(data.regexes || {}).length} 正则, ${Object.keys(data.quick_reply_sets || {}).length} 快速回复集, ${Object.keys(data.world_books || {}).length} 世界书`);
     }
     
-    // 清理多余的assistant角色卡和空白对话框
-    async function cleanupAssistantCharacters() {
-        try {
-            debugLog('开始清理多余的assistant角色卡和空白对话框...');
-            
-            // 获取当前所有角色
-            const context = SillyTavern.getContext();
-            const response = await fetch('/api/characters/all', {
-                method: 'GET',
-                headers: context.getRequestHeaders(),
-            });
-            
-            if (!response.ok) {
-                debugLog('获取角色列表失败');
-                return;
-            }
-            
-            const allCharacters = await response.json();
-            debugLog(`找到 ${allCharacters.length} 个角色`);
-            
-            // 查找所有名为assistant的角色（不同大小写变体）
-            const assistantVariants = ['assistant', 'Assistant', 'ASSISTANT'];
-            const assistantCharacters = allCharacters.filter(char => 
-                assistantVariants.includes(char.name)
-            );
-            
-            debugLog(`找到 ${assistantCharacters.length} 个assistant角色需要清理`);
-            
-            if (assistantCharacters.length === 0) {
-                debugLog('没有找到需要清理的assistant角色');
-                return;
-            }
-            
-            // 删除所有assistant角色
-            for (const character of assistantCharacters) {
-                try {
-                    debugLog(`删除角色: ${character.name} (${character.avatar})`);
-                    
-                    // 使用SillyTavern的deleteCharacter函数
-                    if (window.deleteCharacter && typeof window.deleteCharacter === 'function') {
-                        await window.deleteCharacter(character.avatar, { deleteChats: true });
-                        debugLog(`角色 ${character.name} 删除成功`);
-                    } else {
-                        // 备用方法：直接调用API
-                        const deleteResponse = await fetch('/api/characters/delete', {
-                            method: 'POST',
-                            headers: context.getRequestHeaders(),
-                            body: JSON.stringify({
-                                avatar_url: character.avatar,
-                                delete_chats: true
-                            }),
-                            cache: 'no-cache',
-                        });
-                        
-                        if (deleteResponse.ok) {
-                            debugLog(`角色 ${character.name} 删除成功 (API)`);
-                        } else {
-                            debugLog(`角色 ${character.name} 删除失败: ${deleteResponse.status}`);
-                        }
-                    }
-                    
-                    // 等待一下避免请求过快
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    
-                } catch (error) {
-                    debugLog(`删除角色 ${character.name} 时出错: ${error.message}`);
-                }
-            }
-            
-            debugLog('assistant角色卡清理完成');
-            
-        } catch (error) {
-            debugLog(`清理assistant角色卡时出错: ${error.message}`);
-            // 不抛出错误，继续执行导入流程
-        }
-    }
-
     // 导入包
     async function importPackage() {
         if (!packageData) {
@@ -946,10 +1030,6 @@
         
         try {
             showStatus('导入中...', 'info');
-            
-            // 在导入前先清理可能存在的多余assistant角色卡
-            await cleanupAssistantCharacters();
-            
             let totalItems = (packageData.presets ? Object.keys(packageData.presets).length : 0) + 
                              (packageData.regexes ? Object.keys(packageData.regexes).length : 0) +
                              (packageData.quick_reply_sets ? Object.keys(packageData.quick_reply_sets).length : 0) +
@@ -1022,6 +1102,14 @@
             if (packageData.quick_reply_sets) {
                 debugLog('开始使用slash命令系统导入快速回复集...');
                 
+                // 记录导入前的状态，用于后续清理
+                const beforeImportState = {
+                    currentChatId: context.getCurrentChatId ? context.getCurrentChatId() : null,
+                    currentChatLength: (context.chat || window.chat || []).length,
+                    charactersCount: Object.keys(context.characters || window.characters || {}).length
+                };
+                debugLog('导入前状态:', beforeImportState);
+                
                 for (const [setName, qrSet] of Object.entries(packageData.quick_reply_sets)) {
                     try {
                         debugLog(`准备导入快速回复集: ${setName}`);
@@ -1091,6 +1179,9 @@
                         
                         // 等待一下让快速回复集有时间正确创建
                         await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        // 清理可能创建的空白聊天 - 检查并删除空的assistant聊天
+                        await cleanupEmptyAssistantChats(beforeImportState);
                         
                         // 验证快速回复集是否创建成功
                         let verificationSuccess = false;
@@ -1230,9 +1321,9 @@
             
             showProgress(100);
             
-            // 导入完成后再次清理可能创建的多余assistant角色卡
-            debugLog('导入完成，执行最终清理...');
-            await cleanupAssistantCharacters();
+            // 最终清理：在导入完成后清理可能创建的assistant聊天和角色
+            debugLog('执行最终清理...');
+            await cleanupEmptyAssistantChats(beforeImportState);
             
             showStatus(`导入完成！成功导入 ${importedCount} 个项目，即将自动刷新页面`, 'success');
             debugLog('导入完成');
@@ -1288,7 +1379,6 @@
         window.handleFileSelect = handleFileSelect;
         window.triggerFileSelect = triggerFileSelect;
         window.importPackage = importPackage;
-        window.cleanupAssistantCharacters = cleanupAssistantCharacters;
         
         
         // 加载资源
