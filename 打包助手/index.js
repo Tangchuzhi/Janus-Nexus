@@ -271,69 +271,18 @@
             // 使用 SillyTavern 的 API 获取世界书列表
             const context = SillyTavern.getContext();
             
-            // 方法1: 尝试从API获取世界书数据
-            try {
-                const response = await fetch('/api/settings/get', {
-                    method: 'POST',
-                    headers: context.getRequestHeaders(),
-                    body: JSON.stringify({}),
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const worldNames = data.world_names || [];
-                    
-                    debugLog(`从API获取到 ${worldNames.length} 个世界书`);
-                    
-                    const container = document.getElementById('worldbooks-list');
-                    if (!container) return;
-                    
-                    container.innerHTML = '';
-                    
-                    if (worldNames.length === 0) {
-                        container.innerHTML = '<div class="empty-state">未找到世界书</div>';
-                        return;
-                    }
-                    
-                    // 为每个世界书获取详细信息
-                    for (const worldName of worldNames) {
-                        try {
-                            const worldResponse = await fetch('/api/worldinfo/get', {
-                                method: 'POST',
-                                headers: context.getRequestHeaders(),
-                                body: JSON.stringify({ name: worldName }),
-                            });
-                            
-                            if (worldResponse.ok) {
-                                const worldData = await worldResponse.json();
-                                const entryCount = worldData.entries ? Object.keys(worldData.entries).length : 0;
-                                
-                                const itemDiv = document.createElement('div');
-                                itemDiv.className = 'resource-item';
-                                itemDiv.innerHTML = `
-                                    <input type="checkbox" id="worldbook-${worldName}" onchange="toggleWorldBook('${worldName}')">
-                                    <div class="resource-item-info">
-                                        <div class="resource-item-name">${worldName}</div>
-                                        <div class="resource-item-desc">${entryCount} 个条目</div>
-                                    </div>
-                                `;
-                                container.appendChild(itemDiv);
-                            } else {
-                                debugLog(`获取世界书 ${worldName} 详情失败`);
-                            }
-                        } catch (worldError) {
-                            debugLog(`获取世界书 ${worldName} 详情出错: ${worldError.message}`);
-                        }
-                    }
-                }
-            } catch (apiError) {
-                debugLog('API获取失败，尝试其他方法: ' + apiError.message);
-            }
+            // 从API获取世界书数据
+            const response = await fetch('/api/settings/get', {
+                method: 'POST',
+                headers: context.getRequestHeaders(),
+                body: JSON.stringify({}),
+            });
             
-            // 方法2: 如果API失败，尝试从全局对象获取
-            if (window.world_names && Array.isArray(window.world_names)) {
-                const worldNames = window.world_names;
-                debugLog(`从全局对象获取到 ${worldNames.length} 个世界书`);
+            if (response.ok) {
+                const data = await response.json();
+                const worldNames = data.world_names || [];
+                
+                debugLog(`从API获取到 ${worldNames.length} 个世界书`);
                 
                 const container = document.getElementById('worldbooks-list');
                 if (!container) return;
@@ -345,18 +294,42 @@
                     return;
                 }
                 
-                worldNames.forEach(worldName => {
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'resource-item';
-                    itemDiv.innerHTML = `
-                        <input type="checkbox" id="worldbook-${worldName}" onchange="toggleWorldBook('${worldName}')">
-                        <div class="resource-item-info">
-                            <div class="resource-item-name">${worldName}</div>
-                            <div class="resource-item-desc">世界书</div>
-                        </div>
-                    `;
-                    container.appendChild(itemDiv);
-                });
+                // 为每个世界书获取详细信息
+                for (const worldName of worldNames) {
+                    try {
+                        const worldResponse = await fetch('/api/worldinfo/get', {
+                            method: 'POST',
+                            headers: context.getRequestHeaders(),
+                            body: JSON.stringify({ name: worldName }),
+                        });
+                        
+                        if (worldResponse.ok) {
+                            const worldData = await worldResponse.json();
+                            const entryCount = worldData.entries ? Object.keys(worldData.entries).length : 0;
+                            
+                            const itemDiv = document.createElement('div');
+                            itemDiv.className = 'resource-item';
+                            itemDiv.innerHTML = `
+                                <input type="checkbox" id="worldbook-${worldName}" onchange="toggleWorldBook('${worldName}')">
+                                <div class="resource-item-info">
+                                    <div class="resource-item-name">${worldName}</div>
+                                    <div class="resource-item-desc">${entryCount} 个条目</div>
+                                </div>
+                            `;
+                            container.appendChild(itemDiv);
+                        } else {
+                            debugLog(`获取世界书 ${worldName} 详情失败`);
+                        }
+                    } catch (worldError) {
+                        debugLog(`获取世界书 ${worldName} 详情出错: ${worldError.message}`);
+                    }
+                }
+            } else {
+                debugLog('API获取失败: ' + response.status);
+                const container = document.getElementById('worldbooks-list');
+                if (container) {
+                    container.innerHTML = '<div class="empty-state">获取世界书失败</div>';
+                }
             }
             
         } catch (error) {
@@ -377,64 +350,27 @@
             const context = SillyTavern.getContext();
             let qrSets = [];
             
-            // 方法1: 尝试从API获取QR集数据
-            try {
-                const response = await fetch('/api/settings/get', {
-                    method: 'POST',
-                    headers: context.getRequestHeaders(),
-                    body: JSON.stringify({}),
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const quickReplyPresets = data.quickReplyPresets || [];
-                    
-                    qrSets = quickReplyPresets.map(set => ({
-                        name: set.name || '未命名',
-                        qrCount: set.qrList ? set.qrList.length : 0,
-                        isDeleted: set.isDeleted || false,
-                        version: set.version || 1
-                    })).filter(set => !set.isDeleted);
-                    
-                    debugLog(`从API获取到 ${qrSets.length} 个快速回复集`);
-                }
-            } catch (apiError) {
-                debugLog('API获取失败，尝试其他方法: ' + apiError.message);
-            }
+            // 从API获取QR集数据
+            const response = await fetch('/api/settings/get', {
+                method: 'POST',
+                headers: context.getRequestHeaders(),
+                body: JSON.stringify({}),
+            });
             
-            // 方法2: 如果API失败，尝试从QuickReplySet全局对象获取
-            if (qrSets.length === 0 && window.QuickReplySet && window.QuickReplySet.list) {
-                qrSets = window.QuickReplySet.list.map(set => ({
-                    name: set.name,
+            if (response.ok) {
+                const data = await response.json();
+                const quickReplyPresets = data.quickReplyPresets || [];
+                
+                qrSets = quickReplyPresets.map(set => ({
+                    name: set.name || '未命名',
                     qrCount: set.qrList ? set.qrList.length : 0,
-                    isDeleted: set.isDeleted || false
+                    isDeleted: set.isDeleted || false,
+                    version: set.version || 1
                 })).filter(set => !set.isDeleted);
                 
-                debugLog(`从全局对象获取到 ${qrSets.length} 个快速回复集`);
-            }
-            
-            // 方法3: 如果仍然没有，尝试从扩展设置获取
-            if (qrSets.length === 0) {
-                const extensionSettings = context.extensionSettings || {};
-                
-                // 检查新的QR V2设置
-                if (extensionSettings.quickReplyV2 && extensionSettings.quickReplyV2.config && extensionSettings.quickReplyV2.config.setList) {
-                    qrSets = extensionSettings.quickReplyV2.config.setList.map(set => ({
-                        name: set.set,
-                        qrCount: 0, // 无法从配置中获取QR数量
-                        visible: set.isVisible
-                    }));
-                }
-                // 检查旧的QR设置
-                else if (extensionSettings.quickReply) {
-                    qrSets = [{
-                        name: extensionSettings.quickReply.selectedPreset || extensionSettings.quickReply.name || 'Default',
-                        qrCount: 0,
-                        visible: true
-                    }];
-                }
-                
-                debugLog(`从扩展设置获取到 ${qrSets.length} 个快速回复集`);
+                debugLog(`从API获取到 ${qrSets.length} 个快速回复集`);
+            } else {
+                debugLog('API获取失败: ' + response.status);
             }
             
             debugLog(`最终找到 ${qrSets.length} 个快速回复集`);
@@ -625,20 +561,29 @@
                 try {
                     const finalSetName = tagPrefix ? `${tagPrefix}${setName}` : setName;
                     
-                    // 尝试从QuickReplySet.list获取完整的QR集数据
+                    // 从API获取快速回复集数据
+                    const response = await fetch('/api/settings/get', {
+                        method: 'POST',
+                        headers: context.getRequestHeaders(),
+                        body: JSON.stringify({}),
+                    });
+                    
                     let qrSet = null;
-                    if (window.QuickReplySet && window.QuickReplySet.list) {
-                        const originalSet = window.QuickReplySet.list.find(set => set.name === setName);
-                        if (originalSet) {
+                    if (response.ok) {
+                        const data = await response.json();
+                        const quickReplyPresets = data.quickReplyPresets || [];
+                        const presetData = quickReplyPresets.find(preset => preset.name === setName);
+                        
+                        if (presetData) {
                             qrSet = {
                                 name: finalSetName,
-                                scope: originalSet.scope || 'global',
-                                disableSend: originalSet.disableSend || false,
-                                placeBeforeInput: originalSet.placeBeforeInput || false,
-                                injectInput: originalSet.injectInput || false,
-                                color: originalSet.color || 'transparent',
-                                onlyBorderColor: originalSet.onlyBorderColor || false,
-                                qrList: originalSet.qrList ? originalSet.qrList.map(qr => ({
+                                scope: presetData.scope || 'global',
+                                disableSend: presetData.disableSend || false,
+                                placeBeforeInput: presetData.placeBeforeInput || false,
+                                injectInput: presetData.injectInput || false,
+                                color: presetData.color || 'transparent',
+                                onlyBorderColor: presetData.onlyBorderColor || false,
+                                qrList: presetData.qrList ? presetData.qrList.map(qr => ({
                                     id: qr.id,
                                     label: qr.label,
                                     title: qr.title,
@@ -655,59 +600,11 @@
                                     contextList: qr.contextList || []
                                 })) : []
                             };
-                            debugLog(`从QuickReplySet.list获取快速回复集: ${setName} (${qrSet.qrList.length} 个回复)`);
+                            debugLog(`从API获取快速回复集: ${setName} (${qrSet.qrList.length} 个回复)`);
                         }
                     }
                     
-                    // 如果没有找到，尝试从API获取数据
-                    if (!qrSet) {
-                        try {
-                            const response = await fetch('/api/settings/get', {
-                                method: 'POST',
-                                headers: context.getRequestHeaders(),
-                                body: JSON.stringify({}),
-                            });
-                            
-                            if (response.ok) {
-                                const data = await response.json();
-                                const quickReplyPresets = data.quickReplyPresets || [];
-                                const presetData = quickReplyPresets.find(preset => preset.name === setName);
-                                
-                                if (presetData) {
-                                    qrSet = {
-                                        name: finalSetName,
-                                        scope: presetData.scope || 'global',
-                                        disableSend: presetData.disableSend || false,
-                                        placeBeforeInput: presetData.placeBeforeInput || false,
-                                        injectInput: presetData.injectInput || false,
-                                        color: presetData.color || 'transparent',
-                                        onlyBorderColor: presetData.onlyBorderColor || false,
-                                        qrList: presetData.qrList ? presetData.qrList.map(qr => ({
-                                            id: qr.id,
-                                            label: qr.label,
-                                            title: qr.title,
-                                            message: qr.message,
-                                            isHidden: qr.isHidden || false,
-                                            executeOnStartup: qr.executeOnStartup || false,
-                                            executeOnUser: qr.executeOnUser || false,
-                                            executeOnAi: qr.executeOnAi || false,
-                                            executeOnChatChange: qr.executeOnChatChange || false,
-                                            executeOnGroupMemberDraft: qr.executeOnGroupMemberDraft || false,
-                                            executeOnNewChat: qr.executeOnNewChat || false,
-                                            executeBeforeGeneration: qr.executeBeforeGeneration || false,
-                                            automationId: qr.automationId || '',
-                                            contextList: qr.contextList || []
-                                        })) : []
-                                    };
-                                    debugLog(`从API获取快速回复集: ${setName} (${qrSet.qrList.length} 个回复)`);
-                                }
-                            }
-                        } catch (apiError) {
-                            debugLog(`从API获取快速回复集失败: ${apiError.message}`);
-                        }
-                    }
-                    
-                    // 如果仍然没有找到，创建一个基本的QR集结构
+                    // 如果没有找到，创建一个基本的QR集结构
                     if (!qrSet) {
                         qrSet = {
                             name: finalSetName,
@@ -1047,7 +944,7 @@
                 debugLog(`快速回复集导入完成，共导入 ${Object.keys(packageData.quick_reply_sets).length} 个集`);
             }
             
-            // 导入世界书 - 尝试多种方法
+            // 导入世界书
             if (packageData.world_books) {
                 debugLog('开始导入世界书...');
                 debugLog(`发现 ${Object.keys(packageData.world_books).length} 个世界书需要导入`);
@@ -1061,23 +958,8 @@
                         debugLog(`准备导入世界书: ${worldName}`);
                         debugLog(`世界书条目数量: ${Object.keys(worldData.entries || {}).length}`);
                         
-                        // 方法1: 尝试使用SillyTavern原生的importWorldInfo函数
-                        if (window.importWorldInfo && typeof window.importWorldInfo === 'function') {
-                            debugLog('尝试使用原生importWorldInfo函数');
-                            
-                            // 创建世界书JSON文件
-                            const worldBookJson = JSON.stringify(worldData, null, 2);
-                            const blob = new Blob([worldBookJson], { type: 'application/json' });
-                            const file = new File([blob], `${worldName}.json`, { type: 'application/json' });
-                            
-                            await window.importWorldInfo(file);
-                            debugLog(`世界书 ${worldName} 导入成功 (原生函数)`);
-                            importedCount++;
-                            continue;
-                        }
-                        
-                        // 方法2: 尝试直接使用API创建世界书
-                        debugLog('尝试使用API直接创建世界书');
+                        // 使用API直接创建/更新世界书
+                        debugLog('使用API创建/更新世界书');
                         
                         // 首先检查世界书是否已存在
                         const checkResponse = await fetch('/api/worldinfo/get', {
@@ -1103,37 +985,11 @@
                         
                         if (editResponse.ok) {
                             const result = await editResponse.json();
-                            debugLog(`世界书 ${worldName} 导入成功 (API编辑):`, result);
+                            debugLog(`世界书 ${worldName} 导入成功:`, result);
                             importedCount++;
                         } else {
                             const errorText = await editResponse.text();
-                            debugLog(`世界书 ${worldName} API编辑失败: ${editResponse.status} - ${errorText}`);
-                            
-                            // 方法3: 尝试文件上传方式
-                            debugLog('尝试文件上传方式');
-                            
-                            const worldBookJson = JSON.stringify(worldData, null, 2);
-                            const blob = new Blob([worldBookJson], { type: 'application/json' });
-                            const file = new File([blob], `${worldName}.json`, { type: 'application/json' });
-                            
-                            const formData = new FormData();
-                            formData.append('avatar', file);
-                            
-                            const uploadResponse = await fetch('/api/worldinfo/import', {
-                                method: 'POST',
-                                headers: context.getRequestHeaders({ omitContentType: true }),
-                                body: formData,
-                                cache: 'no-cache',
-                            });
-                            
-                            if (uploadResponse.ok) {
-                                const result = await uploadResponse.json();
-                                debugLog(`世界书 ${worldName} 导入成功 (文件上传):`, result);
-                                importedCount++;
-                            } else {
-                                const uploadErrorText = await uploadResponse.text();
-                                debugLog(`世界书 ${worldName} 文件上传失败: ${uploadResponse.status} - ${uploadErrorText}`);
-                            }
+                            debugLog(`世界书 ${worldName} 导入失败: ${editResponse.status} - ${errorText}`);
                         }
                         
                     } catch (error) {
