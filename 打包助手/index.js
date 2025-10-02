@@ -733,12 +733,12 @@
             }
             showProgress(80);
             
-            // 打包角色卡
+            // 打包角色卡（完整JSON格式，包含绑定的世界书和正则）
             for (const characterAvatar of selectedCharacters) {
                 try {
                     debugLog(`开始打包角色卡: ${characterAvatar}`);
                     
-                    // 获取角色卡数据
+                    // 获取角色卡完整数据
                     const characterResponse = await fetch('/api/characters/get', {
                         method: 'POST',
                         headers: context.getRequestHeaders(),
@@ -755,15 +755,99 @@
                         const originalName = characterData.name || characterData.data?.name || characterAvatar.replace('.png', '');
                         const finalName = tagPrefix ? `${tagPrefix}${originalName}` : originalName;
                         
-                        // 确保角色卡名称正确
-                        const characterToSave = { ...characterData };
-                        characterToSave.name = finalName;
-                        if (characterToSave.data) {
-                            characterToSave.data.name = finalName;
+                        // 创建完整的角色卡包，包含绑定的内容
+                        const characterPackage = {
+                            character: { ...characterData },
+                            bound_worldbooks: [],
+                            bound_regexes: [],
+                            bound_quickreplies: []
+                        };
+                        
+                        // 更新角色卡名称
+                        characterPackage.character.name = finalName;
+                        if (characterPackage.character.data) {
+                            characterPackage.character.data.name = finalName;
                         }
                         
-                        packageObj.characters[finalName] = characterToSave;
-                        debugLog(`已打包角色卡: ${finalName}`);
+                        // 检查并打包绑定的世界书
+                        const worldName = characterData.data?.extensions?.world || characterData.extensions?.world;
+                        if (worldName) {
+                            debugLog(`角色卡 ${finalName} 绑定了世界书: ${worldName}`);
+                            try {
+                                const worldResponse = await fetch('/api/worldinfo/get', {
+                                    method: 'POST',
+                                    headers: context.getRequestHeaders(),
+                                    body: JSON.stringify({ name: worldName }),
+                                });
+                                
+                                if (worldResponse.ok) {
+                                    const worldData = await worldResponse.json();
+                                    const finalWorldName = tagPrefix ? `${tagPrefix}${worldName}` : worldName;
+                                    worldData.name = finalWorldName;
+                                    characterPackage.bound_worldbooks.push(worldData);
+                                    debugLog(`已打包绑定的世界书: ${finalWorldName}`);
+                                }
+                            } catch (worldError) {
+                                debugLog(`获取绑定世界书失败: ${worldError.message}`);
+                            }
+                        }
+                        
+                        // 检查并打包绑定的正则（从角色书的扩展中）
+                        if (characterData.data?.character_book?.entries) {
+                            const entries = characterData.data.character_book.entries;
+                            for (const entry of entries) {
+                                if (entry.extensions?.regex_id) {
+                                    const regexId = entry.extensions.regex_id;
+                                    debugLog(`角色卡 ${finalName} 绑定了正则: ${regexId}`);
+                                    
+                                    // 查找对应的正则
+                                    const regexSettings = context.extensionSettings?.regex || [];
+                                    const boundRegex = regexSettings.find(r => r.id === regexId);
+                                    if (boundRegex) {
+                                        const finalRegexName = tagPrefix ? `${tagPrefix}${boundRegex.scriptName}` : boundRegex.scriptName;
+                                        characterPackage.bound_regexes.push({
+                                            ...boundRegex,
+                                            scriptName: finalRegexName
+                                        });
+                                        debugLog(`已打包绑定的正则: ${finalRegexName}`);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // 检查并打包绑定的快速回复（从扩展中）
+                        if (characterData.data?.extensions?.quick_replies) {
+                            const qrSetName = characterData.data.extensions.quick_replies;
+                            debugLog(`角色卡 ${finalName} 绑定了快速回复集: ${qrSetName}`);
+                            
+                            try {
+                                const response = await fetch('/api/settings/get', {
+                                    method: 'POST',
+                                    headers: context.getRequestHeaders(),
+                                    body: JSON.stringify({}),
+                                });
+                                
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    const quickReplyPresets = data.quickReplyPresets || [];
+                                    const boundQRSet = quickReplyPresets.find(preset => preset.name === qrSetName);
+                                    
+                                    if (boundQRSet) {
+                                        const finalQRName = tagPrefix ? `${tagPrefix}${qrSetName}` : qrSetName;
+                                        characterPackage.bound_quickreplies.push({
+                                            ...boundQRSet,
+                                            name: finalQRName
+                                        });
+                                        debugLog(`已打包绑定的快速回复集: ${finalQRName}`);
+                                    }
+                                }
+                            } catch (qrError) {
+                                debugLog(`获取绑定快速回复集失败: ${qrError.message}`);
+                            }
+                        }
+                        
+                        packageObj.characters[finalName] = characterPackage;
+                        debugLog(`已打包完整角色卡: ${finalName} (包含 ${characterPackage.bound_worldbooks.length} 世界书, ${characterPackage.bound_regexes.length} 正则, ${characterPackage.bound_quickreplies.length} 快速回复集)`);
                     } else {
                         const errorText = await characterResponse.text();
                         debugLog(`角色卡 ${characterAvatar} 获取失败: ${characterResponse.status} - ${errorText}`);
@@ -1117,7 +1201,7 @@
                 debugLog('没有发现世界书数据需要导入');
             }
             
-            // 导入角色卡
+            // 导入角色卡（完整JSON格式，包含绑定的世界书和正则）
             if (packageData.characters) {
                 debugLog('开始导入角色卡...');
                 debugLog(`发现 ${Object.keys(packageData.characters).length} 个角色卡需要导入`);
@@ -1126,11 +1210,120 @@
                 const context = SillyTavern.getContext();
                 debugLog('Context获取成功:', context);
                 
-                for (const [characterName, characterData] of Object.entries(packageData.characters)) {
+                for (const [characterName, characterPackage] of Object.entries(packageData.characters)) {
                     try {
                         debugLog(`准备导入角色卡: ${characterName}`);
                         
-                        // 使用API直接创建角色卡
+                        // 检查是否是新的完整格式（包含character字段）
+                        const characterData = characterPackage.character || characterPackage;
+                        const isNewFormat = characterPackage.character !== undefined;
+                        
+                        if (isNewFormat) {
+                            debugLog(`检测到完整格式角色卡包，包含绑定内容`);
+                            debugLog(`绑定世界书: ${characterPackage.bound_worldbooks?.length || 0} 个`);
+                            debugLog(`绑定正则: ${characterPackage.bound_regexes?.length || 0} 个`);
+                            debugLog(`绑定快速回复: ${characterPackage.bound_quickreplies?.length || 0} 个`);
+                        }
+                        
+                        // 首先导入绑定的世界书
+                        if (isNewFormat && characterPackage.bound_worldbooks) {
+                            for (const worldData of characterPackage.bound_worldbooks) {
+                                try {
+                                    debugLog(`导入绑定的世界书: ${worldData.name}`);
+                                    const worldResponse = await fetch('/api/worldinfo/edit', {
+                                        method: 'POST',
+                                        headers: context.getRequestHeaders(),
+                                        body: JSON.stringify({
+                                            name: worldData.name,
+                                            data: worldData
+                                        }),
+                                    });
+                                    
+                                    if (worldResponse.ok) {
+                                        debugLog(`世界书 ${worldData.name} 导入成功`);
+                                    } else {
+                                        debugLog(`世界书 ${worldData.name} 导入失败: ${worldResponse.status}`);
+                                    }
+                                } catch (worldError) {
+                                    debugLog(`世界书 ${worldData.name} 导入出错: ${worldError.message}`);
+                                }
+                            }
+                        }
+                        
+                        // 导入绑定的正则
+                        if (isNewFormat && characterPackage.bound_regexes) {
+                            const regexSettings = context.extensionSettings?.regex || [];
+                            const newRegexSettings = [...regexSettings];
+                            
+                            for (const regexData of characterPackage.bound_regexes) {
+                                try {
+                                    debugLog(`导入绑定的正则: ${regexData.scriptName}`);
+                                    const regexWithNewId = {
+                                        ...regexData,
+                                        id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+                                    };
+                                    
+                                    newRegexSettings.push(regexWithNewId);
+                                    debugLog(`正则 ${regexData.scriptName} 导入成功`);
+                                } catch (regexError) {
+                                    debugLog(`正则 ${regexData.scriptName} 导入出错: ${regexError.message}`);
+                                }
+                            }
+                            
+                            // 更新正则设置
+                            context.extensionSettings.regex = newRegexSettings;
+                            if (context.saveSettingsDebounced) {
+                                context.saveSettingsDebounced();
+                            }
+                        }
+                        
+                        // 导入绑定的快速回复
+                        if (isNewFormat && characterPackage.bound_quickreplies) {
+                            for (const qrData of characterPackage.bound_quickreplies) {
+                                try {
+                                    debugLog(`导入绑定的快速回复集: ${qrData.name}`);
+                                    
+                                    // 构建slash命令序列
+                                    let slashCommands = '';
+                                    slashCommands += '/parser-flag STRICT_ESCAPING on ||\n';
+                                    slashCommands += `/qr-set-create nosend=${qrData.disableSend || false} before=${qrData.placeBeforeInput || false} inject=${qrData.injectInput || false} ${qrData.name} ||\n`;
+                                    
+                                    if (qrData.qrList && qrData.qrList.length > 0) {
+                                        for (const qr of qrData.qrList) {
+                                            const escapedMessage = (qr.message || '')
+                                                .replace(/"/g, '\\"')
+                                                .replace(/<user>/g, '{{user}}')
+                                                .replace(/<char>/g, '{{char}}')
+                                                .replace(/\{\{/g, '\\{\\{');
+                                            
+                                            slashCommands += `/qr-create set=${qrData.name} label="${qr.label || ''}" `;
+                                            slashCommands += `showlabel=${qr.showLabel !== false} `;
+                                            slashCommands += `hidden=${qr.isHidden || false} `;
+                                            slashCommands += `startup=${qr.executeOnStartup || false} `;
+                                            slashCommands += `user=${qr.executeOnUser || false} `;
+                                            slashCommands += `bot=${qr.executeOnAi || false} `;
+                                            slashCommands += `load=${qr.executeOnChatChange || false} `;
+                                            slashCommands += `new=${qr.executeOnNewChat || false} `;
+                                            slashCommands += `group=${qr.executeOnGroupMemberDraft || false} `;
+                                            slashCommands += `generation=${qr.executeBeforeGeneration || false} `;
+                                            if (qr.title && qr.title.trim()) {
+                                                slashCommands += `title="${qr.title}" `;
+                                            }
+                                            slashCommands += `"${escapedMessage}" ||\n`;
+                                        }
+                                    }
+                                    
+                                    slashCommands += '/parser-flag STRICT_ESCAPING off ||\n';
+                                    
+                                    await triggerSlash(slashCommands);
+                                    debugLog(`快速回复集 ${qrData.name} 导入成功`);
+                                } catch (qrError) {
+                                    debugLog(`快速回复集 ${qrData.name} 导入出错: ${qrError.message}`);
+                                }
+                            }
+                        }
+                        
+                        // 现在导入角色卡本身
                         debugLog('使用API创建角色卡');
                         
                         // 构建角色卡数据，确保格式正确，包含所有字段
