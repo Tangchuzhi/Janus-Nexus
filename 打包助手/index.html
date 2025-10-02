@@ -99,6 +99,14 @@
                 </label>
             </div>
             
+            <div class="config-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="character-png-format">
+                    <span class="checkmark"></span>
+                    角色卡使用PNG格式 (包含图片+完整数据)
+                </label>
+            </div>
+            
             <button class="preset-btn preset-btn-primary" onclick="createPackage()">
                 <i class="fa-solid fa-box"></i> 生成打包文件
             </button>
@@ -113,10 +121,10 @@
             </div>
             
             <div class="file-upload-area">
-                <input type="file" id="package-file" accept=".json" onchange="handleFileSelect(event)">
+                <input type="file" id="package-file" accept=".json,.png" onchange="handleFileSelect(event)">
                 <div class="file-upload-btn" onclick="triggerFileSelect()">
                     <i class="fa-solid fa-folder-open"></i>
-                    选择打包文件
+                    选择文件 (JSON打包文件 或 PNG角色卡)
                 </div>
             </div>
             

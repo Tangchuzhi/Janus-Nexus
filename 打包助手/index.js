@@ -863,15 +863,34 @@
         debugLog(`选择文件: ${file.name}`);
         event.target.value = '';
         
+        // 检测文件类型
+        const fileName = file.name.toLowerCase();
+        const isPngFile = fileName.endsWith('.png');
+        const isJsonFile = fileName.endsWith('.json');
+        
+        if (isPngFile) {
+            debugLog('检测到PNG文件，准备直接导入角色卡');
+            handlePngFileImport(file);
+        } else if (isJsonFile) {
+            debugLog('检测到JSON文件，准备解析打包文件');
+            handleJsonFileImport(file);
+        } else {
+            showStatus('不支持的文件格式，请选择PNG角色卡文件或JSON打包文件', 'error');
+            debugLog('不支持的文件格式: ' + file.name);
+        }
+    }
+    
+    // 处理JSON打包文件导入
+    function handleJsonFileImport(file) {
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
                 packageData = JSON.parse(e.target.result);
-                debugLog('文件解析成功');
+                debugLog('JSON文件解析成功');
                 displayPackageInfo(packageData);
             } catch (error) {
-                showStatus('文件格式错误', 'error');
-                debugLog('解析错误: ' + error.message);
+                showStatus('JSON文件格式错误', 'error');
+                debugLog('JSON解析错误: ' + error.message);
                 packageData = null;
                 const packageInfo = document.getElementById('package-info');
                 if (packageInfo) {
@@ -882,10 +901,73 @@
         
         reader.onerror = function() {
             showStatus('文件读取失败', 'error');
-            debugLog('读取错误');
+            debugLog('文件读取错误');
         };
         
         reader.readAsText(file);
+    }
+    
+    // 处理PNG角色卡文件直接导入
+    function handlePngFileImport(file) {
+        debugLog('开始处理PNG角色卡文件导入');
+        
+        // 创建FormData来上传PNG文件
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('file_type', 'png');
+        
+        // 显示导入状态
+        showStatus('正在导入PNG角色卡...', 'info');
+        
+        // 使用import API导入PNG角色卡
+        fetch('/api/characters/import', {
+            method: 'POST',
+            // FormData会自动设置Content-Type，不需要手动设置headers
+            body: formData,
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                throw new Error(`导入失败: ${response.status}`);
+            }
+        })
+        .then(result => {
+            debugLog('PNG角色卡导入成功:', result);
+            showStatus('PNG角色卡导入成功！', 'success');
+            
+            // 显示导入结果信息
+            displayPngImportResult(result, file.name);
+        })
+        .catch(error => {
+            debugLog('PNG角色卡导入失败:', error);
+            showStatus('PNG角色卡导入失败: ' + error.message, 'error');
+        });
+    }
+    
+    // 显示PNG导入结果
+    function displayPngImportResult(result, fileName) {
+        const packageInfo = document.getElementById('package-info');
+        if (!packageInfo) return;
+        
+        const detailsEl = document.getElementById('package-details');
+        if (!detailsEl) return;
+        
+        let html = `<p><strong>文件类型:</strong> PNG角色卡</p>`;
+        html += `<p><strong>文件名:</strong> ${fileName}</p>`;
+        html += `<p><strong>导入状态:</strong> 成功</p>`;
+        if (result.file_name) {
+            html += `<p><strong>角色名称:</strong> ${result.file_name}</p>`;
+        }
+        
+        detailsEl.innerHTML = html;
+        packageInfo.style.display = 'block';
+        
+        // 隐藏导入按钮，因为PNG文件已经直接导入完成
+        const importButton = packageInfo.querySelector('button');
+        if (importButton) {
+            importButton.style.display = 'none';
+        }
     }
     
     // 显示包信息
@@ -893,7 +975,8 @@
         const detailsEl = document.getElementById('package-details');
         if (!detailsEl) return;
         
-        let html = `<p><strong>名称:</strong> ${data.name || '未知'}</p>`;
+        let html = `<p><strong>文件类型:</strong> JSON打包文件</p>`;
+        html += `<p><strong>名称:</strong> ${data.name || '未知'}</p>`;
         html += `<p><strong>创建:</strong> ${data.created ? new Date(data.created).toLocaleString() : '未知'}</p>`;
         if (data.tag_prefix) {
             html += `<p><strong>标签:</strong> ${data.tag_prefix}</p>`;
@@ -908,6 +991,12 @@
         const packageInfo = document.getElementById('package-info');
         if (packageInfo) {
             packageInfo.style.display = 'block';
+            
+            // 确保导入按钮可见（JSON打包文件需要导入按钮）
+            const importButton = packageInfo.querySelector('button');
+            if (importButton) {
+                importButton.style.display = 'block';
+            }
         }
         debugLog(`包信息: ${Object.keys(data.presets || {}).length} 预设, ${Object.keys(data.regexes || {}).length} 正则, ${Object.keys(data.quick_reply_sets || {}).length} 快速回复集, ${Object.keys(data.world_books || {}).length} 世界书, ${Object.keys(data.characters || {}).length} 角色卡`);
     }
