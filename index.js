@@ -1,8 +1,8 @@
 jQuery(() => {
-    console.log('[Janusの百宝箱] 开始加载扩展...');
+    console.log('[Janus Nexus] 开始加载扩展...');
     
     // 扩展信息
-    const extensionName = 'Janus-Treasure-chest';
+    const extensionName = 'Janus-Nexus';
     let extensionVersion = 'v1.0.0';
     let currentActiveTab = 'quickTools';
     
@@ -16,7 +16,7 @@ jQuery(() => {
                 return `v${manifest.version}`;
             }
         } catch (error) {
-            console.log('[Janusの百宝箱] 无法读取manifest版本信息');
+            console.log('[Janus Nexus] 无法读取manifest版本信息');
         }
         return 'v1.0.0'; // 默认版本
     }
@@ -24,14 +24,14 @@ jQuery(() => {
     // 从GitHub获取最新版本信息
     async function fetchLatestVersionFromGitHub() {
         try {
-            const response = await fetch('https://raw.githubusercontent.com/chuzhitang/Janus-Treasure-chest/main/manifest.json');
+            const response = await fetch('https://raw.githubusercontent.com/Tangchuzhi/Janus-Nexus/main/manifest.json');
             if (response.ok) {
                 const manifest = await response.json();
                 return manifest.version;
             }
             throw new Error('无法获取远程版本信息');
         } catch (error) {
-            console.error('[Janusの百宝箱] 获取远程版本失败:', error);
+            console.error('[Janus Nexus] 获取远程版本失败:', error);
             throw error;
         }
     }
@@ -42,7 +42,7 @@ jQuery(() => {
             const localVersion = extensionVersion.replace('v', '');
             const remoteVersion = await fetchLatestVersionFromGitHub();
             
-            console.log(`[Janusの百宝箱] 版本比较: 本地 ${localVersion} vs 远程 ${remoteVersion}`);
+            console.log(`[Janus Nexus] 版本比较: 本地 ${localVersion} vs 远程 ${remoteVersion}`);
             
             return {
                 local: localVersion,
@@ -50,7 +50,7 @@ jQuery(() => {
                 hasUpdate: remoteVersion !== localVersion
             };
         } catch (error) {
-            console.error('[Janusの百宝箱] 版本检查失败:', error);
+            console.error('[Janus Nexus] 版本检查失败:', error);
             return {
                 local: extensionVersion.replace('v', ''),
                 remote: '未知',
@@ -62,7 +62,7 @@ jQuery(() => {
     // 从manifest.json获取版本信息
     async function getVersionFromManifest() {
         extensionVersion = await getJanusVersion();
-        console.log(`[Janusの百宝箱] 获取版本号: ${extensionVersion}`);
+        console.log(`[Janus Nexus] 获取版本号: ${extensionVersion}`);
         
         const versionElement = document.querySelector('.janus-version-display');
         if (versionElement) {
@@ -95,7 +95,7 @@ jQuery(() => {
                 }
             }
         } catch (error) {
-            console.log('[Janusの百宝箱] 更新版本显示失败:', error);
+            console.log('[Janus Nexus] 更新版本显示失败:', error);
         }
     }
     
@@ -113,7 +113,7 @@ jQuery(() => {
     // 加载打包助手内容
     async function loadPresetHelperContent() {
         try {
-            const response = await fetch('scripts/extensions/third-party/Janus-Treasure-chest/打包助手/index.html');
+            const response = await fetch('scripts/extensions/third-party/Janus-Nexus/打包助手/index.html');
             if (response.ok) {
                 const html = await response.text();
                 const contentDiv = document.getElementById('preset-helper-content');
@@ -122,12 +122,12 @@ jQuery(() => {
                     
                     // 加载JavaScript
                     const script = document.createElement('script');
-                    script.src = 'scripts/extensions/third-party/Janus-Treasure-chest/打包助手/index.js';
+                    script.src = 'scripts/extensions/third-party/Janus-Nexus/打包助手/index.js';
                     script.onload = () => {
-                        console.log('[Janusの百宝箱] 打包助手脚本加载完成');
+                        console.log('[Janus Nexus] 打包助手脚本加载完成');
                     };
                     script.onerror = () => {
-                        console.error('[Janusの百宝箱] 打包助手脚本加载失败');
+                        console.error('[Janus Nexus] 打包助手脚本加载失败');
                     };
                     document.head.appendChild(script);
                 }
@@ -135,7 +135,7 @@ jQuery(() => {
                 throw new Error(`HTTP ${response.status}`);
             }
         } catch (error) {
-            console.error('[Janusの百宝箱] 加载打包助手失败:', error);
+            console.error('[Janus Nexus] 加载打包助手失败:', error);
             const contentDiv = document.getElementById('preset-helper-content');
             if (contentDiv) {
                 contentDiv.innerHTML = `
@@ -151,7 +151,7 @@ jQuery(() => {
     // 加载快速交互内容
     async function loadQuickToolsContent() {
         try {
-            const response = await fetch('scripts/extensions/third-party/Janus-Treasure-chest/快速交互/index.html');
+            const response = await fetch('scripts/extensions/third-party/Janus-Nexus/快速交互/index.html');
             if (response.ok) {
                 const html = await response.text();
                 const contentDiv = document.getElementById('quick-tools-content');
@@ -160,12 +160,12 @@ jQuery(() => {
                 
                     // 加载JavaScript
                     const script = document.createElement('script');
-                    script.src = 'scripts/extensions/third-party/Janus-Treasure-chest/快速交互/index.js';
+                    script.src = 'scripts/extensions/third-party/Janus-Nexus/快速交互/index.js';
                     script.onload = () => {
-                        console.log('[Janusの百宝箱] 快速交互脚本加载完成');
+                        console.log('[Janus Nexus] 快速交互脚本加载完成');
                     };
                     script.onerror = () => {
-                        console.error('[Janusの百宝箱] 快速交互脚本加载失败');
+                        console.error('[Janus Nexus] 快速交互脚本加载失败');
                     };
                     document.head.appendChild(script);
                 }
@@ -173,7 +173,7 @@ jQuery(() => {
                 throw new Error(`HTTP ${response.status}`);
             }
         } catch (error) {
-            console.error('[Janusの百宝箱] 加载快速交互失败:', error);
+            console.error('[Janus Nexus] 加载快速交互失败:', error);
             const contentDiv = document.getElementById('quick-tools-content');
             if (contentDiv) {
                 contentDiv.innerHTML = `
@@ -192,7 +192,7 @@ jQuery(() => {
     async function loadExternalGameManager() {
         // 如果外接口游戏管理器已经加载，直接返回
         if (window.externalGameManager) {
-            console.log('[Janusの百宝箱] 外接口游戏管理器已存在');
+            console.log('[Janus Nexus] 外接口游戏管理器已存在');
             // 刷新已导入游戏列表
             setTimeout(() => {
                 refreshImportedGamesList();
@@ -202,20 +202,20 @@ jQuery(() => {
         
         try {
             const script = document.createElement('script');
-            script.src = 'scripts/extensions/third-party/Janus-Treasure-chest/游戏/external-game-manager.js';
+            script.src = 'scripts/extensions/third-party/Janus-Nexus/游戏/external-game-manager.js';
             script.onload = () => {
-                console.log('[Janusの百宝箱] 外接口游戏管理器脚本加载完成');
+                console.log('[Janus Nexus] 外接口游戏管理器脚本加载完成');
                 // 刷新已导入游戏列表
                 setTimeout(() => {
                     refreshImportedGamesList();
                 }, 100);
             };
             script.onerror = () => {
-                console.error('[Janusの百宝箱] 外接口游戏管理器脚本加载失败');
+                console.error('[Janus Nexus] 外接口游戏管理器脚本加载失败');
             };
             document.head.appendChild(script);
         } catch (error) {
-            console.error('[Janusの百宝箱] 加载外接口游戏管理器失败:', error);
+            console.error('[Janus Nexus] 加载外接口游戏管理器失败:', error);
         }
     }
     
@@ -299,7 +299,7 @@ jQuery(() => {
         }
         
         contentArea.innerHTML = content;
-        console.log(`[Janusの百宝箱] 切换到标签页: ${tabName}`);
+        console.log(`[Janus Nexus] 切换到标签页: ${tabName}`);
 
         // 如果是快速交互标签页，加载内容
         if (tabName === 'quickTools') {
@@ -331,14 +331,14 @@ jQuery(() => {
         const url = prompt('请输入游戏文件的URL地址:');
         if (url) {
             try {
-                console.log(`[Janusの百宝箱] 从URL导入游戏: ${url}`);
+                console.log(`[Janus Nexus] 从URL导入游戏: ${url}`);
                 const gameInfo = await window.externalGameManager.importGameFromUrl(url);
                 toastr.success(`游戏导入成功！\n名称: ${gameInfo.name}`, '导入成功', { timeOut: 3000 });
                 
                 // 刷新已导入游戏列表
                 refreshImportedGamesList();
             } catch (error) {
-                console.error('[Janusの百宝箱] 从URL导入游戏失败:', error);
+                console.error('[Janus Nexus] 从URL导入游戏失败:', error);
                 toastr.error(`导入失败: ${error.message}`, '导入失败', { timeOut: 3000 });
             }
         }
@@ -347,14 +347,14 @@ jQuery(() => {
     // 从文件导入游戏
     async function importGameFromFile(file) {
         try {
-            console.log(`[Janusの百宝箱] 从文件导入游戏: ${file.name}`);
+            console.log(`[Janus Nexus] 从文件导入游戏: ${file.name}`);
             const gameInfo = await window.externalGameManager.importGameFromFile(file);
             toastr.success(`游戏导入成功！\n名称: ${gameInfo.name}`, '导入成功', { timeOut: 3000 });
             
             // 刷新已导入游戏列表
             refreshImportedGamesList();
         } catch (error) {
-            console.error('[Janusの百宝箱] 从文件导入游戏失败:', error);
+            console.error('[Janus Nexus] 从文件导入游戏失败:', error);
             toastr.error(`导入失败: ${error.message}`, '导入失败', { timeOut: 3000 });
         }
     }
@@ -409,7 +409,7 @@ jQuery(() => {
                 toastr.error('游戏启动失败', '启动失败', { timeOut: 3000 });
             }
         } catch (error) {
-            console.error('[Janusの百宝箱] 启动外部游戏失败:', error);
+            console.error('[Janus Nexus] 启动外部游戏失败:', error);
             toastr.error(`游戏启动失败: ${error.message}`, '启动失败', { timeOut: 3000 });
         }
     }
@@ -759,7 +759,7 @@ jQuery(() => {
             <div id="janus-treasure-chest-settings">
                 <div class="inline-drawer">
                     <div class="inline-drawer-toggle inline-drawer-header">
-                        <b>Janusの百宝箱</b>
+                        <b>Janus Nexus</b>
                         <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                     </div>
                     <div class="inline-drawer-content">
@@ -768,7 +768,7 @@ jQuery(() => {
                 </div>
             </div>
         `);
-        console.log('[Janusの百宝箱] 扩展界面已加载完成');
+        console.log('[Janus Nexus] 扩展界面已加载完成');
 
         setTimeout(() => {
             getVersionFromManifest();

@@ -1,13 +1,12 @@
 {
-    "display_name": "Janusの百宝箱",
+    "display_name": "Janus Nexus",
     "loading_order": 100,
     "requires": [],
     "optional": [],
     "js": "index.js",
     "css": "style.css",
-    "author": "chuzhitang",
+    "author": "唐初稚",
     "version": "1.0.0",
-    "homePage": "https://github.com/chuzhitang/Janus-Treasure-chest",
-    "description": "Janusの百宝箱 - 集成DMSS动态记忆流系统、快速交互工具、打包助手和前端游戏的多功能扩展",
+    "homePage": "https://github.com/Tangchuzhi/Janus-Nexus",
     "auto_update": true
 }
