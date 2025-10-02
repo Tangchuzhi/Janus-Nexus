@@ -9,6 +9,7 @@
     let selectedRegexes = [];
     let selectedQuickReplies = [];
     let selectedWorldBooks = [];
+    let selectedCharacters = [];
     let packageData = null;
     
     // 调试日志函数
@@ -341,6 +342,66 @@
         }
     }
     
+    // 加载角色卡列表
+    async function loadCharacters() {
+        try {
+            debugLog('开始加载角色卡...');
+            
+            // 使用 SillyTavern 的 API 获取角色卡列表
+            const context = SillyTavern.getContext();
+            
+            // 从API获取角色卡数据
+            const response = await fetch('/api/characters/get', {
+                method: 'POST',
+                headers: context.getRequestHeaders(),
+                body: JSON.stringify({}),
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const characters = data.characters || [];
+                
+                debugLog(`从API获取到 ${characters.length} 个角色卡`);
+                
+                const container = document.getElementById('characters-list');
+                if (!container) return;
+                
+                container.innerHTML = '';
+                
+                if (characters.length === 0) {
+                    container.innerHTML = '<div class="empty-state">未找到角色卡</div>';
+                    return;
+                }
+                
+                characters.forEach(character => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'resource-item';
+                    itemDiv.innerHTML = `
+                        <input type="checkbox" id="character-${character.name}" onchange="toggleCharacter('${character.name}')">
+                        <div class="resource-item-info">
+                            <div class="resource-item-name">${character.name}</div>
+                            <div class="resource-item-desc">${character.description ? character.description.substring(0, 50) + '...' : '角色卡'}</div>
+                        </div>
+                    `;
+                    container.appendChild(itemDiv);
+                });
+            } else {
+                debugLog('API获取失败: ' + response.status);
+                const container = document.getElementById('characters-list');
+                if (container) {
+                    container.innerHTML = '<div class="empty-state">获取角色卡失败</div>';
+                }
+            }
+            
+        } catch (error) {
+            debugLog('角色卡加载错误: ' + error.message);
+            const container = document.getElementById('characters-list');
+            if (container) {
+                container.innerHTML = `<div class="empty-state">加载失败: ${error.message}</div>`;
+            }
+        }
+    }
+    
     // 加载快速回复列表
     async function loadQuickReplies() {
         try {
@@ -447,9 +508,19 @@
         debugLog(`世界书选择: ${selectedWorldBooks.length} 个`);
     }
     
+    // 切换角色卡选择
+    function toggleCharacter(name) {
+        if (selectedCharacters.includes(name)) {
+            selectedCharacters = selectedCharacters.filter(n => n !== name);
+        } else {
+            selectedCharacters.push(name);
+        }
+        debugLog(`角色卡选择: ${selectedCharacters.length} 个`);
+    }
+    
     // 创建打包文件
     async function createPackage() {
-        if (selectedPresets.length === 0 && selectedRegexes.length === 0 && selectedQuickReplies.length === 0 && selectedWorldBooks.length === 0) {
+        if (selectedPresets.length === 0 && selectedRegexes.length === 0 && selectedQuickReplies.length === 0 && selectedWorldBooks.length === 0 && selectedCharacters.length === 0) {
             showStatus('请至少选择一个项目', 'error');
             return;
         }
@@ -474,7 +545,8 @@
                 presets: {},
                 regexes: {},
                 quick_reply_sets: {},
-                world_books: {}
+                world_books: {},
+                characters: {}
             };
             
             // 打包预设
@@ -662,6 +734,41 @@
             }
             showProgress(80);
             
+            // 打包角色卡
+            for (const characterName of selectedCharacters) {
+                try {
+                    const finalName = tagPrefix ? `${tagPrefix}${characterName}` : characterName;
+                    debugLog(`开始打包角色卡: ${characterName} -> ${finalName}`);
+                    
+                    // 获取角色卡数据
+                    const characterResponse = await fetch('/api/characters/get', {
+                        method: 'POST',
+                        headers: context.getRequestHeaders(),
+                        body: JSON.stringify({ name: characterName }),
+                    });
+                    
+                    debugLog(`角色卡API响应状态: ${characterResponse.status}`);
+                    
+                    if (characterResponse.ok) {
+                        const characterData = await characterResponse.json();
+                        debugLog(`获取到角色卡数据:`, characterData);
+                        
+                        // 确保角色卡名称正确
+                        const characterToSave = { ...characterData };
+                        characterToSave.name = finalName;
+                        
+                        packageObj.characters[finalName] = characterToSave;
+                        debugLog(`已打包角色卡: ${finalName}`);
+                    } else {
+                        const errorText = await characterResponse.text();
+                        debugLog(`角色卡 ${characterName} 获取失败: ${characterResponse.status} - ${errorText}`);
+                    }
+                } catch (error) {
+                    debugLog(`角色卡 ${characterName} 打包失败: ${error.message}`);
+                }
+            }
+            showProgress(90);
+            
             // 生成并下载文件
             const jsonStr = JSON.stringify(packageObj, null, 2);
             const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -677,7 +784,7 @@
             
             showProgress(100);
             showStatus('打包完成', 'success');
-            debugLog(`打包完成: ${Object.keys(packageObj.presets).length} 预设, ${Object.keys(packageObj.regexes).length} 正则, ${Object.keys(packageObj.quick_reply_sets).length} 快速回复集, ${Object.keys(packageObj.world_books).length} 世界书`);
+            debugLog(`打包完成: ${Object.keys(packageObj.presets).length} 预设, ${Object.keys(packageObj.regexes).length} 正则, ${Object.keys(packageObj.quick_reply_sets).length} 快速回复集, ${Object.keys(packageObj.world_books).length} 世界书, ${Object.keys(packageObj.characters).length} 角色卡`);
             
         } catch (error) {
             showProgress(100);
@@ -748,13 +855,14 @@
         html += `<p><strong>正则:</strong> ${data.regexes ? Object.keys(data.regexes).length : 0} 个</p>`;
         html += `<p><strong>快速回复集:</strong> ${data.quick_reply_sets ? Object.keys(data.quick_reply_sets).length : 0} 个</p>`;
         html += `<p><strong>世界书:</strong> ${data.world_books ? Object.keys(data.world_books).length : 0} 个</p>`;
+        html += `<p><strong>角色卡:</strong> ${data.characters ? Object.keys(data.characters).length : 0} 个</p>`;
         
         detailsEl.innerHTML = html;
         const packageInfo = document.getElementById('package-info');
         if (packageInfo) {
             packageInfo.style.display = 'block';
         }
-        debugLog(`包信息: ${Object.keys(data.presets || {}).length} 预设, ${Object.keys(data.regexes || {}).length} 正则, ${Object.keys(data.quick_reply_sets || {}).length} 快速回复集, ${Object.keys(data.world_books || {}).length} 世界书`);
+        debugLog(`包信息: ${Object.keys(data.presets || {}).length} 预设, ${Object.keys(data.regexes || {}).length} 正则, ${Object.keys(data.quick_reply_sets || {}).length} 快速回复集, ${Object.keys(data.world_books || {}).length} 世界书, ${Object.keys(data.characters || {}).length} 角色卡`);
     }
     
     // 导入包
@@ -769,7 +877,8 @@
             let totalItems = (packageData.presets ? Object.keys(packageData.presets).length : 0) + 
                              (packageData.regexes ? Object.keys(packageData.regexes).length : 0) +
                              (packageData.quick_reply_sets ? Object.keys(packageData.quick_reply_sets).length : 0) +
-                             (packageData.world_books ? Object.keys(packageData.world_books).length : 0);
+                             (packageData.world_books ? Object.keys(packageData.world_books).length : 0) +
+                             (packageData.characters ? Object.keys(packageData.characters).length : 0);
             let importedCount = 0;
             
             // 导入预设
@@ -1003,6 +1112,64 @@
                 debugLog('没有发现世界书数据需要导入');
             }
             
+            // 导入角色卡
+            if (packageData.characters) {
+                debugLog('开始导入角色卡...');
+                debugLog(`发现 ${Object.keys(packageData.characters).length} 个角色卡需要导入`);
+                
+                // 确保context变量可用
+                const context = SillyTavern.getContext();
+                debugLog('Context获取成功:', context);
+                
+                for (const [characterName, characterData] of Object.entries(packageData.characters)) {
+                    try {
+                        debugLog(`准备导入角色卡: ${characterName}`);
+                        
+                        // 使用API直接创建/更新角色卡
+                        debugLog('使用API创建/更新角色卡');
+                        
+                        // 首先检查角色卡是否已存在
+                        const checkResponse = await fetch('/api/characters/get', {
+                            method: 'POST',
+                            headers: context.getRequestHeaders(),
+                            body: JSON.stringify({ name: characterName }),
+                        });
+                        
+                        if (checkResponse.ok) {
+                            const existingData = await checkResponse.json();
+                            debugLog(`角色卡 ${characterName} 已存在`);
+                        }
+                        
+                        // 使用edit API创建/更新角色卡
+                        const editResponse = await fetch('/api/characters/edit', {
+                            method: 'POST',
+                            headers: context.getRequestHeaders(),
+                            body: JSON.stringify({
+                                name: characterName,
+                                data: characterData
+                            }),
+                        });
+                        
+                        if (editResponse.ok) {
+                            const result = await editResponse.json();
+                            debugLog(`角色卡 ${characterName} 导入成功:`, result);
+                            importedCount++;
+                        } else {
+                            const errorText = await editResponse.text();
+                            debugLog(`角色卡 ${characterName} 导入失败: ${editResponse.status} - ${errorText}`);
+                        }
+                        
+                    } catch (error) {
+                        debugLog(`角色卡 ${characterName} 导入失败: ${error.message}`);
+                        debugLog(`错误堆栈:`, error.stack);
+                    }
+                }
+                
+                debugLog(`角色卡导入完成，共导入 ${Object.keys(packageData.characters).length} 个角色卡`);
+            } else {
+                debugLog('没有发现角色卡数据需要导入');
+            }
+            
             showProgress(100);
             showStatus(`导入完成！成功导入 ${importedCount} 个项目，即将自动刷新页面`, 'success');
             debugLog('导入完成');
@@ -1031,15 +1198,18 @@
         showProgress(10);
         
         await loadPresets();
-        showProgress(30);
+        showProgress(20);
         
         await loadRegexes();
-        showProgress(50);
+        showProgress(40);
         
         await loadQuickReplies();
-        showProgress(70);
+        showProgress(60);
         
         await loadWorldBooks();
+        showProgress(80);
+        
+        await loadCharacters();
         showProgress(100);
     }
     
@@ -1054,6 +1224,7 @@
         window.toggleRegex = toggleRegex;
         window.toggleQuickReply = toggleQuickReply;
         window.toggleWorldBook = toggleWorldBook;
+        window.toggleCharacter = toggleCharacter;
         window.createPackage = createPackage;
         window.handleFileSelect = handleFileSelect;
         window.triggerFileSelect = triggerFileSelect;
