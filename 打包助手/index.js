@@ -734,7 +734,7 @@
             }
             showProgress(80);
             
-            // 打包角色卡（完整JSON格式，包含绑定的世界书和正则）
+            // 打包角色卡（输出与原版一致的结构：直接为角色对象，扩展字段中包含 regex_scripts / TavernHelper_scripts / world 引用）
             for (const characterAvatar of selectedCharacters) {
                 try {
                     debugLog(`开始打包角色卡: ${characterAvatar}`);
@@ -756,64 +756,38 @@
                         const originalName = characterData.name || characterData.data?.name || characterAvatar.replace('.png', '');
                         const finalName = tagPrefix ? `${tagPrefix}${originalName}` : originalName;
                         
-                            // 创建完整的角色卡包，包含绑定的内容
-                            const characterPackage = {
-                                character: { ...characterData },
-                                bound_worldbooks: [],
-                                bound_regexes: []
-                            };
+                        // 直接输出角色对象（不使用 bound_* 包装）
+                        const characterObject = { ...characterData };
+                        characterObject.name = finalName;
+                        if (!characterObject.data) characterObject.data = {};
+                        characterObject.data.name = finalName;
+                        if (!characterObject.data.extensions) characterObject.data.extensions = {};
                         
-                        // 更新角色卡名称
-                        characterPackage.character.name = finalName;
-                        if (characterPackage.character.data) {
-                            characterPackage.character.data.name = finalName;
-                        }
-                        
-                        // 检查并打包绑定的世界书
+                        // 保留世界书引用，不打包到 bound_*
                         const worldName = characterData.data?.extensions?.world || characterData.extensions?.world;
                         if (worldName) {
                             debugLog(`角色卡 ${finalName} 绑定了世界书: ${worldName}`);
-                            try {
-                                const worldResponse = await fetch('/api/worldinfo/get', {
-                                    method: 'POST',
-                                    headers: context.getRequestHeaders(),
-                                    body: JSON.stringify({ name: worldName }),
-                                });
-                                
-                                if (worldResponse.ok) {
-                                    const worldData = await worldResponse.json();
-                                    const finalWorldName = tagPrefix ? `${tagPrefix}${worldName}` : worldName;
-                                    worldData.name = finalWorldName;
-                                    characterPackage.bound_worldbooks.push(worldData);
-                                    debugLog(`已打包绑定的世界书: ${finalWorldName}`);
-                                }
-                            } catch (worldError) {
-                                debugLog(`获取绑定世界书失败: ${worldError.message}`);
-                            }
+                            // 仅调整引用名称以与可选的标签前缀一致
+                            const finalWorldName = tagPrefix ? `${tagPrefix}${worldName}` : worldName;
+                            characterObject.data.extensions.world = finalWorldName;
                         }
                         
-                        // 检查并打包绑定的正则（从extensions.regex_scripts中）
+                        // 写入正则脚本到扩展字段（不使用 bound_*）
                         const regexScripts = characterData.data?.extensions?.regex_scripts || characterData.extensions?.regex_scripts || [];
                         if (regexScripts.length > 0) {
                             debugLog(`角色卡 ${finalName} 包含 ${regexScripts.length} 个正则脚本`);
-                            for (const regexScript of regexScripts) {
-                                const finalRegexName = tagPrefix ? `${tagPrefix}${regexScript.scriptName}` : regexScript.scriptName;
-                                characterPackage.bound_regexes.push({
-                                    ...regexScript,
-                                    scriptName: finalRegexName
-                                });
-                                debugLog(`已打包正则脚本: ${finalRegexName}`);
-                            }
+                            characterObject.data.extensions.regex_scripts = regexScripts.map(regexScript => ({
+                                ...regexScript,
+                                ...(regexScript.scriptName && tagPrefix ? { scriptName: `${tagPrefix}${regexScript.scriptName}` } : {})
+                            }));
+                            debugLog(`已写入 regex_scripts 至角色扩展: ${regexScripts.length} 个`);
                         }
                         
-                        // 检查并打包TavernHelper脚本（从extensions.TavernHelper_scripts中）
+                        // 写入 TavernHelper 脚本到扩展字段（不使用 bound_*）
                         const tavernHelperScripts = characterData.data?.extensions?.TavernHelper_scripts || characterData.extensions?.TavernHelper_scripts || [];
                         if (tavernHelperScripts.length > 0) {
                             debugLog(`角色卡 ${finalName} 包含 ${tavernHelperScripts.length} 个TavernHelper脚本`);
-                            // 直接写入到角色扩展字段，避免使用 bound_ 前缀，便于酒馆助手识别
-                            if (!characterPackage.character.data) characterPackage.character.data = {};
-                            if (!characterPackage.character.data.extensions) characterPackage.character.data.extensions = {};
-                            characterPackage.character.data.extensions.TavernHelper_scripts = tavernHelperScripts.map(script => ({
+                            characterObject.data.extensions.TavernHelper_scripts = tavernHelperScripts.map(script => ({
                                 ...script,
                                 ...(script.value?.name && tagPrefix ? {
                                     value: {
@@ -827,8 +801,8 @@
                         
                         // 注意：角色卡不绑定快速回复集，跳过快速回复集打包
                         
-                        packageObj.characters[finalName] = characterPackage;
-                        debugLog(`已打包完整角色卡: ${finalName} (包含 ${characterPackage.bound_worldbooks.length} 世界书, ${characterPackage.bound_regexes.length} 正则, ${(characterPackage.character?.data?.extensions?.TavernHelper_scripts?.length) || 0} TavernHelper脚本)`);
+                        packageObj.characters[finalName] = characterObject;
+                        debugLog(`已打包完整角色卡: ${finalName} (regex_scripts: ${characterObject.data?.extensions?.regex_scripts?.length || 0}, TavernHelper_scripts: ${characterObject.data?.extensions?.TavernHelper_scripts?.length || 0})`);
                     } else {
                         const errorText = await characterResponse.text();
                         debugLog(`角色卡 ${characterAvatar} 获取失败: ${characterResponse.status} - ${errorText}`);
