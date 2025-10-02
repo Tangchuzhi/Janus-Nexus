@@ -792,27 +792,35 @@
                             }
                         }
                         
-                        // 检查并打包绑定的正则（从角色书的扩展中）
-                        if (characterData.data?.character_book?.entries) {
-                            const entries = characterData.data.character_book.entries;
-                            for (const entry of entries) {
-                                if (entry.extensions?.regex_id) {
-                                    const regexId = entry.extensions.regex_id;
-                                    debugLog(`角色卡 ${finalName} 绑定了正则: ${regexId}`);
-                                    
-                                    // 查找对应的正则
-                                    const regexSettings = context.extensionSettings?.regex || [];
-                                    const boundRegex = regexSettings.find(r => r.id === regexId);
-                                    if (boundRegex) {
-                                        const finalRegexName = tagPrefix ? `${tagPrefix}${boundRegex.scriptName}` : boundRegex.scriptName;
-                                        characterPackage.bound_regexes.push({
-                                            ...boundRegex,
-                                            scriptName: finalRegexName
-                                        });
-                                        debugLog(`已打包绑定的正则: ${finalRegexName}`);
-                                    }
-                                }
+                        // 检查并打包绑定的正则（从extensions.regex_scripts中）
+                        const regexScripts = characterData.data?.extensions?.regex_scripts || characterData.extensions?.regex_scripts || [];
+                        if (regexScripts.length > 0) {
+                            debugLog(`角色卡 ${finalName} 包含 ${regexScripts.length} 个正则脚本`);
+                            for (const regexScript of regexScripts) {
+                                const finalRegexName = tagPrefix ? `${tagPrefix}${regexScript.scriptName}` : regexScript.scriptName;
+                                characterPackage.bound_regexes.push({
+                                    ...regexScript,
+                                    scriptName: finalRegexName
+                                });
+                                debugLog(`已打包正则脚本: ${finalRegexName}`);
                             }
+                        }
+                        
+                        // 检查并打包TavernHelper脚本（从extensions.TavernHelper_scripts中）
+                        const tavernHelperScripts = characterData.data?.extensions?.TavernHelper_scripts || characterData.extensions?.TavernHelper_scripts || [];
+                        if (tavernHelperScripts.length > 0) {
+                            debugLog(`角色卡 ${finalName} 包含 ${tavernHelperScripts.length} 个TavernHelper脚本`);
+                            characterPackage.bound_tavernhelper_scripts = tavernHelperScripts.map(script => ({
+                                ...script,
+                                // 如果有名称字段，也应用标签前缀
+                                ...(script.value?.name && tagPrefix ? { 
+                                    value: { 
+                                        ...script.value, 
+                                        name: `${tagPrefix}${script.value.name}` 
+                                    } 
+                                } : {})
+                            }));
+                            debugLog(`已打包TavernHelper脚本: ${tavernHelperScripts.length} 个`);
                         }
                         
                         // 检查并打包绑定的快速回复（从扩展中）
@@ -847,7 +855,7 @@
                         }
                         
                         packageObj.characters[finalName] = characterPackage;
-                        debugLog(`已打包完整角色卡: ${finalName} (包含 ${characterPackage.bound_worldbooks.length} 世界书, ${characterPackage.bound_regexes.length} 正则, ${characterPackage.bound_quickreplies.length} 快速回复集)`);
+                        debugLog(`已打包完整角色卡: ${finalName} (包含 ${characterPackage.bound_worldbooks.length} 世界书, ${characterPackage.bound_regexes.length} 正则, ${characterPackage.bound_quickreplies.length} 快速回复集, ${characterPackage.bound_tavernhelper_scripts?.length || 0} TavernHelper脚本)`);
                     } else {
                         const errorText = await characterResponse.text();
                         debugLog(`角色卡 ${characterAvatar} 获取失败: ${characterResponse.status} - ${errorText}`);
@@ -1223,6 +1231,7 @@
                             debugLog(`绑定世界书: ${characterPackage.bound_worldbooks?.length || 0} 个`);
                             debugLog(`绑定正则: ${characterPackage.bound_regexes?.length || 0} 个`);
                             debugLog(`绑定快速回复: ${characterPackage.bound_quickreplies?.length || 0} 个`);
+                            debugLog(`TavernHelper脚本: ${characterPackage.bound_tavernhelper_scripts?.length || 0} 个`);
                         }
                         
                         // 首先导入绑定的世界书
@@ -1319,6 +1328,28 @@
                                     debugLog(`快速回复集 ${qrData.name} 导入成功`);
                                 } catch (qrError) {
                                     debugLog(`快速回复集 ${qrData.name} 导入出错: ${qrError.message}`);
+                                }
+                            }
+                        }
+                        
+                        // 导入TavernHelper脚本
+                        if (isNewFormat && characterPackage.bound_tavernhelper_scripts) {
+                            for (const tavernHelperScript of characterPackage.bound_tavernhelper_scripts) {
+                                try {
+                                    debugLog(`导入TavernHelper脚本: ${tavernHelperScript.value?.name || '未知名称'}`);
+                                    
+                                    // TavernHelper脚本通常通过slash命令导入
+                                    // 这里我们尝试使用triggerSlash来执行脚本
+                                    if (tavernHelperScript.value && typeof triggerSlash === 'function') {
+                                        // 构建TavernHelper脚本的slash命令
+                                        const scriptCommand = `/tavernhelper-script-import ${JSON.stringify(tavernHelperScript)}`;
+                                        await triggerSlash(scriptCommand);
+                                        debugLog(`TavernHelper脚本 ${tavernHelperScript.value.name} 导入成功`);
+                                    } else {
+                                        debugLog(`TavernHelper脚本 ${tavernHelperScript.value?.name || '未知'} 导入跳过（triggerSlash不可用）`);
+                                    }
+                                } catch (thError) {
+                                    debugLog(`TavernHelper脚本 ${tavernHelperScript.value?.name || '未知'} 导入出错: ${thError.message}`);
                                 }
                             }
                         }
