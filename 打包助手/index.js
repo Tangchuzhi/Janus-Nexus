@@ -925,6 +925,24 @@
                              (packageData.characters ? Object.keys(packageData.characters).length : 0);
             let importedCount = 0;
             
+            // 保护：记录导入前的全局世界书启用列表，导入后恢复，避免无关世界被设为全局
+            const context = SillyTavern.getContext();
+            let originalGlobalWorlds = [];
+            try {
+                const settingsResp = await fetch('/api/settings/get', {
+                    method: 'POST',
+                    headers: context.getRequestHeaders(),
+                    body: JSON.stringify({}),
+                });
+                if (settingsResp.ok) {
+                    const data = await settingsResp.json();
+                    originalGlobalWorlds = data?.world_info?.globalSelect || [];
+                    debugLog(`导入前全局世界启用数: ${originalGlobalWorlds.length}`);
+                }
+            } catch (e) {
+                debugLog(`获取导入前世界选择失败: ${e.message}`);
+            }
+            
             // 导入预设
             if (packageData.presets) {
                 const context = SillyTavern.getContext();
@@ -1259,6 +1277,22 @@
                 debugLog('没有发现角色卡数据需要导入');
             }
             
+            // 恢复导入前的全局世界书选择
+            try {
+                if (Array.isArray(originalGlobalWorlds)) {
+                    await fetch('/api/settings/set', {
+                        method: 'POST',
+                        headers: context.getRequestHeaders(),
+                        body: JSON.stringify({
+                            world_info: { globalSelect: originalGlobalWorlds }
+                        }),
+                    });
+                    debugLog('已恢复导入前的全局世界书启用列表');
+                }
+            } catch (e) {
+                debugLog(`恢复全局世界书启用列表失败: ${e.message}`);
+            }
+
             showProgress(100);
             showStatus(`导入完成！成功导入 ${importedCount} 个项目，即将自动刷新页面`, 'success');
             debugLog('导入完成');
