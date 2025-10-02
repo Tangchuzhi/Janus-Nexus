@@ -532,7 +532,6 @@
         
         const tagPrefix = document.getElementById('tag-prefix').value.trim();
         const regexNoOverwrite = document.getElementById('regex-no-overwrite').checked;
-        const characterPngFormat = document.getElementById('character-png-format').checked;
         
         try {
             showStatus('生成打包文件...', 'info');
@@ -739,76 +738,35 @@
                 try {
                     debugLog(`开始打包角色卡: ${characterAvatar}`);
                     
-                    if (characterPngFormat) {
-                        // 使用PNG格式导出（包含图片+数据+世界书+正则等）
-                        debugLog(`使用PNG格式导出角色卡: ${characterAvatar}`);
+                    // 获取角色卡数据
+                    const characterResponse = await fetch('/api/characters/get', {
+                        method: 'POST',
+                        headers: context.getRequestHeaders(),
+                        body: JSON.stringify({ avatar_url: characterAvatar }),
+                    });
+                    
+                    debugLog(`角色卡API响应状态: ${characterResponse.status}`);
+                    
+                    if (characterResponse.ok) {
+                        const characterData = await characterResponse.json();
+                        debugLog(`获取到角色卡数据:`, characterData);
                         
-                        const exportResponse = await fetch('/api/characters/export', {
-                            method: 'POST',
-                            headers: context.getRequestHeaders(),
-                            body: JSON.stringify({ 
-                                format: 'png',
-                                avatar_url: characterAvatar 
-                            }),
-                        });
+                        // 确定最终名称
+                        const originalName = characterData.name || characterData.data?.name || characterAvatar.replace('.png', '');
+                        const finalName = tagPrefix ? `${tagPrefix}${originalName}` : originalName;
                         
-                        debugLog(`角色卡PNG导出响应状态: ${exportResponse.status}`);
-                        
-                        if (exportResponse.ok) {
-                            // 获取PNG文件数据
-                            const pngBuffer = await exportResponse.arrayBuffer();
-                            const pngBase64 = btoa(String.fromCharCode(...new Uint8Array(pngBuffer)));
-                            
-                            // 确定最终名称
-                            const originalName = characterAvatar.replace('.png', '');
-                            const finalName = tagPrefix ? `${tagPrefix}${originalName}` : originalName;
-                            
-                            // 保存PNG数据
-                            packageObj.characters[finalName] = {
-                                type: 'png',
-                                filename: `${finalName}.png`,
-                                data: pngBase64,
-                                original_avatar: characterAvatar
-                            };
-                            
-                            debugLog(`已打包角色卡PNG: ${finalName} (${pngBuffer.byteLength} 字节)`);
-                        } else {
-                            const errorText = await exportResponse.text();
-                            debugLog(`角色卡 ${characterAvatar} PNG导出失败: ${exportResponse.status} - ${errorText}`);
+                        // 确保角色卡名称正确
+                        const characterToSave = { ...characterData };
+                        characterToSave.name = finalName;
+                        if (characterToSave.data) {
+                            characterToSave.data.name = finalName;
                         }
+                        
+                        packageObj.characters[finalName] = characterToSave;
+                        debugLog(`已打包角色卡: ${finalName}`);
                     } else {
-                        // 使用JSON格式导出
-                        debugLog(`使用JSON格式导出角色卡: ${characterAvatar}`);
-                        
-                        const characterResponse = await fetch('/api/characters/get', {
-                            method: 'POST',
-                            headers: context.getRequestHeaders(),
-                            body: JSON.stringify({ avatar_url: characterAvatar }),
-                        });
-                        
-                        debugLog(`角色卡API响应状态: ${characterResponse.status}`);
-                        
-                        if (characterResponse.ok) {
-                            const characterData = await characterResponse.json();
-                            debugLog(`获取到角色卡数据:`, characterData);
-                            
-                            // 确定最终名称
-                            const originalName = characterData.name || characterData.data?.name || characterAvatar.replace('.png', '');
-                            const finalName = tagPrefix ? `${tagPrefix}${originalName}` : originalName;
-                            
-                            // 确保角色卡名称正确
-                            const characterToSave = { ...characterData };
-                            characterToSave.name = finalName;
-                            if (characterToSave.data) {
-                                characterToSave.data.name = finalName;
-                            }
-                            
-                            packageObj.characters[finalName] = characterToSave;
-                            debugLog(`已打包角色卡JSON: ${finalName}`);
-                        } else {
-                            const errorText = await characterResponse.text();
-                            debugLog(`角色卡 ${characterAvatar} 获取失败: ${characterResponse.status} - ${errorText}`);
-                        }
+                        const errorText = await characterResponse.text();
+                        debugLog(`角色卡 ${characterAvatar} 获取失败: ${characterResponse.status} - ${errorText}`);
                     }
                 } catch (error) {
                     debugLog(`角色卡 ${characterAvatar} 打包失败: ${error.message}`);
@@ -863,34 +821,15 @@
         debugLog(`选择文件: ${file.name}`);
         event.target.value = '';
         
-        // 检测文件类型
-        const fileName = file.name.toLowerCase();
-        const isPngFile = fileName.endsWith('.png');
-        const isJsonFile = fileName.endsWith('.json');
-        
-        if (isPngFile) {
-            debugLog('检测到PNG文件，准备直接导入角色卡');
-            handlePngFileImport(file);
-        } else if (isJsonFile) {
-            debugLog('检测到JSON文件，准备解析打包文件');
-            handleJsonFileImport(file);
-        } else {
-            showStatus('不支持的文件格式，请选择PNG角色卡文件或JSON打包文件', 'error');
-            debugLog('不支持的文件格式: ' + file.name);
-        }
-    }
-    
-    // 处理JSON打包文件导入
-    function handleJsonFileImport(file) {
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
                 packageData = JSON.parse(e.target.result);
-                debugLog('JSON文件解析成功');
+                debugLog('文件解析成功');
                 displayPackageInfo(packageData);
             } catch (error) {
-                showStatus('JSON文件格式错误', 'error');
-                debugLog('JSON解析错误: ' + error.message);
+                showStatus('文件格式错误', 'error');
+                debugLog('解析错误: ' + error.message);
                 packageData = null;
                 const packageInfo = document.getElementById('package-info');
                 if (packageInfo) {
@@ -901,73 +840,10 @@
         
         reader.onerror = function() {
             showStatus('文件读取失败', 'error');
-            debugLog('文件读取错误');
+            debugLog('读取错误');
         };
         
         reader.readAsText(file);
-    }
-    
-    // 处理PNG角色卡文件直接导入
-    function handlePngFileImport(file) {
-        debugLog('开始处理PNG角色卡文件导入');
-        
-        // 创建FormData来上传PNG文件
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('file_type', 'png');
-        
-        // 显示导入状态
-        showStatus('正在导入PNG角色卡...', 'info');
-        
-        // 使用import API导入PNG角色卡
-        fetch('/api/characters/import', {
-            method: 'POST',
-            // FormData会自动设置Content-Type，不需要手动设置headers
-            body: formData,
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            } else {
-                throw new Error(`导入失败: ${response.status}`);
-            }
-        })
-        .then(result => {
-            debugLog('PNG角色卡导入成功:', result);
-            showStatus('PNG角色卡导入成功！', 'success');
-            
-            // 显示导入结果信息
-            displayPngImportResult(result, file.name);
-        })
-        .catch(error => {
-            debugLog('PNG角色卡导入失败:', error);
-            showStatus('PNG角色卡导入失败: ' + error.message, 'error');
-        });
-    }
-    
-    // 显示PNG导入结果
-    function displayPngImportResult(result, fileName) {
-        const packageInfo = document.getElementById('package-info');
-        if (!packageInfo) return;
-        
-        const detailsEl = document.getElementById('package-details');
-        if (!detailsEl) return;
-        
-        let html = `<p><strong>文件类型:</strong> PNG角色卡</p>`;
-        html += `<p><strong>文件名:</strong> ${fileName}</p>`;
-        html += `<p><strong>导入状态:</strong> 成功</p>`;
-        if (result.file_name) {
-            html += `<p><strong>角色名称:</strong> ${result.file_name}</p>`;
-        }
-        
-        detailsEl.innerHTML = html;
-        packageInfo.style.display = 'block';
-        
-        // 隐藏导入按钮，因为PNG文件已经直接导入完成
-        const importButton = packageInfo.querySelector('button');
-        if (importButton) {
-            importButton.style.display = 'none';
-        }
     }
     
     // 显示包信息
@@ -975,8 +851,7 @@
         const detailsEl = document.getElementById('package-details');
         if (!detailsEl) return;
         
-        let html = `<p><strong>文件类型:</strong> JSON打包文件</p>`;
-        html += `<p><strong>名称:</strong> ${data.name || '未知'}</p>`;
+        let html = `<p><strong>名称:</strong> ${data.name || '未知'}</p>`;
         html += `<p><strong>创建:</strong> ${data.created ? new Date(data.created).toLocaleString() : '未知'}</p>`;
         if (data.tag_prefix) {
             html += `<p><strong>标签:</strong> ${data.tag_prefix}</p>`;
@@ -991,12 +866,6 @@
         const packageInfo = document.getElementById('package-info');
         if (packageInfo) {
             packageInfo.style.display = 'block';
-            
-            // 确保导入按钮可见（JSON打包文件需要导入按钮）
-            const importButton = packageInfo.querySelector('button');
-            if (importButton) {
-                importButton.style.display = 'block';
-            }
         }
         debugLog(`包信息: ${Object.keys(data.presets || {}).length} 预设, ${Object.keys(data.regexes || {}).length} 正则, ${Object.keys(data.quick_reply_sets || {}).length} 快速回复集, ${Object.keys(data.world_books || {}).length} 世界书, ${Object.keys(data.characters || {}).length} 角色卡`);
     }
@@ -1261,42 +1130,8 @@
                     try {
                         debugLog(`准备导入角色卡: ${characterName}`);
                         
-                        // 检查是否是PNG格式的角色卡
-                        if (characterData.type === 'png' && characterData.data) {
-                            debugLog('使用PNG格式导入角色卡（包含图片+数据+世界书+正则等）');
-                            
-                            // 将Base64数据转换为Blob
-                            const binaryString = atob(characterData.data);
-                            const bytes = new Uint8Array(binaryString.length);
-                            for (let i = 0; i < binaryString.length; i++) {
-                                bytes[i] = binaryString.charCodeAt(i);
-                            }
-                            const pngBlob = new Blob([bytes], { type: 'image/png' });
-                            
-                            // 创建FormData来上传PNG文件
-                            const formData = new FormData();
-                            formData.append('file', pngBlob, characterData.filename);
-                            formData.append('file_type', 'png');
-                            formData.append('preserved_name', characterData.filename);
-                            
-                            // 使用import API导入PNG角色卡
-                            const importResponse = await fetch('/api/characters/import', {
-                                method: 'POST',
-                                // FormData会自动设置Content-Type，不需要手动设置headers
-                                body: formData,
-                            });
-                            
-                            if (importResponse.ok) {
-                                const result = await importResponse.json();
-                                debugLog(`角色卡PNG ${characterName} 导入成功:`, result);
-                                importedCount++;
-                            } else {
-                                const errorText = await importResponse.text();
-                                debugLog(`角色卡PNG ${characterName} 导入失败: ${importResponse.status} - ${errorText}`);
-                            }
-                        } else {
-                            // 兼容旧的JSON格式导入
-                            debugLog('使用JSON格式导入角色卡（兼容模式）');
+                        // 使用API直接创建角色卡
+                        debugLog('使用API创建角色卡');
                         
                         // 构建角色卡数据，确保格式正确，包含所有字段
                         const characterToImport = {
@@ -1362,7 +1197,6 @@
                         } else {
                             const errorText = await createResponse.text();
                             debugLog(`角色卡 ${characterName} 导入失败: ${createResponse.status} - ${errorText}`);
-                        }
                         }
                         
                     } catch (error) {
