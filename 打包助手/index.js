@@ -755,13 +755,13 @@
                         const originalName = characterData.name || characterData.data?.name || characterAvatar.replace('.png', '');
                         const finalName = tagPrefix ? `${tagPrefix}${originalName}` : originalName;
                         
-                        // 创建完整的角色卡包，包含绑定的内容
-                        const characterPackage = {
-                            character: { ...characterData },
-                            bound_worldbooks: [],
-                            bound_regexes: [],
-                            bound_quickreplies: []
-                        };
+                            // 创建完整的角色卡包，包含绑定的内容
+                            const characterPackage = {
+                                character: { ...characterData },
+                                bound_worldbooks: [],
+                                bound_regexes: [],
+                                bound_tavernhelper_scripts: []
+                            };
                         
                         // 更新角色卡名称
                         characterPackage.character.name = finalName;
@@ -823,39 +823,10 @@
                             debugLog(`已打包TavernHelper脚本: ${tavernHelperScripts.length} 个`);
                         }
                         
-                        // 检查并打包绑定的快速回复（从扩展中）
-                        if (characterData.data?.extensions?.quick_replies) {
-                            const qrSetName = characterData.data.extensions.quick_replies;
-                            debugLog(`角色卡 ${finalName} 绑定了快速回复集: ${qrSetName}`);
-                            
-                            try {
-                                const response = await fetch('/api/settings/get', {
-                                    method: 'POST',
-                                    headers: context.getRequestHeaders(),
-                                    body: JSON.stringify({}),
-                                });
-                                
-                                if (response.ok) {
-                                    const data = await response.json();
-                                    const quickReplyPresets = data.quickReplyPresets || [];
-                                    const boundQRSet = quickReplyPresets.find(preset => preset.name === qrSetName);
-                                    
-                                    if (boundQRSet) {
-                                        const finalQRName = tagPrefix ? `${tagPrefix}${qrSetName}` : qrSetName;
-                                        characterPackage.bound_quickreplies.push({
-                                            ...boundQRSet,
-                                            name: finalQRName
-                                        });
-                                        debugLog(`已打包绑定的快速回复集: ${finalQRName}`);
-                                    }
-                                }
-                            } catch (qrError) {
-                                debugLog(`获取绑定快速回复集失败: ${qrError.message}`);
-                            }
-                        }
+                        // 注意：角色卡不绑定快速回复集，跳过快速回复集打包
                         
                         packageObj.characters[finalName] = characterPackage;
-                        debugLog(`已打包完整角色卡: ${finalName} (包含 ${characterPackage.bound_worldbooks.length} 世界书, ${characterPackage.bound_regexes.length} 正则, ${characterPackage.bound_quickreplies.length} 快速回复集, ${characterPackage.bound_tavernhelper_scripts?.length || 0} TavernHelper脚本)`);
+                        debugLog(`已打包完整角色卡: ${finalName} (包含 ${characterPackage.bound_worldbooks.length} 世界书, ${characterPackage.bound_regexes.length} 正则, ${characterPackage.bound_tavernhelper_scripts?.length || 0} TavernHelper脚本)`);
                     } else {
                         const errorText = await characterResponse.text();
                         debugLog(`角色卡 ${characterAvatar} 获取失败: ${characterResponse.status} - ${errorText}`);
@@ -1230,7 +1201,6 @@
                             debugLog(`检测到完整格式角色卡包，包含绑定内容`);
                             debugLog(`绑定世界书: ${characterPackage.bound_worldbooks?.length || 0} 个`);
                             debugLog(`绑定正则: ${characterPackage.bound_regexes?.length || 0} 个`);
-                            debugLog(`绑定快速回复: ${characterPackage.bound_quickreplies?.length || 0} 个`);
                             debugLog(`TavernHelper脚本: ${characterPackage.bound_tavernhelper_scripts?.length || 0} 个`);
                         }
                         
@@ -1259,94 +1229,88 @@
                             }
                         }
                         
-                        // 导入绑定的正则
+                        // 导入绑定的正则到局部正则分类
                         if (isNewFormat && characterPackage.bound_regexes) {
-                            const regexSettings = context.extensionSettings?.regex || [];
-                            const newRegexSettings = [...regexSettings];
+                            debugLog(`准备导入 ${characterPackage.bound_regexes.length} 个正则脚本到局部正则分类`);
                             
                             for (const regexData of characterPackage.bound_regexes) {
                                 try {
-                                    debugLog(`导入绑定的正则: ${regexData.scriptName}`);
+                                    debugLog(`导入绑定的正则到局部分类: ${regexData.scriptName}`);
                                     const regexWithNewId = {
                                         ...regexData,
                                         id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
                                     };
                                     
-                                    newRegexSettings.push(regexWithNewId);
-                                    debugLog(`正则 ${regexData.scriptName} 导入成功`);
+                                    // 使用writeExtensionField将正则脚本写入角色的extensions.regex_scripts
+                                    if (typeof writeExtensionField === 'function') {
+                                        // 获取当前角色的正则脚本数组
+                                        const currentRegexScripts = characterData.data?.extensions?.regex_scripts || [];
+                                        const updatedRegexScripts = [...currentRegexScripts, regexWithNewId];
+                                        
+                                        // 写入到角色的extensions.regex_scripts
+                                        await writeExtensionField(characterName, 'regex_scripts', updatedRegexScripts);
+                                        
+                                        // 将角色添加到允许使用正则的列表
+                                        if (!context.extensionSettings.character_allowed_regex) {
+                                            context.extensionSettings.character_allowed_regex = [];
+                                        }
+                                        if (!context.extensionSettings.character_allowed_regex.includes(characterData.avatar)) {
+                                            context.extensionSettings.character_allowed_regex.push(characterData.avatar);
+                                        }
+                                        
+                                        debugLog(`正则 ${regexData.scriptName} 已导入到局部正则分类`);
+                                    } else {
+                                        debugLog(`writeExtensionField函数不可用，跳过正则脚本导入`);
+                                    }
                                 } catch (regexError) {
                                     debugLog(`正则 ${regexData.scriptName} 导入出错: ${regexError.message}`);
                                 }
                             }
                             
-                            // 更新正则设置
-                            context.extensionSettings.regex = newRegexSettings;
+                            // 保存设置
                             if (context.saveSettingsDebounced) {
                                 context.saveSettingsDebounced();
                             }
                         }
                         
-                        // 导入绑定的快速回复
-                        if (isNewFormat && characterPackage.bound_quickreplies) {
-                            for (const qrData of characterPackage.bound_quickreplies) {
-                                try {
-                                    debugLog(`导入绑定的快速回复集: ${qrData.name}`);
-                                    
-                                    // 构建slash命令序列
-                                    let slashCommands = '';
-                                    slashCommands += '/parser-flag STRICT_ESCAPING on ||\n';
-                                    slashCommands += `/qr-set-create nosend=${qrData.disableSend || false} before=${qrData.placeBeforeInput || false} inject=${qrData.injectInput || false} ${qrData.name} ||\n`;
-                                    
-                                    if (qrData.qrList && qrData.qrList.length > 0) {
-                                        for (const qr of qrData.qrList) {
-                                            const escapedMessage = (qr.message || '')
-                                                .replace(/"/g, '\\"')
-                                                .replace(/<user>/g, '{{user}}')
-                                                .replace(/<char>/g, '{{char}}')
-                                                .replace(/\{\{/g, '\\{\\{');
-                                            
-                                            slashCommands += `/qr-create set=${qrData.name} label="${qr.label || ''}" `;
-                                            slashCommands += `showlabel=${qr.showLabel !== false} `;
-                                            slashCommands += `hidden=${qr.isHidden || false} `;
-                                            slashCommands += `startup=${qr.executeOnStartup || false} `;
-                                            slashCommands += `user=${qr.executeOnUser || false} `;
-                                            slashCommands += `bot=${qr.executeOnAi || false} `;
-                                            slashCommands += `load=${qr.executeOnChatChange || false} `;
-                                            slashCommands += `new=${qr.executeOnNewChat || false} `;
-                                            slashCommands += `group=${qr.executeOnGroupMemberDraft || false} `;
-                                            slashCommands += `generation=${qr.executeBeforeGeneration || false} `;
-                                            if (qr.title && qr.title.trim()) {
-                                                slashCommands += `title="${qr.title}" `;
-                                            }
-                                            slashCommands += `"${escapedMessage}" ||\n`;
-                                        }
-                                    }
-                                    
-                                    slashCommands += '/parser-flag STRICT_ESCAPING off ||\n';
-                                    
-                                    await triggerSlash(slashCommands);
-                                    debugLog(`快速回复集 ${qrData.name} 导入成功`);
-                                } catch (qrError) {
-                                    debugLog(`快速回复集 ${qrData.name} 导入出错: ${qrError.message}`);
-                                }
-                            }
-                        }
+                        // 注意：角色卡不绑定快速回复集，跳过快速回复集导入
                         
-                        // 导入TavernHelper脚本
+                        // 导入TavernHelper脚本到局部脚本库
                         if (isNewFormat && characterPackage.bound_tavernhelper_scripts) {
+                            debugLog(`准备导入 ${characterPackage.bound_tavernhelper_scripts.length} 个TavernHelper脚本到局部脚本库`);
+                            
                             for (const tavernHelperScript of characterPackage.bound_tavernhelper_scripts) {
                                 try {
-                                    debugLog(`导入TavernHelper脚本: ${tavernHelperScript.value?.name || '未知名称'}`);
+                                    debugLog(`导入TavernHelper脚本到局部分类: ${tavernHelperScript.value?.name || '未知名称'}`);
                                     
-                                    // TavernHelper脚本通常通过slash命令导入
-                                    // 这里我们尝试使用triggerSlash来执行脚本
-                                    if (tavernHelperScript.value && typeof triggerSlash === 'function') {
-                                        // 构建TavernHelper脚本的slash命令
-                                        const scriptCommand = `/tavernhelper-script-import ${JSON.stringify(tavernHelperScript)}`;
-                                        await triggerSlash(scriptCommand);
-                                        debugLog(`TavernHelper脚本 ${tavernHelperScript.value.name} 导入成功`);
+                                    // 使用TavernHelper的ScriptManager导入脚本
+                                    if (typeof window.TavernHelper !== 'undefined' && window.TavernHelper._bind) {
+                                        // 构建脚本数据
+                                        const scriptData = {
+                                            name: tavernHelperScript.value?.name || '导入的脚本',
+                                            content: tavernHelperScript.value?.content || '',
+                                            type: 'script',
+                                            enabled: false
+                                        };
+                                        
+                                        // 使用ScriptManager导入到局部脚本库
+                                        if (window.TavernHelper._bind._getScriptInfo) {
+                                            // 通过事件系统导入脚本
+                                            const scriptEvents = window.TavernHelper._bind._getScriptInfo();
+                                            if (scriptEvents && scriptEvents.emit) {
+                                                scriptEvents.emit('SCRIPT_IMPORT', {
+                                                    script: scriptData,
+                                                    type: 'CHARACTER' // 局部脚本
+                                                });
+                                                debugLog(`TavernHelper脚本 ${scriptData.name} 已导入到局部脚本库`);
+                                            } else {
+                                                debugLog(`TavernHelper脚本事件系统不可用`);
+                                            }
+                                        } else {
+                                            debugLog(`TavernHelper ScriptManager不可用`);
+                                        }
                                     } else {
-                                        debugLog(`TavernHelper脚本 ${tavernHelperScript.value?.name || '未知'} 导入跳过（triggerSlash不可用）`);
+                                        debugLog(`TavernHelper不可用，跳过TavernHelper脚本导入`);
                                     }
                                 } catch (thError) {
                                     debugLog(`TavernHelper脚本 ${tavernHelperScript.value?.name || '未知'} 导入出错: ${thError.message}`);
