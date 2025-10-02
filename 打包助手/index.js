@@ -519,6 +519,8 @@
     
     // 创建打包文件
     async function createPackage() {
+        debugLog(`打包前检查: 预设${selectedPresets.length}个, 正则${selectedRegexes.length}个, 快速回复${selectedQuickReplies.length}个, 世界书${selectedWorldBooks.length}个, 角色卡${selectedCharacters.length}个`);
+        
         if (selectedPresets.length === 0 && selectedRegexes.length === 0 && selectedQuickReplies.length === 0 && selectedWorldBooks.length === 0 && selectedCharacters.length === 0) {
             showStatus('请至少选择一个项目', 'error');
             return;
@@ -734,6 +736,7 @@
             showProgress(80);
             
             // 打包角色卡 - 使用PNG导出
+            debugLog(`开始打包角色卡，共${selectedCharacters.length}个:`, selectedCharacters);
             for (const characterAvatar of selectedCharacters) {
                 try {
                     debugLog(`开始打包角色卡PNG: ${characterAvatar}`);
