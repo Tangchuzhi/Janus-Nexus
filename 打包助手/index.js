@@ -1083,10 +1083,34 @@
                 debugLog(`快速回复集导入完成，共导入 ${Object.keys(packageData.quick_reply_sets).length} 个集`);
             }
             
-            // 导入世界书
+            // 导入世界书（仅写入世界书数据，不修改全局启用列表）
             if (packageData.world_books) {
-                // 跳过世界书的全局导入，避免出现大量全局启用的世界书
-                debugLog('检测到包内世界书，但跳过全局导入，保留由角色绑定与原生弹窗处理');
+                try {
+                    const entries = Object.entries(packageData.world_books);
+                    debugLog(`开始导入世界书，共 ${entries.length} 个`);
+                    for (const [worldName, worldData] of entries) {
+                        try {
+                            const finalName = String(worldName);
+                            // 使用与 ST 一致的接口保存世界书，不触发全局启用
+                            const resp = await fetch('/api/worldinfo/edit', {
+                                method: 'POST',
+                                headers: context.getRequestHeaders(),
+                                body: JSON.stringify({ name: finalName, data: worldData }),
+                            });
+                            if (resp.ok) {
+                                importedCount++;
+                                debugLog(`世界书导入成功: ${finalName}`);
+                            } else {
+                                const txt = await resp.text();
+                                debugLog(`世界书导入失败: ${finalName} - ${resp.status} ${txt}`);
+                            }
+                        } catch (wiErr) {
+                            debugLog(`世界书导入异常: ${worldName} - ${wiErr.message}`);
+                        }
+                    }
+                } catch (err) {
+                    debugLog(`导入世界书整体失败: ${err.message}`);
+                }
             } else {
                 debugLog('没有发现世界书数据需要导入');
             }
