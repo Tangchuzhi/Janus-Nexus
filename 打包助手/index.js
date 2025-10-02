@@ -1204,59 +1204,27 @@
                             debugLog(`TavernHelper脚本: ${characterPackage.bound_tavernhelper_scripts?.length || 0} 个`);
                         }
                         
-                        // 首先导入绑定的世界书
-                        if (isNewFormat && characterPackage.bound_worldbooks) {
-                            for (const worldData of characterPackage.bound_worldbooks) {
-                                try {
-                                    debugLog(`导入绑定的世界书: ${worldData.name}`);
-                                    
-                                    // 确保世界书导入时不会默认启用
-                                    const worldDataToImport = {
-                                        ...worldData,
-                                        enabled: false, // 明确设置为未启用状态
-                                        active: false   // 明确设置为非活跃状态
-                                    };
-                                    
-                                    const worldResponse = await fetch('/api/worldinfo/edit', {
-                                        method: 'POST',
-                                        headers: context.getRequestHeaders(),
-                                        body: JSON.stringify({
-                                            name: worldData.name,
-                                            data: worldDataToImport
-                                        }),
-                                    });
-                                    
-                                    if (worldResponse.ok) {
-                                        debugLog(`世界书 ${worldData.name} 导入成功`);
-                                    } else {
-                                        debugLog(`世界书 ${worldData.name} 导入失败: ${worldResponse.status}`);
-                                    }
-                                } catch (worldError) {
-                                    debugLog(`世界书 ${worldData.name} 导入出错: ${worldError.message}`);
-                                }
-                            }
-                        }
+                        // 跳过世界书的立即导入，保留原生点击角色后由酒馆弹窗接管导入
                         
-                        // 内嵌正则脚本：不直接导入局部，交由酒馆原生弹窗询问后再落地
-                        const embeddedRegexScripts = isNewFormat ? (characterPackage.bound_regexes || []) : [];
+                        // 暂存正则脚本数据，在角色卡创建后处理
+                        let pendingRegexScripts = [];
+                        if (isNewFormat && characterPackage.bound_regexes) {
+                            debugLog(`准备导入 ${characterPackage.bound_regexes.length} 个正则脚本到局部正则分类`);
+                            pendingRegexScripts = characterPackage.bound_regexes.map(regexData => ({
+                                ...regexData,
+                                id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+                            }));
+                        }
                         
                         // 注意：角色卡不绑定快速回复集，跳过快速回复集导入
                         
-                        // 注意：TavernHelper脚本仅内嵌到角色卡，由酒馆助手扩展在点击角色时弹窗导入
-                        const embeddedTavernHelperScripts = isNewFormat ? (characterPackage.bound_tavernhelper_scripts || []) : [];
+                        // 注意：TavernHelper脚本由酒馆助手扩展自己处理，不需要手动导入
+                        // 酒馆助手扩展会监听角色卡导入，自动处理TavernHelper_scripts字段
                         
                         // 现在导入角色卡本身
                         debugLog('使用API创建角色卡');
                         
                         // 构建角色卡数据，确保格式正确，包含所有字段
-                        // 合并扩展字段，内嵌 regex_scripts 与 TavernHelper_scripts
-                        const baseExtensions = characterData.data?.extensions || characterData.extensions || {};
-                        const mergedExtensions = { ...baseExtensions };
-                        if (isNewFormat) {
-                            mergedExtensions.regex_scripts = embeddedRegexScripts;
-                            mergedExtensions.TavernHelper_scripts = embeddedTavernHelperScripts;
-                        }
-
                         const characterToImport = {
                             ch_name: characterData.name || characterData.data?.name || characterName,
                             description: characterData.data?.description || characterData.description || '',
@@ -1281,7 +1249,7 @@
                             // 添加组专用开场白
                             group_only_greetings: characterData.data?.group_only_greetings || characterData.group_only_greetings || [],
                             // 添加扩展字段（世界书、正则等）
-                            extensions: mergedExtensions,
+                            extensions: characterData.data?.extensions || characterData.extensions || {},
                             // 添加角色书
                             character_book: characterData.data?.character_book || characterData.character_book || null,
                             // 添加世界书引用
@@ -1317,7 +1285,100 @@
                             const result = await createResponse.text();
                             debugLog(`角色卡 ${characterName} 导入成功:`, result);
                             importedCount++;
-                            // 正则与酒馆助手脚本仅作为内嵌数据，点击角色时由原生弹窗接管导入
+                            
+                            // 角色卡创建成功后，处理正则脚本
+                            if (pendingRegexScripts.length > 0) {
+                                debugLog(`开始处理 ${pendingRegexScripts.length} 个正则脚本`);
+                                
+                                // 等待一下让角色卡完全创建
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                                
+                                // 重新获取角色列表以找到新创建的角色
+                                let newCharacterId = null;
+                                try {
+                                    const charactersResponse = await fetch('/api/characters/all', {
+                                        method: 'POST',
+                                        headers: context.getRequestHeaders(),
+                                        body: JSON.stringify({}),
+                                    });
+                                    
+                                    if (charactersResponse.ok) {
+                                        const charactersData = await charactersResponse.json();
+                                        const characters = charactersData.characters || [];
+                                        
+                                        // 查找新创建的角色
+                                        for (const character of characters) {
+                                            if (character.name === characterToImport.ch_name) {
+                                                // 从avatar路径中提取角色ID
+                                                const avatarPath = character.avatar;
+                                                if (avatarPath && avatarPath.includes('/')) {
+                                                    newCharacterId = avatarPath.split('/').pop().replace('.png', '');
+                                                } else {
+                                                    newCharacterId = avatarPath ? avatarPath.replace('.png', '') : null;
+                                                }
+                                                break;
+                                            }
+                                        }
+                                        
+                                        debugLog(`重新获取角色列表，找到 ${characters.length} 个角色`);
+                                    }
+                                } catch (error) {
+                                    debugLog(`重新获取角色列表失败: ${error.message}`);
+                                }
+                                
+                                if (newCharacterId) {
+                                    debugLog(`找到新创建的角色ID: ${newCharacterId}`);
+                                    
+                                    // 处理正则脚本
+                                    if (pendingRegexScripts.length > 0) {
+                                        debugLog(`开始处理 ${pendingRegexScripts.length} 个正则脚本`);
+                                        
+                                        // 将正则脚本添加到角色的extensions.regex_scripts
+                                        if (typeof writeExtensionField === 'function') {
+                                            await writeExtensionField(newCharacterId, 'regex_scripts', pendingRegexScripts);
+                                            debugLog(`已将 ${pendingRegexScripts.length} 个正则脚本添加到角色 ${characterName} 的局部正则分类`);
+                                            
+                                            // 将角色添加到允许使用正则的列表
+                                            if (!context.extensionSettings.character_allowed_regex) {
+                                                context.extensionSettings.character_allowed_regex = [];
+                                            }
+                                            if (!context.extensionSettings.character_allowed_regex.includes(characterData.avatar)) {
+                                                context.extensionSettings.character_allowed_regex.push(characterData.avatar);
+                                                debugLog(`已将角色 ${characterName} 添加到允许使用正则的列表`);
+                                            }
+                                            
+                                            // 保存设置
+                                            if (context.saveSettingsDebounced) {
+                                                context.saveSettingsDebounced();
+                                            }
+                                        } else {
+                                            debugLog(`writeExtensionField函数不可用，将正则脚本添加到全局设置`);
+                                            // 备用方案：添加到全局正则设置
+                                            if (!context.extensionSettings.regex) {
+                                                context.extensionSettings.regex = [];
+                                            }
+                                            context.extensionSettings.regex.push(...pendingRegexScripts);
+                                            if (context.saveSettingsDebounced) {
+                                                context.saveSettingsDebounced();
+                                            }
+                                        }
+                                    }
+                                    
+                                    // TavernHelper脚本由酒馆助手扩展自己处理，无需手动导入
+                                } else {
+                                    debugLog(`未找到新创建的角色ID，将正则脚本添加到全局设置`);
+                                    // 备用方案：添加到全局正则设置
+                                    if (pendingRegexScripts.length > 0) {
+                                        if (!context.extensionSettings.regex) {
+                                            context.extensionSettings.regex = [];
+                                        }
+                                        context.extensionSettings.regex.push(...pendingRegexScripts);
+                                        if (context.saveSettingsDebounced) {
+                                            context.saveSettingsDebounced();
+                                        }
+                                    }
+                                }
+                            }
                         } else {
                             const errorText = await createResponse.text();
                             debugLog(`角色卡 ${characterName} 导入失败: ${createResponse.status} - ${errorText}`);
