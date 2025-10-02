@@ -350,16 +350,15 @@
             // 使用 SillyTavern 的 API 获取角色卡列表
             const context = SillyTavern.getContext();
             
-            // 从API获取角色卡数据
-            const response = await fetch('/api/characters/get', {
+            // 从API获取所有角色卡数据
+            const response = await fetch('/api/characters/all', {
                 method: 'POST',
                 headers: context.getRequestHeaders(),
                 body: JSON.stringify({}),
             });
             
             if (response.ok) {
-                const data = await response.json();
-                const characters = data.characters || [];
+                const characters = await response.json();
                 
                 debugLog(`从API获取到 ${characters.length} 个角色卡`);
                 
@@ -377,10 +376,10 @@
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'resource-item';
                     itemDiv.innerHTML = `
-                        <input type="checkbox" id="character-${character.name}" onchange="toggleCharacter('${character.name}')">
+                        <input type="checkbox" id="character-${character.avatar}" onchange="toggleCharacter('${character.avatar}')">
                         <div class="resource-item-info">
-                            <div class="resource-item-name">${character.name}</div>
-                            <div class="resource-item-desc">${character.description ? character.description.substring(0, 50) + '...' : '角色卡'}</div>
+                            <div class="resource-item-name">${character.name || character.data?.name || '未命名角色'}</div>
+                            <div class="resource-item-desc">${character.data?.description ? character.data.description.substring(0, 50) + '...' : '角色卡'}</div>
                         </div>
                     `;
                     container.appendChild(itemDiv);
@@ -735,16 +734,15 @@
             showProgress(80);
             
             // 打包角色卡
-            for (const characterName of selectedCharacters) {
+            for (const characterAvatar of selectedCharacters) {
                 try {
-                    const finalName = tagPrefix ? `${tagPrefix}${characterName}` : characterName;
-                    debugLog(`开始打包角色卡: ${characterName} -> ${finalName}`);
+                    debugLog(`开始打包角色卡: ${characterAvatar}`);
                     
                     // 获取角色卡数据
                     const characterResponse = await fetch('/api/characters/get', {
                         method: 'POST',
                         headers: context.getRequestHeaders(),
-                        body: JSON.stringify({ name: characterName }),
+                        body: JSON.stringify({ avatar_url: characterAvatar }),
                     });
                     
                     debugLog(`角色卡API响应状态: ${characterResponse.status}`);
@@ -753,18 +751,25 @@
                         const characterData = await characterResponse.json();
                         debugLog(`获取到角色卡数据:`, characterData);
                         
+                        // 确定最终名称
+                        const originalName = characterData.name || characterData.data?.name || characterAvatar.replace('.png', '');
+                        const finalName = tagPrefix ? `${tagPrefix}${originalName}` : originalName;
+                        
                         // 确保角色卡名称正确
                         const characterToSave = { ...characterData };
                         characterToSave.name = finalName;
+                        if (characterToSave.data) {
+                            characterToSave.data.name = finalName;
+                        }
                         
                         packageObj.characters[finalName] = characterToSave;
                         debugLog(`已打包角色卡: ${finalName}`);
                     } else {
                         const errorText = await characterResponse.text();
-                        debugLog(`角色卡 ${characterName} 获取失败: ${characterResponse.status} - ${errorText}`);
+                        debugLog(`角色卡 ${characterAvatar} 获取失败: ${characterResponse.status} - ${errorText}`);
                     }
                 } catch (error) {
-                    debugLog(`角色卡 ${characterName} 打包失败: ${error.message}`);
+                    debugLog(`角色卡 ${characterAvatar} 打包失败: ${error.message}`);
                 }
             }
             showProgress(90);
@@ -1125,38 +1130,39 @@
                     try {
                         debugLog(`准备导入角色卡: ${characterName}`);
                         
-                        // 使用API直接创建/更新角色卡
-                        debugLog('使用API创建/更新角色卡');
+                        // 使用API直接创建角色卡
+                        debugLog('使用API创建角色卡');
                         
-                        // 首先检查角色卡是否已存在
-                        const checkResponse = await fetch('/api/characters/get', {
+                        // 构建角色卡数据，确保格式正确
+                        const characterToImport = {
+                            ch_name: characterData.name || characterData.data?.name || characterName,
+                            description: characterData.data?.description || characterData.description || '',
+                            personality: characterData.data?.personality || characterData.personality || '',
+                            scenario: characterData.data?.scenario || characterData.scenario || '',
+                            first_mes: characterData.data?.first_mes || characterData.first_mes || '',
+                            mes_example: characterData.data?.mes_example || characterData.mes_example || '',
+                            creator_notes: characterData.data?.creator_notes || characterData.creatorcomment || '',
+                            creator: characterData.data?.creator || characterData.creator || '',
+                            tags: characterData.data?.tags || characterData.tags || [],
+                            talkativeness: characterData.data?.extensions?.talkativeness || characterData.talkativeness || 0.5,
+                            create_date: characterData.create_date || new Date().toISOString(),
+                            chat: characterData.chat || `${characterName} - ${new Date().toISOString()}`
+                        };
+                        
+                        // 使用create API创建角色卡
+                        const createResponse = await fetch('/api/characters/create', {
                             method: 'POST',
                             headers: context.getRequestHeaders(),
-                            body: JSON.stringify({ name: characterName }),
+                            body: JSON.stringify(characterToImport),
                         });
                         
-                        if (checkResponse.ok) {
-                            const existingData = await checkResponse.json();
-                            debugLog(`角色卡 ${characterName} 已存在`);
-                        }
-                        
-                        // 使用edit API创建/更新角色卡
-                        const editResponse = await fetch('/api/characters/edit', {
-                            method: 'POST',
-                            headers: context.getRequestHeaders(),
-                            body: JSON.stringify({
-                                name: characterName,
-                                data: characterData
-                            }),
-                        });
-                        
-                        if (editResponse.ok) {
-                            const result = await editResponse.json();
+                        if (createResponse.ok) {
+                            const result = await createResponse.text();
                             debugLog(`角色卡 ${characterName} 导入成功:`, result);
                             importedCount++;
                         } else {
-                            const errorText = await editResponse.text();
-                            debugLog(`角色卡 ${characterName} 导入失败: ${editResponse.status} - ${errorText}`);
+                            const errorText = await createResponse.text();
+                            debugLog(`角色卡 ${characterName} 导入失败: ${createResponse.status} - ${errorText}`);
                         }
                         
                     } catch (error) {
