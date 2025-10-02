@@ -1229,93 +1229,23 @@
                             }
                         }
                         
-                        // 导入绑定的正则到局部正则分类
+                        // 暂存正则脚本数据，在角色卡创建后处理
+                        let pendingRegexScripts = [];
                         if (isNewFormat && characterPackage.bound_regexes) {
                             debugLog(`准备导入 ${characterPackage.bound_regexes.length} 个正则脚本到局部正则分类`);
-                            
-                            for (const regexData of characterPackage.bound_regexes) {
-                                try {
-                                    debugLog(`导入绑定的正则到局部分类: ${regexData.scriptName}`);
-                                    const regexWithNewId = {
-                                        ...regexData,
-                                        id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
-                                    };
-                                    
-                                    // 使用writeExtensionField将正则脚本写入角色的extensions.regex_scripts
-                                    if (typeof writeExtensionField === 'function') {
-                                        // 获取当前角色的正则脚本数组
-                                        const currentRegexScripts = characterData.data?.extensions?.regex_scripts || [];
-                                        const updatedRegexScripts = [...currentRegexScripts, regexWithNewId];
-                                        
-                                        // 写入到角色的extensions.regex_scripts
-                                        await writeExtensionField(characterName, 'regex_scripts', updatedRegexScripts);
-                                        
-                                        // 将角色添加到允许使用正则的列表
-                                        if (!context.extensionSettings.character_allowed_regex) {
-                                            context.extensionSettings.character_allowed_regex = [];
-                                        }
-                                        if (!context.extensionSettings.character_allowed_regex.includes(characterData.avatar)) {
-                                            context.extensionSettings.character_allowed_regex.push(characterData.avatar);
-                                        }
-                                        
-                                        debugLog(`正则 ${regexData.scriptName} 已导入到局部正则分类`);
-                                    } else {
-                                        debugLog(`writeExtensionField函数不可用，跳过正则脚本导入`);
-                                    }
-                                } catch (regexError) {
-                                    debugLog(`正则 ${regexData.scriptName} 导入出错: ${regexError.message}`);
-                                }
-                            }
-                            
-                            // 保存设置
-                            if (context.saveSettingsDebounced) {
-                                context.saveSettingsDebounced();
-                            }
+                            pendingRegexScripts = characterPackage.bound_regexes.map(regexData => ({
+                                ...regexData,
+                                id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+                            }));
                         }
                         
                         // 注意：角色卡不绑定快速回复集，跳过快速回复集导入
                         
-                        // 导入TavernHelper脚本到局部脚本库
+                        // 暂存TavernHelper脚本数据，在角色卡创建后处理
+                        let pendingTavernHelperScripts = [];
                         if (isNewFormat && characterPackage.bound_tavernhelper_scripts) {
                             debugLog(`准备导入 ${characterPackage.bound_tavernhelper_scripts.length} 个TavernHelper脚本到局部脚本库`);
-                            
-                            for (const tavernHelperScript of characterPackage.bound_tavernhelper_scripts) {
-                                try {
-                                    debugLog(`导入TavernHelper脚本到局部分类: ${tavernHelperScript.value?.name || '未知名称'}`);
-                                    
-                                    // 使用TavernHelper的ScriptManager导入脚本
-                                    if (typeof window.TavernHelper !== 'undefined' && window.TavernHelper._bind) {
-                                        // 构建脚本数据
-                                        const scriptData = {
-                                            name: tavernHelperScript.value?.name || '导入的脚本',
-                                            content: tavernHelperScript.value?.content || '',
-                                            type: 'script',
-                                            enabled: false
-                                        };
-                                        
-                                        // 使用ScriptManager导入到局部脚本库
-                                        if (window.TavernHelper._bind._getScriptInfo) {
-                                            // 通过事件系统导入脚本
-                                            const scriptEvents = window.TavernHelper._bind._getScriptInfo();
-                                            if (scriptEvents && scriptEvents.emit) {
-                                                scriptEvents.emit('SCRIPT_IMPORT', {
-                                                    script: scriptData,
-                                                    type: 'CHARACTER' // 局部脚本
-                                                });
-                                                debugLog(`TavernHelper脚本 ${scriptData.name} 已导入到局部脚本库`);
-                                            } else {
-                                                debugLog(`TavernHelper脚本事件系统不可用`);
-                                            }
-                                        } else {
-                                            debugLog(`TavernHelper ScriptManager不可用`);
-                                        }
-                                    } else {
-                                        debugLog(`TavernHelper不可用，跳过TavernHelper脚本导入`);
-                                    }
-                                } catch (thError) {
-                                    debugLog(`TavernHelper脚本 ${tavernHelperScript.value?.name || '未知'} 导入出错: ${thError.message}`);
-                                }
-                            }
+                            pendingTavernHelperScripts = characterPackage.bound_tavernhelper_scripts;
                         }
                         
                         // 现在导入角色卡本身
@@ -1382,6 +1312,88 @@
                             const result = await createResponse.text();
                             debugLog(`角色卡 ${characterName} 导入成功:`, result);
                             importedCount++;
+                            
+                            // 角色卡创建成功后，处理正则脚本和TavernHelper脚本
+                            if (pendingRegexScripts.length > 0 || pendingTavernHelperScripts.length > 0) {
+                                debugLog(`开始处理 ${pendingRegexScripts.length} 个正则脚本和 ${pendingTavernHelperScripts.length} 个TavernHelper脚本`);
+                                
+                                // 等待一下让角色卡完全创建
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                                
+                                // 获取新创建的角色ID
+                                const characters = context.characters || {};
+                                let newCharacterId = null;
+                                for (const [id, char] of Object.entries(characters)) {
+                                    if (char.name === characterToImport.ch_name) {
+                                        newCharacterId = id;
+                                        break;
+                                    }
+                                }
+                                
+                                if (newCharacterId) {
+                                    debugLog(`找到新创建的角色ID: ${newCharacterId}`);
+                                    
+                                    // 处理正则脚本
+                                    if (pendingRegexScripts.length > 0) {
+                                        debugLog(`开始处理 ${pendingRegexScripts.length} 个正则脚本`);
+                                        
+                                        // 将正则脚本添加到角色的extensions.regex_scripts
+                                        if (typeof writeExtensionField === 'function') {
+                                            await writeExtensionField(newCharacterId, 'regex_scripts', pendingRegexScripts);
+                                            debugLog(`已将 ${pendingRegexScripts.length} 个正则脚本添加到角色 ${characterName} 的局部正则分类`);
+                                            
+                                            // 将角色添加到允许使用正则的列表
+                                            if (!context.extensionSettings.character_allowed_regex) {
+                                                context.extensionSettings.character_allowed_regex = [];
+                                            }
+                                            if (!context.extensionSettings.character_allowed_regex.includes(characterData.avatar)) {
+                                                context.extensionSettings.character_allowed_regex.push(characterData.avatar);
+                                                debugLog(`已将角色 ${characterName} 添加到允许使用正则的列表`);
+                                            }
+                                            
+                                            // 保存设置
+                                            if (context.saveSettingsDebounced) {
+                                                context.saveSettingsDebounced();
+                                            }
+                                        } else {
+                                            debugLog(`writeExtensionField函数不可用，将正则脚本添加到全局设置`);
+                                            // 备用方案：添加到全局正则设置
+                                            if (!context.extensionSettings.regex) {
+                                                context.extensionSettings.regex = [];
+                                            }
+                                            context.extensionSettings.regex.push(...pendingRegexScripts);
+                                            if (context.saveSettingsDebounced) {
+                                                context.saveSettingsDebounced();
+                                            }
+                                        }
+                                    }
+                                    
+                                    // 处理TavernHelper脚本
+                                    if (pendingTavernHelperScripts.length > 0) {
+                                        debugLog(`开始处理 ${pendingTavernHelperScripts.length} 个TavernHelper脚本`);
+                                        
+                                        // 将TavernHelper脚本添加到角色的extensions.TavernHelper_scripts
+                                        if (typeof writeExtensionField === 'function') {
+                                            await writeExtensionField(newCharacterId, 'TavernHelper_scripts', pendingTavernHelperScripts);
+                                            debugLog(`已将 ${pendingTavernHelperScripts.length} 个TavernHelper脚本添加到角色 ${characterName} 的局部脚本库`);
+                                        } else {
+                                            debugLog(`writeExtensionField函数不可用，跳过TavernHelper脚本导入`);
+                                        }
+                                    }
+                                } else {
+                                    debugLog(`未找到新创建的角色ID，将正则脚本添加到全局设置`);
+                                    // 备用方案：添加到全局正则设置
+                                    if (pendingRegexScripts.length > 0) {
+                                        if (!context.extensionSettings.regex) {
+                                            context.extensionSettings.regex = [];
+                                        }
+                                        context.extensionSettings.regex.push(...pendingRegexScripts);
+                                        if (context.saveSettingsDebounced) {
+                                            context.saveSettingsDebounced();
+                                        }
+                                    }
+                                }
+                            }
                         } else {
                             const errorText = await createResponse.text();
                             debugLog(`角色卡 ${characterName} 导入失败: ${createResponse.status} - ${errorText}`);
