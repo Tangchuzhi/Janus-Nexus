@@ -733,43 +733,47 @@
             }
             showProgress(80);
             
-            // 打包角色卡
+            // 打包角色卡 - 使用PNG导出
             for (const characterAvatar of selectedCharacters) {
                 try {
-                    debugLog(`开始打包角色卡: ${characterAvatar}`);
+                    debugLog(`开始打包角色卡PNG: ${characterAvatar}`);
                     
-                    // 获取角色卡数据
-                    const characterResponse = await fetch('/api/characters/get', {
+                    // 导出PNG格式的角色卡（包含图片+数据+世界书+正则等）
+                    const exportResponse = await fetch('/api/characters/export', {
                         method: 'POST',
                         headers: context.getRequestHeaders(),
-                        body: JSON.stringify({ avatar_url: characterAvatar }),
+                        body: JSON.stringify({ 
+                            format: 'png',
+                            avatar_url: characterAvatar 
+                        }),
                     });
                     
-                    debugLog(`角色卡API响应状态: ${characterResponse.status}`);
+                    debugLog(`角色卡PNG导出响应状态: ${exportResponse.status}`);
                     
-                    if (characterResponse.ok) {
-                        const characterData = await characterResponse.json();
-                        debugLog(`获取到角色卡数据:`, characterData);
+                    if (exportResponse.ok) {
+                        // 获取PNG文件数据
+                        const pngBuffer = await exportResponse.arrayBuffer();
+                        const pngBase64 = btoa(String.fromCharCode(...new Uint8Array(pngBuffer)));
                         
                         // 确定最终名称
-                        const originalName = characterData.name || characterData.data?.name || characterAvatar.replace('.png', '');
+                        const originalName = characterAvatar.replace('.png', '');
                         const finalName = tagPrefix ? `${tagPrefix}${originalName}` : originalName;
                         
-                        // 确保角色卡名称正确
-                        const characterToSave = { ...characterData };
-                        characterToSave.name = finalName;
-                        if (characterToSave.data) {
-                            characterToSave.data.name = finalName;
-                        }
+                        // 保存PNG数据
+                        packageObj.characters[finalName] = {
+                            type: 'png',
+                            filename: `${finalName}.png`,
+                            data: pngBase64,
+                            original_avatar: characterAvatar
+                        };
                         
-                        packageObj.characters[finalName] = characterToSave;
-                        debugLog(`已打包角色卡: ${finalName}`);
+                        debugLog(`已打包角色卡PNG: ${finalName} (${pngBuffer.byteLength} 字节)`);
                     } else {
-                        const errorText = await characterResponse.text();
-                        debugLog(`角色卡 ${characterAvatar} 获取失败: ${characterResponse.status} - ${errorText}`);
+                        const errorText = await exportResponse.text();
+                        debugLog(`角色卡 ${characterAvatar} PNG导出失败: ${exportResponse.status} - ${errorText}`);
                     }
                 } catch (error) {
-                    debugLog(`角色卡 ${characterAvatar} 打包失败: ${error.message}`);
+                    debugLog(`角色卡 ${characterAvatar} PNG打包失败: ${error.message}`);
                 }
             }
             showProgress(90);
@@ -1130,73 +1134,108 @@
                     try {
                         debugLog(`准备导入角色卡: ${characterName}`);
                         
-                        // 使用API直接创建角色卡
-                        debugLog('使用API创建角色卡');
-                        
-                        // 构建角色卡数据，确保格式正确，包含所有字段
-                        const characterToImport = {
-                            ch_name: characterData.name || characterData.data?.name || characterName,
-                            description: characterData.data?.description || characterData.description || '',
-                            personality: characterData.data?.personality || characterData.personality || '',
-                            scenario: characterData.data?.scenario || characterData.scenario || '',
-                            first_mes: characterData.data?.first_mes || characterData.first_mes || '',
-                            mes_example: characterData.data?.mes_example || characterData.mes_example || '',
-                            creator_notes: characterData.data?.creator_notes || characterData.creatorcomment || '',
-                            creator: characterData.data?.creator || characterData.creator || '',
-                            tags: characterData.data?.tags || characterData.tags || [],
-                            talkativeness: characterData.data?.extensions?.talkativeness || characterData.talkativeness || 0.5,
-                            create_date: characterData.create_date || new Date().toISOString(),
-                            chat: characterData.chat || `${characterName} - ${new Date().toISOString()}`,
-                            // 添加额外开场白
-                            alternate_greetings: characterData.data?.alternate_greetings || characterData.alternate_greetings || [],
-                            // 添加系统提示词
-                            system_prompt: characterData.data?.system_prompt || characterData.system_prompt || '',
-                            // 添加历史后指令
-                            post_history_instructions: characterData.data?.post_history_instructions || characterData.post_history_instructions || '',
-                            // 添加角色版本
-                            character_version: characterData.data?.character_version || characterData.character_version || '',
-                            // 添加组专用开场白
-                            group_only_greetings: characterData.data?.group_only_greetings || characterData.group_only_greetings || [],
-                            // 添加扩展字段（世界书、正则等）
-                            extensions: characterData.data?.extensions || characterData.extensions || {},
-                            // 添加角色书
-                            character_book: characterData.data?.character_book || characterData.character_book || null,
-                            // 添加世界书引用
-                            world: characterData.data?.extensions?.world || characterData.extensions?.world || '',
-                            // 添加深度提示
-                            depth_prompt_prompt: characterData.data?.extensions?.depth_prompt?.prompt || characterData.extensions?.depth_prompt?.prompt || '',
-                            depth_prompt_depth: characterData.data?.extensions?.depth_prompt?.depth || characterData.extensions?.depth_prompt?.depth || 4,
-                            depth_prompt_role: characterData.data?.extensions?.depth_prompt?.role || characterData.extensions?.depth_prompt?.role || 'system'
-                        };
-                        
-                        // 添加头像文件名到导入数据
-                        if (characterData.avatar && characterData.avatar !== 'none') {
-                            characterToImport.file_name = characterData.avatar.replace('.png', '');
-                        }
-                        
-                        debugLog(`角色卡导入数据:`, {
-                            name: characterToImport.ch_name,
-                            alternate_greetings_count: characterToImport.alternate_greetings?.length || 0,
-                            extensions: characterToImport.extensions,
-                            character_book: characterToImport.character_book ? '存在' : '不存在',
-                            world: characterToImport.world,
-                            avatar: characterToImport.file_name || '默认头像'
-                        });
-                        
-                        // 使用create API创建角色卡
-                        const createResponse = await fetch('/api/characters/create', {
-                            method: 'POST',
-                            headers: context.getRequestHeaders(),
-                            body: JSON.stringify(characterToImport),
-                        });
-                        
-                        if (createResponse.ok) {
-                            const result = await createResponse.text();
-                            debugLog(`角色卡 ${characterName} 导入成功:`, result);
-                            importedCount++;
+                        // 检查是否是PNG格式的角色卡
+                        if (characterData.type === 'png' && characterData.data) {
+                            debugLog('使用PNG格式导入角色卡（包含图片+数据+世界书+正则等）');
+                            
+                            // 将Base64数据转换为Blob
+                            const binaryString = atob(characterData.data);
+                            const bytes = new Uint8Array(binaryString.length);
+                            for (let i = 0; i < binaryString.length; i++) {
+                                bytes[i] = binaryString.charCodeAt(i);
+                            }
+                            const pngBlob = new Blob([bytes], { type: 'image/png' });
+                            
+                            // 创建FormData来上传PNG文件
+                            const formData = new FormData();
+                            formData.append('file', pngBlob, characterData.filename);
+                            formData.append('file_type', 'png');
+                            formData.append('preserved_name', characterData.filename);
+                            
+                            // 使用import API导入PNG角色卡
+                            const importResponse = await fetch('/api/characters/import', {
+                                method: 'POST',
+                                // FormData会自动设置Content-Type，不需要手动设置headers
+                                body: formData,
+                            });
+                            
+                            if (importResponse.ok) {
+                                const result = await importResponse.json();
+                                debugLog(`角色卡PNG ${characterName} 导入成功:`, result);
+                                importedCount++;
+                            } else {
+                                const errorText = await importResponse.text();
+                                debugLog(`角色卡PNG ${characterName} 导入失败: ${importResponse.status} - ${errorText}`);
+                            }
                         } else {
-                            const errorText = await createResponse.text();
-                            debugLog(`角色卡 ${characterName} 导入失败: ${createResponse.status} - ${errorText}`);
+                            // 兼容旧的JSON格式导入
+                            debugLog('使用JSON格式导入角色卡（兼容模式）');
+                            
+                            // 构建角色卡数据，确保格式正确，包含所有字段
+                            const characterToImport = {
+                                ch_name: characterData.name || characterData.data?.name || characterName,
+                                description: characterData.data?.description || characterData.description || '',
+                                personality: characterData.data?.personality || characterData.personality || '',
+                                scenario: characterData.data?.scenario || characterData.scenario || '',
+                                first_mes: characterData.data?.first_mes || characterData.first_mes || '',
+                                mes_example: characterData.data?.mes_example || characterData.mes_example || '',
+                                creator_notes: characterData.data?.creator_notes || characterData.creatorcomment || '',
+                                creator: characterData.data?.creator || characterData.creator || '',
+                                tags: characterData.data?.tags || characterData.tags || [],
+                                talkativeness: characterData.data?.extensions?.talkativeness || characterData.talkativeness || 0.5,
+                                create_date: characterData.create_date || new Date().toISOString(),
+                                chat: characterData.chat || `${characterName} - ${new Date().toISOString()}`,
+                                // 添加额外开场白
+                                alternate_greetings: characterData.data?.alternate_greetings || characterData.alternate_greetings || [],
+                                // 添加系统提示词
+                                system_prompt: characterData.data?.system_prompt || characterData.system_prompt || '',
+                                // 添加历史后指令
+                                post_history_instructions: characterData.data?.post_history_instructions || characterData.post_history_instructions || '',
+                                // 添加角色版本
+                                character_version: characterData.data?.character_version || characterData.character_version || '',
+                                // 添加组专用开场白
+                                group_only_greetings: characterData.data?.group_only_greetings || characterData.group_only_greetings || [],
+                                // 添加扩展字段（世界书、正则等）
+                                extensions: characterData.data?.extensions || characterData.extensions || {},
+                                // 添加角色书
+                                character_book: characterData.data?.character_book || characterData.character_book || null,
+                                // 添加世界书引用
+                                world: characterData.data?.extensions?.world || characterData.extensions?.world || '',
+                                // 添加深度提示
+                                depth_prompt_prompt: characterData.data?.extensions?.depth_prompt?.prompt || characterData.extensions?.depth_prompt?.prompt || '',
+                                depth_prompt_depth: characterData.data?.extensions?.depth_prompt?.depth || characterData.extensions?.depth_prompt?.depth || 4,
+                                depth_prompt_role: characterData.data?.extensions?.depth_prompt?.role || characterData.extensions?.depth_prompt?.role || 'system'
+                            };
+                            
+                            // 添加头像文件名到导入数据
+                            if (characterData.avatar && characterData.avatar !== 'none') {
+                                characterToImport.file_name = characterData.avatar.replace('.png', '');
+                            }
+                            
+                            debugLog(`角色卡导入数据:`, {
+                                name: characterToImport.ch_name,
+                                alternate_greetings_count: characterToImport.alternate_greetings?.length || 0,
+                                extensions: characterToImport.extensions,
+                                character_book: characterToImport.character_book ? '存在' : '不存在',
+                                world: characterToImport.world,
+                                avatar: characterToImport.file_name || '默认头像'
+                            });
+                            
+                            // 使用create API创建角色卡
+                            const createResponse = await fetch('/api/characters/create', {
+                                method: 'POST',
+                                headers: context.getRequestHeaders(),
+                                body: JSON.stringify(characterToImport),
+                            });
+                            
+                            if (createResponse.ok) {
+                                const result = await createResponse.text();
+                                debugLog(`角色卡 ${characterName} 导入成功:`, result);
+                                importedCount++;
+                            } else {
+                                const errorText = await createResponse.text();
+                                debugLog(`角色卡 ${characterName} 导入失败: ${createResponse.status} - ${errorText}`);
+                            }
                         }
                         
                     } catch (error) {
