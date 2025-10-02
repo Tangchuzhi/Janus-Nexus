@@ -760,8 +760,7 @@
                             const characterPackage = {
                                 character: { ...characterData },
                                 bound_worldbooks: [],
-                                bound_regexes: [],
-                                bound_tavernhelper_scripts: []
+                                bound_regexes: []
                             };
                         
                         // 更新角色卡名称
@@ -811,23 +810,25 @@
                         const tavernHelperScripts = characterData.data?.extensions?.TavernHelper_scripts || characterData.extensions?.TavernHelper_scripts || [];
                         if (tavernHelperScripts.length > 0) {
                             debugLog(`角色卡 ${finalName} 包含 ${tavernHelperScripts.length} 个TavernHelper脚本`);
-                            characterPackage.bound_tavernhelper_scripts = tavernHelperScripts.map(script => ({
+                            // 直接写入到角色扩展字段，避免使用 bound_ 前缀，便于酒馆助手识别
+                            if (!characterPackage.character.data) characterPackage.character.data = {};
+                            if (!characterPackage.character.data.extensions) characterPackage.character.data.extensions = {};
+                            characterPackage.character.data.extensions.TavernHelper_scripts = tavernHelperScripts.map(script => ({
                                 ...script,
-                                // 如果有名称字段，也应用标签前缀
-                                ...(script.value?.name && tagPrefix ? { 
-                                    value: { 
-                                        ...script.value, 
-                                        name: `${tagPrefix}${script.value.name}` 
-                                    } 
+                                ...(script.value?.name && tagPrefix ? {
+                                    value: {
+                                        ...script.value,
+                                        name: `${tagPrefix}${script.value.name}`
+                                    }
                                 } : {})
                             }));
-                            debugLog(`已打包TavernHelper脚本: ${tavernHelperScripts.length} 个`);
+                            debugLog(`已写入 TavernHelper_scripts 至角色扩展: ${tavernHelperScripts.length} 个`);
                         }
                         
                         // 注意：角色卡不绑定快速回复集，跳过快速回复集打包
                         
                         packageObj.characters[finalName] = characterPackage;
-                        debugLog(`已打包完整角色卡: ${finalName} (包含 ${characterPackage.bound_worldbooks.length} 世界书, ${characterPackage.bound_regexes.length} 正则, ${characterPackage.bound_tavernhelper_scripts?.length || 0} TavernHelper脚本)`);
+                        debugLog(`已打包完整角色卡: ${finalName} (包含 ${characterPackage.bound_worldbooks.length} 世界书, ${characterPackage.bound_regexes.length} 正则, ${(characterPackage.character?.data?.extensions?.TavernHelper_scripts?.length) || 0} TavernHelper脚本)`);
                     } else {
                         const errorText = await characterResponse.text();
                         debugLog(`角色卡 ${characterAvatar} 获取失败: ${characterResponse.status} - ${errorText}`);
@@ -976,35 +977,8 @@
             
             // 导入正则
             if (packageData.regexes && Object.keys(packageData.regexes).length > 0) {
-                const context = SillyTavern.getContext();
-                const regexSettings = context.extensionSettings?.regex || [];
-                const newRegexSettings = [...regexSettings];
-                
-                for (const [name, regex] of Object.entries(packageData.regexes)) {
-                    try {
-                        // 为导入的正则生成新的唯一ID，避免与现有正则冲突
-                        const regexWithNewId = {
-                            ...regex,
-                            id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
-                        };
-                        
-                        // 检查是否已存在相同名称的正则
-                        const existingIndex = newRegexSettings.findIndex(r => r.scriptName === name);
-                        if (existingIndex >= 0) {
-                            newRegexSettings[existingIndex] = regexWithNewId;
-                            debugLog(`正则更新: ${name} (新ID: ${regexWithNewId.id})`);
-                        } else {
-                            newRegexSettings.push(regexWithNewId);
-                            debugLog(`正则导入: ${name} (新ID: ${regexWithNewId.id})`);
-                        }
-                        importedCount++;
-                    } catch (error) {
-                        debugLog(`正则 ${name} 导入失败: ${error.message}`);
-                    }
-                }
-                
-                // 不再写入全局正则，保持原生行为由酒馆弹窗接管
-                debugLog(`正则设置已更新并保存`);
+                // 跳过将正则导入为全局，避免二次处理与全局污染
+                debugLog('检测到包内正则，但跳过全局导入，交由角色本地/原生弹窗处理');
             }
             
             // 导入快速回复 - 使用slash命令系统
@@ -1119,51 +1093,8 @@
             
             // 导入世界书
             if (packageData.world_books) {
-                debugLog('开始导入世界书...');
-                debugLog(`发现 ${Object.keys(packageData.world_books).length} 个世界书需要导入`);
-                
-                // 确保context变量可用
-                const context = SillyTavern.getContext();
-                debugLog('Context获取成功:', context);
-                
-                for (const [worldName, worldData] of Object.entries(packageData.world_books)) {
-                    try {
-                        debugLog(`准备导入世界书: ${worldName}`);
-                        debugLog(`世界书条目数量: ${Object.keys(worldData.entries || {}).length}`);
-                        
-                        // 使用API直接创建/更新世界书
-                        debugLog('使用API创建/更新世界书');
-                        
-                        // 首先检查世界书是否已存在
-                        const checkResponse = await fetch('/api/worldinfo/get', {
-                            method: 'POST',
-                            headers: context.getRequestHeaders(),
-                            body: JSON.stringify({ name: worldName }),
-                        });
-                        
-                        if (checkResponse.ok) {
-                            const existingData = await checkResponse.json();
-                            debugLog(`世界书 ${worldName} 已存在，条目数: ${Object.keys(existingData.entries || {}).length}`);
-                        }
-                        
-                        // 跳过世界书的立即导入，交由酒馆原生弹窗处理
-                        
-                        if (editResponse.ok) {
-                            const result = await editResponse.json();
-                            debugLog(`世界书 ${worldName} 导入成功:`, result);
-                            importedCount++;
-                        } else {
-                            const errorText = await editResponse.text();
-                            debugLog(`世界书 ${worldName} 导入失败: ${editResponse.status} - ${errorText}`);
-                        }
-                        
-                    } catch (error) {
-                        debugLog(`世界书 ${worldName} 导入失败: ${error.message}`);
-                        debugLog(`错误堆栈:`, error.stack);
-                    }
-                }
-                
-                debugLog(`世界书导入完成，共导入 ${Object.keys(packageData.world_books).length} 个世界书`);
+                // 跳过世界书的全局导入，避免出现大量全局启用的世界书
+                debugLog('检测到包内世界书，但跳过全局导入，保留由角色绑定与原生弹窗处理');
             } else {
                 debugLog('没有发现世界书数据需要导入');
             }
