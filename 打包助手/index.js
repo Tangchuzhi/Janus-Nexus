@@ -1178,86 +1178,70 @@
                             const result = await createResponse.text();
                             debugLog(`角色卡 ${characterName} 导入成功:`, result);
                             importedCount++;
-                            
-                            // 为确保与原生行为一致：若该角色存在局部正则，强制取消其在“允许列表”中的条目，以便下次点击角色时弹出询问
+
+                            // 等待一下让角色卡完全创建
+                            await new Promise(resolve => setTimeout(resolve, 500));
+
+                            // 重新获取角色列表，找到 avatar（writeExtensionField 需要 avatar）
+                            let createdAvatar = '';
                             try {
-                                const ext = SillyTavern.getContext().extensionSettings || {};
-                                if (Array.isArray(ext.character_allowed_regex)) {
-                                    const fileBase = characterToImport.file_name || '';
-                                    const beforeLen = ext.character_allowed_regex.length;
-                                    ext.character_allowed_regex = ext.character_allowed_regex.filter(av => {
-                                        try {
-                                            if (!av) return true;
-                                            if (fileBase && typeof av === 'string' && av.endsWith(`${fileBase}.png`)) {
-                                                return false;
-                                            }
-                                        } catch {}
-                                        return true;
-                                    });
-                                    const afterLen = ext.character_allowed_regex.length;
-                                    if (afterLen !== beforeLen) {
-                                        debugLog(`已移除 ${beforeLen - afterLen} 个与新角色相关的正则允许项，确保下次点击弹窗询问`);
+                                const charactersResponse = await fetch('/api/characters/all', {
+                                    method: 'POST',
+                                    headers: context.getRequestHeaders(),
+                                    body: JSON.stringify({}),
+                                });
+                                if (charactersResponse.ok) {
+                                    const charactersData = await charactersResponse.json();
+                                    const list = charactersData.characters || charactersData || [];
+                                    const found = list.find(c => (c.name === characterToImport.ch_name) || (c.data?.name === characterToImport.ch_name));
+                                    if (found && found.avatar && found.avatar !== 'none') {
+                                        createdAvatar = found.avatar;
                                     }
                                 }
-                            } catch (clearErr) {
-                                debugLog(`清理正则允许列表时出错: ${clearErr.message}`);
+                            } catch (lookupErr) {
+                                debugLog(`获取新角色头像失败: ${lookupErr.message}`);
                             }
-                            
-                            // 角色卡创建成功后，处理正则脚本
-                            if (pendingRegexScripts.length > 0) {
-                                debugLog(`开始处理 ${pendingRegexScripts.length} 个正则脚本`);
-                                
-                                // 等待一下让角色卡完全创建
-                                await new Promise(resolve => setTimeout(resolve, 1000));
-                                
-                                // 重新获取角色列表以找到新创建的角色
-                                let newCharacterId = null;
-                                try {
-                                    const charactersResponse = await fetch('/api/characters/all', {
-                                        method: 'POST',
-                                        headers: context.getRequestHeaders(),
-                                        body: JSON.stringify({}),
-                                    });
-                                    
-                                    if (charactersResponse.ok) {
-                                        const charactersData = await charactersResponse.json();
-                                        const characters = charactersData.characters || [];
-                                        
-                                        // 查找新创建的角色
-                                        for (const character of characters) {
-                                            if (character.name === characterToImport.ch_name) {
-                                                // 从avatar路径中提取角色ID
-                                                const avatarPath = character.avatar;
-                                                if (avatarPath && avatarPath.includes('/')) {
-                                                    newCharacterId = avatarPath.split('/').pop().replace('.png', '');
-                                                } else {
-                                                    newCharacterId = avatarPath ? avatarPath.replace('.png', '') : null;
-                                                }
-                                                break;
-                                            }
-                                        }
-                                        
-                                        debugLog(`重新获取角色列表，找到 ${characters.length} 个角色`);
+
+                            // 二次处理：将包内的局部正则与酒馆助手脚本，写入角色扩展字段（scoped），而不是全局
+                            try {
+                                const pkgCharacterData = characterData; // 来自包的原始角色数据
+                                const scopedRegex = pkgCharacterData?.data?.extensions?.regex_scripts || [];
+                                const helperScripts = pkgCharacterData?.data?.extensions?.TavernHelper_scripts || [];
+
+                                // 仅当找到 avatar 时才调用合并接口
+                                if (createdAvatar) {
+                                    if (Array.isArray(scopedRegex) && scopedRegex.length > 0) {
+                                        const payload = {
+                                            avatar: createdAvatar,
+                                            data: { extensions: { regex_scripts: scopedRegex } },
+                                        };
+                                        const mergeResp = await fetch('/api/characters/merge-attributes', {
+                                            method: 'POST',
+                                            headers: context.getRequestHeaders(),
+                                            body: JSON.stringify(payload),
+                                        });
+                                        if (mergeResp.ok) debugLog(`已写入局部正则 ${scopedRegex.length} 个到角色`);
+                                        else debugLog(`写入局部正则失败: ${mergeResp.status}`);
                                     }
-                                } catch (error) {
-                                    debugLog(`重新获取角色列表失败: ${error.message}`);
-                                }
-                                
-                                if (newCharacterId) {
-                                    debugLog(`找到新创建的角色ID: ${newCharacterId}`);
-                                    
-                                    // 处理正则脚本
-                                    if (pendingRegexScripts.length > 0) {
-                                        debugLog(`开始处理 ${pendingRegexScripts.length} 个正则脚本`);
-                                        
-                                        // 不做任何写入，由点击角色时的原生弹窗处理局部正则导入
-                                        debugLog('跳过正则脚本的直接写入，等待酒馆原生弹窗导入局部正则');
+
+                                    if (Array.isArray(helperScripts) && helperScripts.length > 0) {
+                                        const payload2 = {
+                                            avatar: createdAvatar,
+                                            data: { extensions: { TavernHelper_scripts: helperScripts } },
+                                        };
+                                        const mergeResp2 = await fetch('/api/characters/merge-attributes', {
+                                            method: 'POST',
+                                            headers: context.getRequestHeaders(),
+                                            body: JSON.stringify(payload2),
+                                        });
+                                        if (mergeResp2.ok) debugLog(`已写入TavernHelper局部脚本 ${helperScripts.length} 个到角色`);
+                                        else debugLog(`写入TavernHelper脚本失败: ${mergeResp2.status}`);
                                     }
-                                    
-                                    // TavernHelper脚本由酒馆助手扩展自己处理，无需手动导入
                                 } else {
-                                    debugLog(`未找到新创建的角色ID，跳过任何正则写入，等待原生弹窗处理`);
+                                    debugLog('未获取到新角色的avatar，跳过局部正则与脚本写入');
                                 }
+                            } catch (scopedErr) {
+                                debugLog(`写入局部正则/脚本出错: ${scopedErr.message}`);
                             }
                         } else {
                             const errorText = await createResponse.text();
