@@ -1179,6 +1179,30 @@
                             debugLog(`角色卡 ${characterName} 导入成功:`, result);
                             importedCount++;
                             
+                            // 为确保与原生行为一致：若该角色存在局部正则，强制取消其在“允许列表”中的条目，以便下次点击角色时弹出询问
+                            try {
+                                const ext = SillyTavern.getContext().extensionSettings || {};
+                                if (Array.isArray(ext.character_allowed_regex)) {
+                                    const fileBase = characterToImport.file_name || '';
+                                    const beforeLen = ext.character_allowed_regex.length;
+                                    ext.character_allowed_regex = ext.character_allowed_regex.filter(av => {
+                                        try {
+                                            if (!av) return true;
+                                            if (fileBase && typeof av === 'string' && av.endsWith(`${fileBase}.png`)) {
+                                                return false;
+                                            }
+                                        } catch {}
+                                        return true;
+                                    });
+                                    const afterLen = ext.character_allowed_regex.length;
+                                    if (afterLen !== beforeLen) {
+                                        debugLog(`已移除 ${beforeLen - afterLen} 个与新角色相关的正则允许项，确保下次点击弹窗询问`);
+                                    }
+                                }
+                            } catch (clearErr) {
+                                debugLog(`清理正则允许列表时出错: ${clearErr.message}`);
+                            }
+                            
                             // 角色卡创建成功后，处理正则脚本
                             if (pendingRegexScripts.length > 0) {
                                 debugLog(`开始处理 ${pendingRegexScripts.length} 个正则脚本`);
