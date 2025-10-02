@@ -1133,7 +1133,7 @@
                         // 使用API直接创建角色卡
                         debugLog('使用API创建角色卡');
                         
-                        // 构建角色卡数据，确保格式正确
+                        // 构建角色卡数据，确保格式正确，包含所有字段
                         const characterToImport = {
                             ch_name: characterData.name || characterData.data?.name || characterName,
                             description: characterData.data?.description || characterData.description || '',
@@ -1146,8 +1146,42 @@
                             tags: characterData.data?.tags || characterData.tags || [],
                             talkativeness: characterData.data?.extensions?.talkativeness || characterData.talkativeness || 0.5,
                             create_date: characterData.create_date || new Date().toISOString(),
-                            chat: characterData.chat || `${characterName} - ${new Date().toISOString()}`
+                            chat: characterData.chat || `${characterName} - ${new Date().toISOString()}`,
+                            // 添加额外开场白
+                            alternate_greetings: characterData.data?.alternate_greetings || characterData.alternate_greetings || [],
+                            // 添加系统提示词
+                            system_prompt: characterData.data?.system_prompt || characterData.system_prompt || '',
+                            // 添加历史后指令
+                            post_history_instructions: characterData.data?.post_history_instructions || characterData.post_history_instructions || '',
+                            // 添加角色版本
+                            character_version: characterData.data?.character_version || characterData.character_version || '',
+                            // 添加组专用开场白
+                            group_only_greetings: characterData.data?.group_only_greetings || characterData.group_only_greetings || [],
+                            // 添加扩展字段（世界书、正则等）
+                            extensions: characterData.data?.extensions || characterData.extensions || {},
+                            // 添加角色书
+                            character_book: characterData.data?.character_book || characterData.character_book || null,
+                            // 添加世界书引用
+                            world: characterData.data?.extensions?.world || characterData.extensions?.world || '',
+                            // 添加深度提示
+                            depth_prompt_prompt: characterData.data?.extensions?.depth_prompt?.prompt || characterData.extensions?.depth_prompt?.prompt || '',
+                            depth_prompt_depth: characterData.data?.extensions?.depth_prompt?.depth || characterData.extensions?.depth_prompt?.depth || 4,
+                            depth_prompt_role: characterData.data?.extensions?.depth_prompt?.role || characterData.extensions?.depth_prompt?.role || 'system'
                         };
+                        
+                        // 添加头像文件名到导入数据
+                        if (characterData.avatar && characterData.avatar !== 'none') {
+                            characterToImport.file_name = characterData.avatar.replace('.png', '');
+                        }
+                        
+                        debugLog(`角色卡导入数据:`, {
+                            name: characterToImport.ch_name,
+                            alternate_greetings_count: characterToImport.alternate_greetings?.length || 0,
+                            extensions: characterToImport.extensions,
+                            character_book: characterToImport.character_book ? '存在' : '不存在',
+                            world: characterToImport.world,
+                            avatar: characterToImport.file_name || '默认头像'
+                        });
                         
                         // 使用create API创建角色卡
                         const createResponse = await fetch('/api/characters/create', {
