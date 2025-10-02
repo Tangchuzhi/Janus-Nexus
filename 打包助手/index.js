@@ -1179,24 +1179,40 @@
                             debugLog(`角色卡 ${characterName} 导入成功:`, result);
                             importedCount++;
                             
-                            // 为确保与原生行为一致：若该角色存在局部正则，强制取消其在“允许列表”中的条目，以便下次点击角色时弹出询问
+                            // 为确保与原生行为一致：删除该角色 avatar 在正则“允许列表”中的条目，并保存设置
                             try {
-                                const ext = SillyTavern.getContext().extensionSettings || {};
+                                const ctx = SillyTavern.getContext();
+                                const ext = ctx.extensionSettings || {};
                                 if (Array.isArray(ext.character_allowed_regex)) {
-                                    const fileBase = characterToImport.file_name || '';
+                                    // 读取最新角色列表，精确找到 avatar 字符串
+                                    let newAvatar = null;
+                                    try {
+                                        const charactersResponse = await fetch('/api/characters/all', {
+                                            method: 'POST',
+                                            headers: ctx.getRequestHeaders(),
+                                            body: JSON.stringify({}),
+                                        });
+                                        if (charactersResponse.ok) {
+                                            const charactersData = await charactersResponse.json();
+                                            const list = charactersData.characters || charactersData || [];
+                                            const created = list.find(c => (c.name || c.data?.name) === characterToImport.ch_name);
+                                            newAvatar = created?.avatar || null;
+                                        }
+                                    } catch {}
                                     const beforeLen = ext.character_allowed_regex.length;
-                                    ext.character_allowed_regex = ext.character_allowed_regex.filter(av => {
-                                        try {
-                                            if (!av) return true;
-                                            if (fileBase && typeof av === 'string' && av.endsWith(`${fileBase}.png`)) {
-                                                return false;
-                                            }
-                                        } catch {}
-                                        return true;
-                                    });
+                                    if (newAvatar) {
+                                        ext.character_allowed_regex = ext.character_allowed_regex.filter(av => av !== newAvatar);
+                                    } else if (characterToImport.file_name) {
+                                        // 退路：按文件名后缀匹配
+                                        const suffix = `${characterToImport.file_name}.png`;
+                                        ext.character_allowed_regex = ext.character_allowed_regex.filter(av => typeof av !== 'string' || !av.endsWith(suffix));
+                                    }
                                     const afterLen = ext.character_allowed_regex.length;
                                     if (afterLen !== beforeLen) {
                                         debugLog(`已移除 ${beforeLen - afterLen} 个与新角色相关的正则允许项，确保下次点击弹窗询问`);
+                                        if (typeof window.saveSettingsDebounced === 'function') {
+                                            window.saveSettingsDebounced();
+                                        }
                                     }
                                 }
                             } catch (clearErr) {
