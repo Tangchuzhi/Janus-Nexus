@@ -228,6 +228,7 @@
             // 使用 SillyTavern 的正则扩展获取正则脚本
             const context = SillyTavern.getContext();
             const extensionSettings = context.extensionSettings || {};
+            // 仅读取，不修改全局正则
             const regexScripts = extensionSettings.regex || [];
             
             debugLog(`找到 ${regexScripts.length} 个正则脚本`);
@@ -1002,12 +1003,7 @@
                     }
                 }
                 
-                // 更新正则设置并保存
-                context.extensionSettings.regex = newRegexSettings;
-                // 调用保存函数
-                if (context.saveSettingsDebounced) {
-                    context.saveSettingsDebounced();
-                }
+                // 不再写入全局正则，保持原生行为由酒馆弹窗接管
                 debugLog(`正则设置已更新并保存`);
             }
             
@@ -1150,15 +1146,7 @@
                             debugLog(`世界书 ${worldName} 已存在，条目数: ${Object.keys(existingData.entries || {}).length}`);
                         }
                         
-                        // 使用edit API创建/更新世界书
-                        const editResponse = await fetch('/api/worldinfo/edit', {
-                            method: 'POST',
-                            headers: context.getRequestHeaders(),
-                            body: JSON.stringify({
-                                name: worldName,
-                                data: worldData
-                            }),
-                        });
+                        // 跳过世界书的立即导入，交由酒馆原生弹窗处理
                         
                         if (editResponse.ok) {
                             const result = await editResponse.json();
@@ -1333,50 +1321,13 @@
                                     if (pendingRegexScripts.length > 0) {
                                         debugLog(`开始处理 ${pendingRegexScripts.length} 个正则脚本`);
                                         
-                                        // 将正则脚本添加到角色的extensions.regex_scripts
-                                        if (typeof writeExtensionField === 'function') {
-                                            await writeExtensionField(newCharacterId, 'regex_scripts', pendingRegexScripts);
-                                            debugLog(`已将 ${pendingRegexScripts.length} 个正则脚本添加到角色 ${characterName} 的局部正则分类`);
-                                            
-                                            // 将角色添加到允许使用正则的列表
-                                            if (!context.extensionSettings.character_allowed_regex) {
-                                                context.extensionSettings.character_allowed_regex = [];
-                                            }
-                                            if (!context.extensionSettings.character_allowed_regex.includes(characterData.avatar)) {
-                                                context.extensionSettings.character_allowed_regex.push(characterData.avatar);
-                                                debugLog(`已将角色 ${characterName} 添加到允许使用正则的列表`);
-                                            }
-                                            
-                                            // 保存设置
-                                            if (context.saveSettingsDebounced) {
-                                                context.saveSettingsDebounced();
-                                            }
-                                        } else {
-                                            debugLog(`writeExtensionField函数不可用，将正则脚本添加到全局设置`);
-                                            // 备用方案：添加到全局正则设置
-                                            if (!context.extensionSettings.regex) {
-                                                context.extensionSettings.regex = [];
-                                            }
-                                            context.extensionSettings.regex.push(...pendingRegexScripts);
-                                            if (context.saveSettingsDebounced) {
-                                                context.saveSettingsDebounced();
-                                            }
-                                        }
+                                        // 不做任何写入，由点击角色时的原生弹窗处理局部正则导入
+                                        debugLog('跳过正则脚本的直接写入，等待酒馆原生弹窗导入局部正则');
                                     }
                                     
                                     // TavernHelper脚本由酒馆助手扩展自己处理，无需手动导入
                                 } else {
-                                    debugLog(`未找到新创建的角色ID，将正则脚本添加到全局设置`);
-                                    // 备用方案：添加到全局正则设置
-                                    if (pendingRegexScripts.length > 0) {
-                                        if (!context.extensionSettings.regex) {
-                                            context.extensionSettings.regex = [];
-                                        }
-                                        context.extensionSettings.regex.push(...pendingRegexScripts);
-                                        if (context.saveSettingsDebounced) {
-                                            context.saveSettingsDebounced();
-                                        }
-                                    }
+                                    debugLog(`未找到新创建的角色ID，跳过任何正则写入，等待原生弹窗处理`);
                                 }
                             }
                         } else {
