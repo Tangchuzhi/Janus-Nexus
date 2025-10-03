@@ -25,19 +25,19 @@
             // 检查是否有SillyTavern的slash命令执行函数
             if (window.executeSlashCommands && typeof window.executeSlashCommands === 'function') {
                 debugLog('使用window.executeSlashCommands执行命令');
-                return await window.executeSlashCommands(commandText, true, null, false);
+                return await window.executeSlashCommands(commandText, true, null, false, null, null, null);
             }
             
             // 检查是否有SillyTavern全局对象
             if (window.SillyTavern && window.SillyTavern.executeSlashCommands) {
                 debugLog('使用SillyTavern.executeSlashCommands执行命令');
-                return await window.SillyTavern.executeSlashCommands(commandText, true, null, false);
+                return await window.SillyTavern.executeSlashCommands(commandText, true, null, false, null, null, null);
             }
             
             // 尝试从script.js导入
             if (typeof executeSlashCommands === 'function') {
                 debugLog('使用全局executeSlashCommands执行命令');
-                return await executeSlashCommands(commandText, true, null, false);
+                return await executeSlashCommands(commandText, true, null, false, null, null, null);
             }
             
             // 备用方法：逐行执行命令
@@ -55,24 +55,25 @@
                         let result = null;
                         
                         if (window.executeSlashCommands) {
-                            result = await window.executeSlashCommands(trimmedCmd, true, null, false);
+                            result = await window.executeSlashCommands(trimmedCmd, true, null, false, null, null, null);
                         } else if (window.SillyTavern && window.SillyTavern.executeSlashCommands) {
-                            result = await window.SillyTavern.executeSlashCommands(trimmedCmd, true, null, false);
+                            result = await window.SillyTavern.executeSlashCommands(trimmedCmd, true, null, false, null, null, null);
                         } else {
-                            // 最后的备用方法：模拟用户输入
-                            const textarea = document.querySelector('#send_textarea');
-                            if (textarea) {
-                                textarea.value = trimmedCmd;
-                                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                                
-                                // 触发发送
-                                const sendButton = document.querySelector('#send_but');
-                                if (sendButton) {
-                                    sendButton.click();
+                            // 最后的备用方法：直接调用slash命令处理函数
+                            debugLog(`尝试直接调用slash命令处理: ${trimmedCmd}`);
+                            try {
+                                // 尝试直接调用slash命令处理函数，避免触发AI回复
+                                if (window.SillyTavern && window.SillyTavern.processSlashCommand) {
+                                    await window.SillyTavern.processSlashCommand(trimmedCmd);
+                                } else if (window.processSlashCommand) {
+                                    await window.processSlashCommand(trimmedCmd);
+                                } else {
+                                    debugLog(`警告: 无法找到slash命令执行函数，跳过命令: ${trimmedCmd}`);
+                                    // 不执行任何操作，避免触发AI回复
                                 }
-                                
-                                // 等待命令执行完成
-                                await new Promise(resolve => setTimeout(resolve, 1000));
+                            } catch (slashError) {
+                                debugLog(`slash命令处理失败: ${slashError.message}`);
+                                // 不执行任何操作，避免触发AI回复
                             }
                         }
                         
