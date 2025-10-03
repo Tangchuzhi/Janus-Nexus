@@ -22,8 +22,8 @@
         debugLog('triggerSlash被调用');
         
         try {
-            // 检查是否有SillyTavern的slash命令执行函数
-            if (window.executeSlashCommands && typeof window.executeSlashCommands === 'function') {
+            // 使用SillyTavern的正确slash命令执行函数
+            if (typeof window.executeSlashCommands === 'function') {
                 debugLog('使用window.executeSlashCommands执行命令');
                 return await window.executeSlashCommands(commandText, true, null, false);
             }
@@ -40,8 +40,8 @@
                 return await executeSlashCommands(commandText, true, null, false);
             }
             
-            // 备用方法：逐行执行命令
-            debugLog('使用备用方法逐行执行命令');
+            // 如果以上方法都不可用，使用更安全的方法
+            debugLog('使用安全方法执行命令');
             const commands = commandText.split('||\n').filter(cmd => cmd.trim());
             const results = [];
             
@@ -51,32 +51,23 @@
                     try {
                         debugLog(`执行命令: ${trimmedCmd}`);
                         
-                        // 尝试通过不同的方式执行命令
-                        let result = null;
-                        
-                        if (window.executeSlashCommands) {
-                            result = await window.executeSlashCommands(trimmedCmd, true, null, false);
-                        } else if (window.SillyTavern && window.SillyTavern.executeSlashCommands) {
-                            result = await window.SillyTavern.executeSlashCommands(trimmedCmd, true, null, false);
+                        // 使用SillyTavern的executeSlashCommandsWithOptions函数
+                        if (window.executeSlashCommandsWithOptions) {
+                            const result = await window.executeSlashCommandsWithOptions(trimmedCmd, {
+                                handleParserErrors: true,
+                                handleExecutionErrors: false,
+                                scope: null
+                            });
+                            results.push(result);
                         } else {
-                            // 最后的备用方法：模拟用户输入
-                            const textarea = document.querySelector('#send_textarea');
-                            if (textarea) {
-                                textarea.value = trimmedCmd;
-                                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                                
-                                // 触发发送
-                                const sendButton = document.querySelector('#send_but');
-                                if (sendButton) {
-                                    sendButton.click();
-                                }
-                                
-                                // 等待命令执行完成
-                                await new Promise(resolve => setTimeout(resolve, 1000));
-                            }
+                            // 最后的备用方法：直接调用slash命令解析器
+                            debugLog(`警告: 无法找到合适的slash命令执行函数，跳过命令: ${trimmedCmd}`);
+                            results.push(null);
                         }
                         
-                        results.push(result);
+                        // 添加短暂延迟确保命令执行完成
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        
                     } catch (cmdError) {
                         debugLog(`命令执行失败: ${trimmedCmd} - ${cmdError.message}`);
                         results.push(null);
@@ -883,11 +874,50 @@
         debugLog(`包信息: ${Object.keys(data.presets || {}).length} 预设, ${Object.keys(data.regexes || {}).length} 正则, ${Object.keys(data.quick_reply_sets || {}).length} 快速回复集, ${Object.keys(data.world_books || {}).length} 世界书, ${Object.keys(data.characters || {}).length} 角色卡`);
     }
     
+    // 检查SillyTavern环境是否准备就绪
+    function checkSillyTavernEnvironment() {
+        const checks = {
+            context: !!window.SillyTavern?.getContext(),
+            saveSettingsDebounced: typeof window.saveSettingsDebounced === 'function',
+            eventSource: !!window.eventSource,
+            eventTypes: !!window.event_types,
+            extensionSettings: !!window.SillyTavern?.getContext()?.extensionSettings
+        };
+        
+        debugLog('SillyTavern环境检查:', checks);
+        
+        const allReady = Object.values(checks).every(check => check);
+        if (!allReady) {
+            debugLog('警告: SillyTavern环境未完全准备就绪，某些功能可能不稳定');
+        }
+        
+        return checks;
+    }
+    
     // 导入包
     async function importPackage() {
         if (!packageData) {
             showStatus('请先选择文件', 'error');
             return;
+        }
+        
+        // 检查环境并等待SillyTavern完全加载
+        let envCheck = checkSillyTavernEnvironment();
+        
+        // 如果环境未完全准备就绪，等待一段时间后重试
+        if (!Object.values(envCheck).every(check => check)) {
+            debugLog('等待SillyTavern环境完全加载...');
+            showStatus('等待SillyTavern环境准备就绪...', 'info');
+            
+            // 等待最多10秒
+            for (let i = 0; i < 20; i++) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                envCheck = checkSillyTavernEnvironment();
+                if (Object.values(envCheck).every(check => check)) {
+                    debugLog('SillyTavern环境已准备就绪');
+                    break;
+                }
+            }
         }
         
         try {
@@ -992,29 +1022,75 @@
                 // 批量更新全局正则设置（只保存一次）
                 if (regexImportCount > 0) {
                     try {
+                        // 直接修改全局扩展设置对象
                         context.extensionSettings.regex = newRegexSettings;
                         
-                        // 使用 SillyTavern 的标准保存方法
+                        // 使用多种保存方法确保可靠性
+                        let saveSuccess = false;
+                        
+                        // 方法1: 使用SillyTavern的saveSettingsDebounced
                         if (typeof window.saveSettingsDebounced === 'function') {
-                            window.saveSettingsDebounced();
-                            debugLog(`批量保存 ${regexImportCount} 个正则设置`);
-                        } else if (typeof saveSettingsDebounced === 'function') {
-                            saveSettingsDebounced();
-                            debugLog(`批量保存 ${regexImportCount} 个正则设置`);
-                        } else {
-                            debugLog('警告: saveSettingsDebounced 函数未找到，正则设置可能未保存');
-                            // 尝试直接调用 SillyTavern 的保存方法
                             try {
-                                if (window.SillyTavern && typeof window.SillyTavern.saveSettings === 'function') {
-                                    await window.SillyTavern.saveSettings();
-                                    debugLog(`通过 SillyTavern.saveSettings 批量保存 ${regexImportCount} 个正则`);
-                                }
-                            } catch (saveError) {
-                                debugLog(`批量保存正则设置失败: ${saveError.message}`);
+                                window.saveSettingsDebounced();
+                                debugLog(`方法1: 通过window.saveSettingsDebounced保存 ${regexImportCount} 个正则`);
+                                saveSuccess = true;
+                            } catch (e) {
+                                debugLog(`方法1失败: ${e.message}`);
                             }
                         }
                         
-                        importedCount += regexImportCount;
+                        // 方法2: 使用全局saveSettingsDebounced
+                        if (!saveSuccess && typeof saveSettingsDebounced === 'function') {
+                            try {
+                                saveSettingsDebounced();
+                                debugLog(`方法2: 通过全局saveSettingsDebounced保存 ${regexImportCount} 个正则`);
+                                saveSuccess = true;
+                            } catch (e) {
+                                debugLog(`方法2失败: ${e.message}`);
+                            }
+                        }
+                        
+                        // 方法3: 直接调用saveSettings API
+                        if (!saveSuccess) {
+                            try {
+                                const saveResponse = await fetch('/api/settings/save', {
+                                    method: 'POST',
+                                    headers: context.getRequestHeaders(),
+                                    body: JSON.stringify({
+                                        extension_settings: context.extensionSettings
+                                    }),
+                                });
+                                
+                                if (saveResponse.ok) {
+                                    debugLog(`方法3: 通过API直接保存 ${regexImportCount} 个正则`);
+                                    saveSuccess = true;
+                                } else {
+                                    debugLog(`方法3失败: API返回 ${saveResponse.status}`);
+                                }
+                            } catch (e) {
+                                debugLog(`方法3失败: ${e.message}`);
+                            }
+                        }
+                        
+                        // 方法4: 触发E6事件系统
+                        if (!saveSuccess && window.eventSource && window.event_types) {
+                            try {
+                                // 触发设置更新事件
+                                await window.eventSource.emit(window.event_types.SETTINGS_UPDATED);
+                                debugLog(`方法4: 通过E6事件系统保存 ${regexImportCount} 个正则`);
+                                saveSuccess = true;
+                            } catch (e) {
+                                debugLog(`方法4失败: ${e.message}`);
+                            }
+                        }
+                        
+                        if (saveSuccess) {
+                            importedCount += regexImportCount;
+                            debugLog(`正则设置保存成功，共导入 ${regexImportCount} 个正则`);
+                        } else {
+                            debugLog(`警告: 所有保存方法都失败了，正则设置可能未保存`);
+                        }
+                        
                     } catch (saveError) {
                         debugLog(`批量保存正则设置失败: ${saveError.message}`);
                     }
@@ -1108,6 +1184,23 @@
                         
                         // 等待一下让快速回复集有时间正确创建
                         await new Promise(resolve => setTimeout(resolve, 1000));
+                        
+                        // 额外保存机制：确保快速回复集被正确保存
+                        try {
+                            // 触发E6事件系统确保快速回复集被保存
+                            if (window.eventSource && window.event_types) {
+                                await window.eventSource.emit(window.event_types.SETTINGS_UPDATED);
+                                debugLog(`通过E6事件系统确保快速回复集 ${setName} 被保存`);
+                            }
+                            
+                            // 调用saveSettingsDebounced确保设置被保存
+                            if (typeof window.saveSettingsDebounced === 'function') {
+                                window.saveSettingsDebounced();
+                                debugLog(`通过saveSettingsDebounced确保快速回复集 ${setName} 被保存`);
+                            }
+                        } catch (saveError) {
+                            debugLog(`快速回复集 ${setName} 额外保存失败: ${saveError.message}`);
+                        }
                         
                         // 验证快速回复集是否创建成功
                         let verificationSuccess = false;
