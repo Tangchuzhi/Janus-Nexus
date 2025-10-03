@@ -1073,7 +1073,7 @@
                                 if (qr.title && qr.title.trim()) {
                                     slashCommands += `title="${qr.title}" `;
                                 }
-                                slashCommands += `/send "${escapedMessage}" ||\n`;
+                                slashCommands += `"${escapedMessage}" ||\n`;
                             }
                             
                             // 4. 添加上下文菜单项
