@@ -994,48 +994,17 @@
                     try {
                         context.extensionSettings.regex = newRegexSettings;
                         
-                        // 使用 SillyTavern 的标准保存方法
-                        let saveSuccess = false;
-                        
-                        // 方法1: 尝试从script.js导入的saveSettingsDebounced
-                        if (typeof saveSettingsDebounced === 'function') {
-                            try {
-                                saveSettingsDebounced();
-                                debugLog(`通过全局saveSettingsDebounced保存 ${regexImportCount} 个正则`);
-                                saveSuccess = true;
-                            } catch (e) {
-                                debugLog(`全局saveSettingsDebounced失败: ${e.message}`);
+                        // 使用动态导入保存正则设置（最可靠的方法）
+                        try {
+                            const scriptModule = await import('/script.js');
+                            if (scriptModule && scriptModule.saveSettingsDebounced) {
+                                scriptModule.saveSettingsDebounced();
+                                debugLog(`通过动态导入保存 ${regexImportCount} 个正则`);
+                            } else {
+                                debugLog('警告: 动态导入的saveSettingsDebounced不可用');
                             }
-                        }
-                        
-                        // 方法2: 尝试window上的saveSettingsDebounced
-                        if (!saveSuccess && typeof window.saveSettingsDebounced === 'function') {
-                            try {
-                                window.saveSettingsDebounced();
-                                debugLog(`通过window.saveSettingsDebounced保存 ${regexImportCount} 个正则`);
-                                saveSuccess = true;
-                            } catch (e) {
-                                debugLog(`window.saveSettingsDebounced失败: ${e.message}`);
-                            }
-                        }
-                        
-                        // 方法3: 尝试从script.js模块导入
-                        if (!saveSuccess) {
-                            try {
-                                // 动态导入script.js中的saveSettingsDebounced
-                                const scriptModule = await import('/script.js');
-                                if (scriptModule && scriptModule.saveSettingsDebounced) {
-                                    scriptModule.saveSettingsDebounced();
-                                    debugLog(`通过动态导入保存 ${regexImportCount} 个正则`);
-                                    saveSuccess = true;
-                                }
-                            } catch (e) {
-                                debugLog(`动态导入saveSettingsDebounced失败: ${e.message}`);
-                            }
-                        }
-                        
-                        if (!saveSuccess) {
-                            debugLog('警告: 所有保存方法都失败，正则设置可能未持久化');
+                        } catch (e) {
+                            debugLog(`动态导入saveSettingsDebounced失败: ${e.message}`);
                         }
                         
                         importedCount += regexImportCount;
@@ -1073,17 +1042,12 @@
                         // 3. 创建快速回复项
                         if (qrSet.qrList && qrSet.qrList.length > 0) {
                             for (const qr of qrSet.qrList) {
-                                // 转义消息内容，特别处理以/开头的消息
-                                let escapedMessage = (qr.message || '')
+                                // 转义消息内容
+                                const escapedMessage = (qr.message || '')
                                     .replace(/"/g, '\\"')
                                     .replace(/<user>/g, '{{user}}')
                                     .replace(/<char>/g, '{{char}}')
                                     .replace(/\{\{/g, '\\{\\{');
-                                
-                                // 如果消息以/开头，添加转义防止被误解析为slash命令
-                                if (escapedMessage.startsWith('/')) {
-                                    escapedMessage = '\\' + escapedMessage;
-                                }
                                 
                                 // 构建qr-create命令
                                 slashCommands += `/qr-create set=${setName} label="${qr.label || ''}" `;
@@ -1140,13 +1104,10 @@
                         
                         // 额外保存机制：确保快速回复集被正确保存
                         try {
-                            // 尝试触发保存
-                            if (typeof saveSettingsDebounced === 'function') {
-                                saveSettingsDebounced();
-                                debugLog(`通过saveSettingsDebounced确保快速回复集 ${setName} 被保存`);
-                            } else if (typeof window.saveSettingsDebounced === 'function') {
-                                window.saveSettingsDebounced();
-                                debugLog(`通过window.saveSettingsDebounced确保快速回复集 ${setName} 被保存`);
+                            const scriptModule = await import('/script.js');
+                            if (scriptModule && scriptModule.saveSettingsDebounced) {
+                                scriptModule.saveSettingsDebounced();
+                                debugLog(`通过动态导入确保快速回复集 ${setName} 被保存`);
                             }
                         } catch (saveError) {
                             debugLog(`快速回复集 ${setName} 额外保存失败: ${saveError.message}`);
