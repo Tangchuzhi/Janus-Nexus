@@ -756,39 +756,50 @@
                         const originalName = characterData.name || characterData.data?.name || characterAvatar.replace('.png', '');
                         const finalName = tagPrefix ? `${tagPrefix}${originalName}` : originalName;
                         
-                        // 直接输出角色对象
+                        // 直接输出角色对象（不使用 bound_* 包装）
                         const characterObject = { ...characterData };
                         characterObject.name = finalName;
                         if (!characterObject.data) characterObject.data = {};
                         characterObject.data.name = finalName;
                         if (!characterObject.data.extensions) characterObject.data.extensions = {};
                         
-                        // 保留世界书引用
+                        // 保留世界书引用，不打包到 bound_*
                         const worldName = characterData.data?.extensions?.world || characterData.extensions?.world;
                         if (worldName) {
                             debugLog(`角色卡 ${finalName} 绑定了世界书: ${worldName}`);
-                            // 保持世界书引用为原始名称，不加标签前缀，确保能正确引用包内的世界书
-                            characterObject.data.extensions.world = worldName;
+                            // 仅调整引用名称以与可选的标签前缀一致
+                            const finalWorldName = tagPrefix ? `${tagPrefix}${worldName}` : worldName;
+                            characterObject.data.extensions.world = finalWorldName;
                         }
                         
-                        // 写入正则脚本到扩展字段
+                        // 写入正则脚本到扩展字段（不使用 bound_*）
                         const regexScripts = characterData.data?.extensions?.regex_scripts || characterData.extensions?.regex_scripts || [];
                         if (regexScripts.length > 0) {
                             debugLog(`角色卡 ${finalName} 包含 ${regexScripts.length} 个正则脚本`);
-                            // 保持正则脚本的原始名称，不加标签前缀，确保能正确引用包内的正则
-                            characterObject.data.extensions.regex_scripts = regexScripts;
+                            characterObject.data.extensions.regex_scripts = regexScripts.map(regexScript => ({
+                                ...regexScript,
+                                ...(regexScript.scriptName && tagPrefix ? { scriptName: `${tagPrefix}${regexScript.scriptName}` } : {})
+                            }));
                             debugLog(`已写入 regex_scripts 至角色扩展: ${regexScripts.length} 个`);
                         }
                         
-                        // 写入 TavernHelper 脚本到扩展字段
+                        // 写入 TavernHelper 脚本到扩展字段（不使用 bound_*）
                         const tavernHelperScripts = characterData.data?.extensions?.TavernHelper_scripts || characterData.extensions?.TavernHelper_scripts || [];
                         if (tavernHelperScripts.length > 0) {
                             debugLog(`角色卡 ${finalName} 包含 ${tavernHelperScripts.length} 个TavernHelper脚本`);
-                            // 保持TavernHelper脚本的原始名称，不加标签前缀，确保能正确引用包内的脚本
-                            characterObject.data.extensions.TavernHelper_scripts = tavernHelperScripts;
+                            characterObject.data.extensions.TavernHelper_scripts = tavernHelperScripts.map(script => ({
+                                ...script,
+                                ...(script.value?.name && tagPrefix ? {
+                                    value: {
+                                        ...script.value,
+                                        name: `${tagPrefix}${script.value.name}`
+                                    }
+                                } : {})
+                            }));
                             debugLog(`已写入 TavernHelper_scripts 至角色扩展: ${tavernHelperScripts.length} 个`);
                         }
                         
+                        // 注意：角色卡不绑定快速回复集，跳过快速回复集打包
                         
                         packageObj.characters[finalName] = characterObject;
                         debugLog(`已打包完整角色卡: ${finalName} (regex_scripts: ${characterObject.data?.extensions?.regex_scripts?.length || 0}, TavernHelper_scripts: ${characterObject.data?.extensions?.TavernHelper_scripts?.length || 0})`);
@@ -1236,8 +1247,9 @@
                         debugLog('使用API创建角色卡');
                         
                         // 构建角色卡数据，确保格式正确，包含所有字段
+                        // 使用带标签的最终名称，确保新创建而不是覆盖
                         const characterToImport = {
-                            ch_name: characterData.name || characterData.data?.name || characterName,
+                            ch_name: finalName, // 使用带标签的最终名称
                             description: characterData.data?.description || characterData.description || '',
                             personality: characterData.data?.personality || characterData.personality || '',
                             scenario: characterData.data?.scenario || characterData.scenario || '',
@@ -1259,12 +1271,24 @@
                             character_version: characterData.data?.character_version || characterData.character_version || '',
                             // 添加组专用开场白
                             group_only_greetings: characterData.data?.group_only_greetings || characterData.group_only_greetings || [],
-                            // 添加扩展字段（世界书、正则等）
-                            extensions: characterData.data?.extensions || characterData.extensions || {},
+                            // 添加扩展字段（世界书、正则等）- 应用标签前缀到世界书引用
+                            extensions: (() => {
+                                const extensions = characterData.data?.extensions || characterData.extensions || {};
+                                if (extensions.world && tagPrefix) {
+                                    return {
+                                        ...extensions,
+                                        world: `${tagPrefix}${extensions.world}`
+                                    };
+                                }
+                                return extensions;
+                            })(),
                             // 添加角色书（内置世界书）
                             character_book: characterData.data?.character_book || characterData.character_book || null,
-                            // 添加世界书引用（外部世界书）
-                            world: characterData.data?.extensions?.world || characterData.extensions?.world || '',
+                            // 添加世界书引用（外部世界书）- 应用标签前缀
+                            world: (() => {
+                                const worldRef = characterData.data?.extensions?.world || characterData.extensions?.world || '';
+                                return worldRef && tagPrefix ? `${tagPrefix}${worldRef}` : worldRef;
+                            })(),
                             // 添加深度提示
                             depth_prompt_prompt: characterData.data?.extensions?.depth_prompt?.prompt || characterData.extensions?.depth_prompt?.prompt || '',
                             depth_prompt_depth: characterData.data?.extensions?.depth_prompt?.depth || characterData.extensions?.depth_prompt?.depth || 4,
