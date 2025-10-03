@@ -959,7 +959,6 @@
                 
                 for (let i = 0; i < regexEntries.length; i++) {
                     const [name, regex] = regexEntries[i];
-                    let regexImportSuccess = false;
                     
                     try {
                         showStatus(`正在导入 正则：${i + 1}/${regexEntries.length}`, 'info');
@@ -980,12 +979,12 @@
                             debugLog(`正则导入: ${name} (新ID: ${regexWithNewId.id})`);
                         }
                         
-                        regexImportSuccess = true;
                         regexImportCount++;
                         debugLog(`正则 ${name} 导入成功`);
                     } catch (error) {
                         debugLog(`正则 ${name} 导入失败: ${error.message}`);
                         debugLog(`正则导入错误详情:`, error);
+                        // 失败时不增加计数
                     }
                 }
                 
@@ -998,9 +997,11 @@
                         if (typeof window.saveSettingsDebounced === 'function') {
                             window.saveSettingsDebounced();
                             debugLog(`批量保存 ${regexImportCount} 个正则设置`);
+                            importedCount += regexImportCount;
                         } else if (typeof saveSettingsDebounced === 'function') {
                             saveSettingsDebounced();
                             debugLog(`批量保存 ${regexImportCount} 个正则设置`);
+                            importedCount += regexImportCount;
                         } else {
                             debugLog('警告: saveSettingsDebounced 函数未找到，正则设置可能未保存');
                             // 尝试直接调用 SillyTavern 的保存方法
@@ -1008,22 +1009,25 @@
                                 if (window.SillyTavern && typeof window.SillyTavern.saveSettings === 'function') {
                                     await window.SillyTavern.saveSettings();
                                     debugLog(`通过 SillyTavern.saveSettings 批量保存 ${regexImportCount} 个正则`);
+                                    importedCount += regexImportCount;
+                                } else {
+                                    debugLog('正则设置保存失败，不计入成功计数');
                                 }
                             } catch (saveError) {
                                 debugLog(`批量保存正则设置失败: ${saveError.message}`);
                             }
                         }
-                        
-                        importedCount += regexImportCount;
                     } catch (saveError) {
                         debugLog(`批量保存正则设置失败: ${saveError.message}`);
                     }
+                } else {
+                    debugLog('没有正则需要导入');
                 }
                 
                 debugLog(`全局正则导入完成，共导入 ${regexImportCount} 个正则`);
                 
                 // 等待一下确保正则设置完全保存
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
             
             // 导入快速回复 - 使用slash命令系统
@@ -1097,9 +1101,53 @@
                             });
                         }
                         
-                        // 执行slash命令序列
+                        // 执行slash命令序列 - 使用更安全的方式
                         try {
-                            await triggerSlash(slashCommands);
+                            // 确保在聊天界面执行slash命令
+                            const chatTextarea = document.querySelector('#send_textarea');
+                            if (!chatTextarea) {
+                                throw new Error('未找到聊天输入框，无法执行slash命令');
+                            }
+                            
+                            // 清空输入框
+                            chatTextarea.value = '';
+                            chatTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+                            
+                            // 逐行执行命令，避免堆积
+                            const commands = slashCommands.split('||\n').filter(cmd => cmd.trim());
+                            for (let j = 0; j < commands.length; j++) {
+                                const command = commands[j].trim();
+                                if (command) {
+                                    debugLog(`执行命令 ${j + 1}/${commands.length}: ${command.substring(0, 50)}...`);
+                                    
+                                    // 设置命令到输入框
+                                    chatTextarea.value = command;
+                                    chatTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+                                    
+                                    // 触发发送
+                                    const sendButton = document.querySelector('#send_but');
+                                    if (sendButton && !sendButton.disabled) {
+                                        sendButton.click();
+                                    } else {
+                                        // 使用Enter键发送
+                                        chatTextarea.dispatchEvent(new KeyboardEvent('keydown', {
+                                            key: 'Enter',
+                                            code: 'Enter',
+                                            keyCode: 13,
+                                            which: 13,
+                                            bubbles: true
+                                        }));
+                                    }
+                                    
+                                    // 等待命令执行完成
+                                    await new Promise(resolve => setTimeout(resolve, 300));
+                                }
+                            }
+                            
+                            // 清空输入框
+                            chatTextarea.value = '';
+                            chatTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+                            
                             debugLog(`slash命令序列执行完成: ${setName}`);
                         } catch (slashError) {
                             debugLog(`slash命令执行失败: ${slashError.message}`);
@@ -1145,7 +1193,7 @@
                 debugLog(`快速回复集导入完成，共导入 ${Object.keys(packageData.quick_reply_sets).length} 个集`);
                 
                 // 等待一下确保快速回复集完全创建
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
             
             // 导入世界书
