@@ -947,10 +947,14 @@
             if (packageData.presets) {
                 const context = SillyTavern.getContext();
                 const presetManager = context.getPresetManager();
+                const presetEntries = Object.entries(packageData.presets);
                 
                 if (presetManager) {
-                    for (const [name, preset] of Object.entries(packageData.presets)) {
+                    for (let i = 0; i < presetEntries.length; i++) {
+                        const [name, preset] = presetEntries[i];
                         try {
+                            showStatus(`正在导入 预设：${i + 1}/${presetEntries.length}`, 'info');
+                            
                             // 确保预设名称正确
                             const presetToSave = { ...preset };
                             presetToSave.name = name;
@@ -969,16 +973,58 @@
             
             // 导入正则
             if (packageData.regexes && Object.keys(packageData.regexes).length > 0) {
-                // 跳过将正则导入为全局，避免二次处理与全局污染
-                debugLog('检测到包内正则，但跳过全局导入，交由角色本地/原生弹窗处理');
+                debugLog('开始导入全局正则...');
+                debugLog(`发现 ${Object.keys(packageData.regexes).length} 个全局正则需要导入`);
+                const regexEntries = Object.entries(packageData.regexes);
+                
+                for (let i = 0; i < regexEntries.length; i++) {
+                    const [name, regex] = regexEntries[i];
+                    try {
+                        showStatus(`正在导入 正则：${i + 1}/${regexEntries.length}`, 'info');
+                        
+                        // 为导入的正则生成新的唯一ID，避免与现有正则冲突
+                        const regexWithNewId = {
+                            ...regex,
+                            id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+                        };
+                        
+                        // 获取当前全局正则设置
+                        const context = SillyTavern.getContext();
+                        const regexSettings = context.extensionSettings?.regex || [];
+                        const newRegexSettings = [...regexSettings];
+                        
+                        // 检查是否已存在相同名称的正则
+                        const existingIndex = newRegexSettings.findIndex(r => r.scriptName === name);
+                        if (existingIndex >= 0) {
+                            newRegexSettings[existingIndex] = regexWithNewId;
+                            debugLog(`正则更新: ${name} (新ID: ${regexWithNewId.id})`);
+                        } else {
+                            newRegexSettings.push(regexWithNewId);
+                            debugLog(`正则导入: ${name} (新ID: ${regexWithNewId.id})`);
+                        }
+                        
+                        // 更新全局正则设置
+                        context.extensionSettings.regex = newRegexSettings;
+                        await context.saveSettings();
+                        
+                        importedCount++;
+                    } catch (error) {
+                        debugLog(`正则 ${name} 导入失败: ${error.message}`);
+                    }
+                }
+                
+                debugLog(`全局正则导入完成，共导入 ${Object.keys(packageData.regexes).length} 个正则`);
             }
             
             // 导入快速回复 - 使用slash命令系统
             if (packageData.quick_reply_sets) {
                 debugLog('开始使用slash命令系统导入快速回复集...');
+                const qrEntries = Object.entries(packageData.quick_reply_sets);
                 
-                for (const [setName, qrSet] of Object.entries(packageData.quick_reply_sets)) {
+                for (let i = 0; i < qrEntries.length; i++) {
+                    const [setName, qrSet] = qrEntries[i];
                     try {
+                        showStatus(`正在导入 快速回复集：${i + 1}/${qrEntries.length}`, 'info');
                         debugLog(`准备导入快速回复集: ${setName}`);
                         
                         // 构建slash命令序列
@@ -1087,9 +1133,12 @@
             if (packageData.world_books) {
                 debugLog('开始导入世界书...');
                 debugLog(`发现 ${Object.keys(packageData.world_books).length} 个世界书需要导入`);
+                const worldEntries = Object.entries(packageData.world_books);
                 
-                for (const [worldName, worldData] of Object.entries(packageData.world_books)) {
+                for (let i = 0; i < worldEntries.length; i++) {
+                    const [worldName, worldData] = worldEntries[i];
                     try {
+                        showStatus(`正在导入 世界书：${i + 1}/${worldEntries.length}`, 'info');
                         debugLog(`准备导入世界书: ${worldName}`);
                         debugLog(`世界书条目数量: ${Object.keys(worldData.entries || {}).length}`);
                         
@@ -1129,10 +1178,12 @@
                 const context = SillyTavern.getContext();
                 debugLog('Context获取成功:', context);
                 
-                for (const [characterName, characterPackage] of Object.entries(packageData.characters)) {
+                const characterEntries = Object.entries(packageData.characters);
+                for (let i = 0; i < characterEntries.length; i++) {
+                    const [characterName, characterPackage] = characterEntries[i];
                     try {
                         debugLog(`准备导入角色卡: ${characterName}`);
-                        showStatus(`正在导入角色卡: ${characterName}...`, 'info');
+                        showStatus(`正在导入 角色卡：${i + 1}/${characterEntries.length}`, 'info');
                         
                         // 检查是否是新的完整格式（包含character字段）
                         const characterData = characterPackage.character || characterPackage;
@@ -1356,17 +1407,23 @@
             // 恢复导入前的全局世界书选择
             try {
                 if (Array.isArray(originalGlobalWorlds)) {
-                    await fetch('/api/settings/set', {
+                    const restoreResponse = await fetch('/api/settings/set', {
                         method: 'POST',
                         headers: context.getRequestHeaders(),
                         body: JSON.stringify({
                             world_info: { globalSelect: originalGlobalWorlds }
                         }),
                     });
-                    debugLog('已恢复导入前的全局世界书启用列表');
+                    
+                    if (restoreResponse.ok) {
+                        debugLog('已恢复导入前的全局世界书启用列表');
+                    } else {
+                        debugLog(`恢复全局世界书启用列表失败: ${restoreResponse.status} ${restoreResponse.statusText}`);
+                    }
                 }
             } catch (e) {
                 debugLog(`恢复全局世界书启用列表失败: ${e.message}`);
+                // 这个错误不影响导入结果，只是无法完全恢复全局世界书状态
             }
 
             showProgress(100);
