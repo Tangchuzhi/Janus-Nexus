@@ -1132,6 +1132,7 @@
                 for (const [characterName, characterPackage] of Object.entries(packageData.characters)) {
                     try {
                         debugLog(`准备导入角色卡: ${characterName}`);
+                        showStatus(`正在导入角色卡: ${characterName}...`, 'info');
                         
                         // 检查是否是新的完整格式（包含character字段）
                         const characterData = characterPackage.character || characterPackage;
@@ -1231,13 +1232,18 @@
                             avatar: characterToImport.file_name || '默认头像'
                         });
                         
-                        // 使用create API创建角色卡
+                        // 使用create API创建角色卡，添加超时处理
                         debugLog(`开始创建角色卡: ${characterName}`);
-                        const createResponse = await fetch('/api/characters/create', {
-                            method: 'POST',
-                            headers: context.getRequestHeaders(),
-                            body: JSON.stringify(characterToImport),
-                        });
+                        const createResponse = await Promise.race([
+                            fetch('/api/characters/create', {
+                                method: 'POST',
+                                headers: context.getRequestHeaders(),
+                                body: JSON.stringify(characterToImport),
+                            }),
+                            new Promise((_, reject) => 
+                                setTimeout(() => reject(new Error('角色卡创建超时')), 30000)
+                            )
+                        ]);
                         
                         debugLog(`角色卡创建API响应状态: ${createResponse.status}`);
                         
@@ -1269,14 +1275,16 @@
                                 debugLog(`获取新角色头像失败: ${lookupErr.message}`);
                             }
 
-                            // 二次处理：将包内的局部正则与酒馆助手脚本，写入角色扩展字段（scoped），而不是全局
+                            // 二次处理：将包内的局部正则、酒馆助手脚本、角色书，写入角色扩展字段
                             try {
                                 const pkgCharacterData = characterData; // 来自包的原始角色数据
                                 const scopedRegex = pkgCharacterData?.data?.extensions?.regex_scripts || [];
                                 const helperScripts = pkgCharacterData?.data?.extensions?.TavernHelper_scripts || [];
+                                const characterBook = pkgCharacterData?.data?.character_book || null;
 
                                 // 仅当找到 avatar 时才调用合并接口
                                 if (createdAvatar) {
+                                    // 写入局部正则
                                     if (Array.isArray(scopedRegex) && scopedRegex.length > 0) {
                                         const payload = {
                                             avatar: createdAvatar,
@@ -1291,6 +1299,7 @@
                                         else debugLog(`写入局部正则失败: ${mergeResp.status}`);
                                     }
 
+                                    // 写入TavernHelper脚本
                                     if (Array.isArray(helperScripts) && helperScripts.length > 0) {
                                         const payload2 = {
                                             avatar: createdAvatar,
@@ -1304,21 +1313,38 @@
                                         if (mergeResp2.ok) debugLog(`已写入TavernHelper局部脚本 ${helperScripts.length} 个到角色`);
                                         else debugLog(`写入TavernHelper脚本失败: ${mergeResp2.status}`);
                                     }
+
+                                    // 写入角色书（character_book）
+                                    if (characterBook && characterBook.entries && characterBook.entries.length > 0) {
+                                        const payload3 = {
+                                            avatar: createdAvatar,
+                                            data: { character_book: characterBook },
+                                        };
+                                        const mergeResp3 = await fetch('/api/characters/merge-attributes', {
+                                            method: 'POST',
+                                            headers: context.getRequestHeaders(),
+                                            body: JSON.stringify(payload3),
+                                        });
+                                        if (mergeResp3.ok) debugLog(`已写入角色书 ${characterBook.entries.length} 个条目到角色`);
+                                        else debugLog(`写入角色书失败: ${mergeResp3.status}`);
+                                    }
                                 } else {
-                                    debugLog('未获取到新角色的avatar，跳过局部正则与脚本写入');
+                                    debugLog('未获取到新角色的avatar，跳过局部正则、脚本与角色书写入');
                                 }
                             } catch (scopedErr) {
-                                debugLog(`写入局部正则/脚本出错: ${scopedErr.message}`);
+                                debugLog(`写入局部正则/脚本/角色书出错: ${scopedErr.message}`);
                             }
                         } else {
                             const errorText = await createResponse.text();
                             debugLog(`角色卡 ${characterName} 导入失败: ${createResponse.status} - ${errorText}`);
+                            showStatus(`角色卡 ${characterName} 导入失败: ${createResponse.status}`, 'error');
                             // 继续处理下一个角色卡，不中断整个导入流程
                         }
                         
                     } catch (error) {
                         debugLog(`角色卡 ${characterName} 导入失败: ${error.message}`);
                         debugLog(`错误堆栈:`, error.stack);
+                        showStatus(`角色卡 ${characterName} 导入异常: ${error.message}`, 'error');
                     }
                 }
                 
