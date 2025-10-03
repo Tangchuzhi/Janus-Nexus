@@ -967,6 +967,12 @@
                 debugLog(`发现 ${Object.keys(packageData.regexes).length} 个全局正则需要导入`);
                 const regexEntries = Object.entries(packageData.regexes);
                 
+                // 批量处理正则，避免频繁保存设置
+                const context = SillyTavern.getContext();
+                const regexSettings = context.extensionSettings?.regex || [];
+                const newRegexSettings = [...regexSettings];
+                let regexImportCount = 0;
+                
                 for (let i = 0; i < regexEntries.length; i++) {
                     const [name, regex] = regexEntries[i];
                     let regexImportSuccess = false;
@@ -980,11 +986,6 @@
                             id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
                         };
                         
-                        // 获取当前全局正则设置
-                        const context = SillyTavern.getContext();
-                        const regexSettings = context.extensionSettings?.regex || [];
-                        const newRegexSettings = [...regexSettings];
-                        
                         // 检查是否已存在相同名称的正则
                         const existingIndex = newRegexSettings.findIndex(r => r.scriptName === name);
                         if (existingIndex >= 0) {
@@ -995,45 +996,50 @@
                             debugLog(`正则导入: ${name} (新ID: ${regexWithNewId.id})`);
                         }
                         
-                        // 更新全局正则设置
+                        regexImportSuccess = true;
+                        regexImportCount++;
+                        debugLog(`正则 ${name} 导入成功`);
+                    } catch (error) {
+                        debugLog(`正则 ${name} 导入失败: ${error.message}`);
+                        debugLog(`正则导入错误详情:`, error);
+                    }
+                }
+                
+                // 批量更新全局正则设置（只保存一次）
+                if (regexImportCount > 0) {
+                    try {
                         context.extensionSettings.regex = newRegexSettings;
                         
                         // 使用 SillyTavern 的标准保存方法
                         if (typeof window.saveSettingsDebounced === 'function') {
                             window.saveSettingsDebounced();
-                            debugLog(`正则 ${name} 设置已保存`);
+                            debugLog(`批量保存 ${regexImportCount} 个正则设置`);
                         } else if (typeof saveSettingsDebounced === 'function') {
                             saveSettingsDebounced();
-                            debugLog(`正则 ${name} 设置已保存`);
+                            debugLog(`批量保存 ${regexImportCount} 个正则设置`);
                         } else {
                             debugLog('警告: saveSettingsDebounced 函数未找到，正则设置可能未保存');
                             // 尝试直接调用 SillyTavern 的保存方法
                             try {
                                 if (window.SillyTavern && typeof window.SillyTavern.saveSettings === 'function') {
                                     await window.SillyTavern.saveSettings();
-                                    debugLog(`正则 ${name} 通过 SillyTavern.saveSettings 保存`);
+                                    debugLog(`通过 SillyTavern.saveSettings 批量保存 ${regexImportCount} 个正则`);
                                 }
                             } catch (saveError) {
-                                debugLog(`保存正则设置失败: ${saveError.message}`);
+                                debugLog(`批量保存正则设置失败: ${saveError.message}`);
                             }
                         }
                         
-                        regexImportSuccess = true;
-                        debugLog(`正则 ${name} 导入成功`);
-                    } catch (error) {
-                        debugLog(`正则 ${name} 导入失败: ${error.message}`);
-                        debugLog(`正则导入错误详情:`, error);
-                    }
-                    
-                    // 无论成功失败都计数，避免计数不准确
-                    if (regexImportSuccess) {
-                        importedCount++;
-                    } else {
-                        debugLog(`正则 ${name} 导入失败，不计入成功计数`);
+                        importedCount += regexImportCount;
+                    } catch (saveError) {
+                        debugLog(`批量保存正则设置失败: ${saveError.message}`);
                     }
                 }
                 
-                debugLog(`全局正则导入完成，共导入 ${Object.keys(packageData.regexes).length} 个正则`);
+                debugLog(`全局正则导入完成，共导入 ${regexImportCount} 个正则`);
+                
+                // 等待一下确保正则设置完全保存
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
             
             // 导入快速回复 - 使用slash命令系统
@@ -1108,10 +1114,16 @@
                         }
                         
                         // 执行slash命令序列
-                        await triggerSlash(slashCommands);
+                        try {
+                            await triggerSlash(slashCommands);
+                            debugLog(`slash命令序列执行完成: ${setName}`);
+                        } catch (slashError) {
+                            debugLog(`slash命令执行失败: ${slashError.message}`);
+                            throw slashError;
+                        }
                         
                         // 等待一下让快速回复集有时间正确创建
-                        await new Promise(resolve => setTimeout(resolve, 500));
+                        await new Promise(resolve => setTimeout(resolve, 1000));
                         
                         // 验证快速回复集是否创建成功
                         let verificationSuccess = false;
@@ -1147,6 +1159,9 @@
                 }
                 
                 debugLog(`快速回复集导入完成，共导入 ${Object.keys(packageData.quick_reply_sets).length} 个集`);
+                
+                // 等待一下确保快速回复集完全创建
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
             
             // 导入世界书
@@ -1537,3 +1552,4 @@
     }
     
 })();
+
