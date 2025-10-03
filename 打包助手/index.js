@@ -995,7 +995,18 @@
                         context.extensionSettings.regex = newRegexSettings;
                         debugLog(`已更新 ${regexImportCount} 个正则到 extensionSettings.regex`);
                         
-                        // 正则设置已通过直接修改 extensionSettings 自动保存
+                        // 尝试使用 SillyTavern 的标准保存方法（如果可用）
+                        if (typeof window.saveSettingsDebounced === 'function') {
+                            window.saveSettingsDebounced();
+                            debugLog(`通过 saveSettingsDebounced 保存 ${regexImportCount} 个正则设置`);
+                        } else if (typeof saveSettingsDebounced === 'function') {
+                            saveSettingsDebounced();
+                            debugLog(`通过 saveSettingsDebounced 保存 ${regexImportCount} 个正则设置`);
+                        } else {
+                            debugLog('saveSettingsDebounced 函数未找到，但正则已通过直接修改 extensionSettings 保存');
+                        }
+                        
+                        // 正则设置已通过直接修改 extensionSettings 自动保存，计入成功计数
                         importedCount += regexImportCount;
                         debugLog(`正则设置已自动保存，计入成功计数: ${regexImportCount} 个`);
                     } catch (saveError) {
