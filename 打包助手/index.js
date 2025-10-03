@@ -991,37 +991,34 @@
                 // 批量更新全局正则设置（只保存一次）
                 if (regexImportCount > 0) {
                     try {
-                        // 将正则添加到设置中
                         context.extensionSettings.regex = newRegexSettings;
-                        debugLog(`已将 ${regexImportCount} 个正则添加到设置中`);
                         
-                        // 立即计入成功计数，因为正则已经成功添加到内存设置中
-                        // saveSettingsDebounced 只是异步保存到服务器，不影响功能
-                        importedCount += regexImportCount;
-                        
-                        // 使用 SillyTavern 的标准保存方法（异步保存到服务器）
+                        // 使用 SillyTavern 的标准保存方法
                         if (typeof window.saveSettingsDebounced === 'function') {
                             window.saveSettingsDebounced();
-                            debugLog(`批量保存 ${regexImportCount} 个正则设置到服务器`);
+                            debugLog(`批量保存 ${regexImportCount} 个正则设置`);
+                            importedCount += regexImportCount;
                         } else if (typeof saveSettingsDebounced === 'function') {
                             saveSettingsDebounced();
-                            debugLog(`批量保存 ${regexImportCount} 个正则设置到服务器`);
+                            debugLog(`批量保存 ${regexImportCount} 个正则设置`);
+                            importedCount += regexImportCount;
                         } else {
-                            debugLog('警告: saveSettingsDebounced 函数未找到，正则设置可能未保存到服务器');
+                            debugLog('警告: saveSettingsDebounced 函数未找到，正则设置可能未保存');
                             // 尝试直接调用 SillyTavern 的保存方法
                             try {
                                 if (window.SillyTavern && typeof window.SillyTavern.saveSettings === 'function') {
                                     await window.SillyTavern.saveSettings();
-                                    debugLog(`通过 SillyTavern.saveSettings 批量保存 ${regexImportCount} 个正则到服务器`);
+                                    debugLog(`通过 SillyTavern.saveSettings 批量保存 ${regexImportCount} 个正则`);
+                                    importedCount += regexImportCount;
                                 } else {
-                                    debugLog('正则设置保存到服务器失败，但已添加到内存设置中');
+                                    debugLog('正则设置保存失败，不计入成功计数');
                                 }
                             } catch (saveError) {
-                                debugLog(`批量保存正则设置到服务器失败: ${saveError.message}`);
+                                debugLog(`批量保存正则设置失败: ${saveError.message}`);
                             }
                         }
                     } catch (saveError) {
-                        debugLog(`批量更新正则设置失败: ${saveError.message}`);
+                        debugLog(`批量保存正则设置失败: ${saveError.message}`);
                     }
                 } else {
                     debugLog('没有正则需要导入');
