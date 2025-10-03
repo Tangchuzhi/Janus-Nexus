@@ -918,6 +918,9 @@
         
         try {
             showStatus('导入中...', 'info');
+            
+            // 获取标签前缀设置（用于导入时的名称处理）
+            const tagPrefix = document.getElementById('tag-prefix').value.trim();
             let totalItems = (packageData.presets ? Object.keys(packageData.presets).length : 0) + 
                              (packageData.regexes ? Object.keys(packageData.regexes).length : 0) +
                              (packageData.quick_reply_sets ? Object.keys(packageData.quick_reply_sets).length : 0) +
@@ -1245,6 +1248,11 @@
                         
                         // 现在导入角色卡本身
                         debugLog('使用API创建角色卡');
+                        
+                        // 确定最终名称（应用标签前缀）
+                        const originalName = characterData.name || characterData.data?.name || characterName;
+                        const finalName = tagPrefix ? `${tagPrefix}${originalName}` : originalName;
+                        debugLog(`角色卡名称: ${originalName} -> ${finalName}`);
                         
                         // 构建角色卡数据，确保格式正确，包含所有字段
                         // 使用带标签的最终名称，确保新创建而不是覆盖
