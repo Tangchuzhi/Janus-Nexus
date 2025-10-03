@@ -228,6 +228,7 @@
             // 使用 SillyTavern 的正则扩展获取正则脚本
             const context = SillyTavern.getContext();
             const extensionSettings = context.extensionSettings || {};
+            // 仅读取，不修改全局正则
             const regexScripts = extensionSettings.regex || [];
             
             debugLog(`找到 ${regexScripts.length} 个正则脚本`);
@@ -733,12 +734,12 @@
             }
             showProgress(80);
             
-            // 打包角色卡
+            // 打包角色卡（输出与原版一致的结构：直接为角色对象，扩展字段中包含 regex_scripts / TavernHelper_scripts / world 引用）
             for (const characterAvatar of selectedCharacters) {
                 try {
                     debugLog(`开始打包角色卡: ${characterAvatar}`);
                     
-                    // 获取角色卡数据
+                    // 获取角色卡完整数据
                     const characterResponse = await fetch('/api/characters/get', {
                         method: 'POST',
                         headers: context.getRequestHeaders(),
@@ -755,15 +756,53 @@
                         const originalName = characterData.name || characterData.data?.name || characterAvatar.replace('.png', '');
                         const finalName = tagPrefix ? `${tagPrefix}${originalName}` : originalName;
                         
-                        // 确保角色卡名称正确
-                        const characterToSave = { ...characterData };
-                        characterToSave.name = finalName;
-                        if (characterToSave.data) {
-                            characterToSave.data.name = finalName;
+                        // 直接输出角色对象（不使用 bound_* 包装）
+                        const characterObject = { ...characterData };
+                        characterObject.name = finalName;
+                        if (!characterObject.data) characterObject.data = {};
+                        characterObject.data.name = finalName;
+                        if (!characterObject.data.extensions) characterObject.data.extensions = {};
+                        
+                        // 保留世界书引用，不打包到 bound_*
+                        const worldName = characterData.data?.extensions?.world || characterData.extensions?.world;
+                        if (worldName) {
+                            debugLog(`角色卡 ${finalName} 绑定了世界书: ${worldName}`);
+                            // 仅调整引用名称以与可选的标签前缀一致
+                            const finalWorldName = tagPrefix ? `${tagPrefix}${worldName}` : worldName;
+                            characterObject.data.extensions.world = finalWorldName;
                         }
                         
-                        packageObj.characters[finalName] = characterToSave;
-                        debugLog(`已打包角色卡: ${finalName}`);
+                        // 写入正则脚本到扩展字段（不使用 bound_*）
+                        const regexScripts = characterData.data?.extensions?.regex_scripts || characterData.extensions?.regex_scripts || [];
+                        if (regexScripts.length > 0) {
+                            debugLog(`角色卡 ${finalName} 包含 ${regexScripts.length} 个正则脚本`);
+                            characterObject.data.extensions.regex_scripts = regexScripts.map(regexScript => ({
+                                ...regexScript,
+                                ...(regexScript.scriptName && tagPrefix ? { scriptName: `${tagPrefix}${regexScript.scriptName}` } : {})
+                            }));
+                            debugLog(`已写入 regex_scripts 至角色扩展: ${regexScripts.length} 个`);
+                        }
+                        
+                        // 写入 TavernHelper 脚本到扩展字段（不使用 bound_*）
+                        const tavernHelperScripts = characterData.data?.extensions?.TavernHelper_scripts || characterData.extensions?.TavernHelper_scripts || [];
+                        if (tavernHelperScripts.length > 0) {
+                            debugLog(`角色卡 ${finalName} 包含 ${tavernHelperScripts.length} 个TavernHelper脚本`);
+                            characterObject.data.extensions.TavernHelper_scripts = tavernHelperScripts.map(script => ({
+                                ...script,
+                                ...(script.value?.name && tagPrefix ? {
+                                    value: {
+                                        ...script.value,
+                                        name: `${tagPrefix}${script.value.name}`
+                                    }
+                                } : {})
+                            }));
+                            debugLog(`已写入 TavernHelper_scripts 至角色扩展: ${tavernHelperScripts.length} 个`);
+                        }
+                        
+                        // 注意：角色卡不绑定快速回复集，跳过快速回复集打包
+                        
+                        packageObj.characters[finalName] = characterObject;
+                        debugLog(`已打包完整角色卡: ${finalName} (regex_scripts: ${characterObject.data?.extensions?.regex_scripts?.length || 0}, TavernHelper_scripts: ${characterObject.data?.extensions?.TavernHelper_scripts?.length || 0})`);
                     } else {
                         const errorText = await characterResponse.text();
                         debugLog(`角色卡 ${characterAvatar} 获取失败: ${characterResponse.status} - ${errorText}`);
@@ -886,6 +925,24 @@
                              (packageData.characters ? Object.keys(packageData.characters).length : 0);
             let importedCount = 0;
             
+            // 保护：记录导入前的全局世界书启用列表，导入后恢复，避免无关世界被设为全局
+            const context = SillyTavern.getContext();
+            let originalGlobalWorlds = [];
+            try {
+                const settingsResp = await fetch('/api/settings/get', {
+                    method: 'POST',
+                    headers: context.getRequestHeaders(),
+                    body: JSON.stringify({}),
+                });
+                if (settingsResp.ok) {
+                    const data = await settingsResp.json();
+                    originalGlobalWorlds = data?.world_info?.globalSelect || [];
+                    debugLog(`导入前全局世界启用数: ${originalGlobalWorlds.length}`);
+                }
+            } catch (e) {
+                debugLog(`获取导入前世界选择失败: ${e.message}`);
+            }
+            
             // 导入预设
             if (packageData.presets) {
                 const context = SillyTavern.getContext();
@@ -912,40 +969,8 @@
             
             // 导入正则
             if (packageData.regexes && Object.keys(packageData.regexes).length > 0) {
-                const context = SillyTavern.getContext();
-                const regexSettings = context.extensionSettings?.regex || [];
-                const newRegexSettings = [...regexSettings];
-                
-                for (const [name, regex] of Object.entries(packageData.regexes)) {
-                    try {
-                        // 为导入的正则生成新的唯一ID，避免与现有正则冲突
-                        const regexWithNewId = {
-                            ...regex,
-                            id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
-                        };
-                        
-                        // 检查是否已存在相同名称的正则
-                        const existingIndex = newRegexSettings.findIndex(r => r.scriptName === name);
-                        if (existingIndex >= 0) {
-                            newRegexSettings[existingIndex] = regexWithNewId;
-                            debugLog(`正则更新: ${name} (新ID: ${regexWithNewId.id})`);
-                        } else {
-                            newRegexSettings.push(regexWithNewId);
-                            debugLog(`正则导入: ${name} (新ID: ${regexWithNewId.id})`);
-                        }
-                        importedCount++;
-                    } catch (error) {
-                        debugLog(`正则 ${name} 导入失败: ${error.message}`);
-                    }
-                }
-                
-                // 更新正则设置并保存
-                context.extensionSettings.regex = newRegexSettings;
-                // 调用保存函数
-                if (context.saveSettingsDebounced) {
-                    context.saveSettingsDebounced();
-                }
-                debugLog(`正则设置已更新并保存`);
+                // 跳过将正则导入为全局，避免二次处理与全局污染
+                debugLog('检测到包内正则，但跳过全局导入，交由角色本地/原生弹窗处理');
             }
             
             // 导入快速回复 - 使用slash命令系统
@@ -1058,66 +1083,71 @@
                 debugLog(`快速回复集导入完成，共导入 ${Object.keys(packageData.quick_reply_sets).length} 个集`);
             }
             
-            // 导入世界书
+            // 收集所有需要导入的世界书（包括角色绑定的）
+            const allWorldBooks = new Map();
+            
+            // 1. 先收集包内的独立世界书
             if (packageData.world_books) {
-                debugLog('开始导入世界书...');
-                debugLog(`发现 ${Object.keys(packageData.world_books).length} 个世界书需要导入`);
-                
-                // 确保context变量可用
-                const context = SillyTavern.getContext();
-                debugLog('Context获取成功:', context);
-                
                 for (const [worldName, worldData] of Object.entries(packageData.world_books)) {
-                    try {
-                        debugLog(`准备导入世界书: ${worldName}`);
-                        debugLog(`世界书条目数量: ${Object.keys(worldData.entries || {}).length}`);
-                        
-                        // 使用API直接创建/更新世界书
-                        debugLog('使用API创建/更新世界书');
-                        
-                        // 首先检查世界书是否已存在
-                        const checkResponse = await fetch('/api/worldinfo/get', {
-                            method: 'POST',
-                            headers: context.getRequestHeaders(),
-                            body: JSON.stringify({ name: worldName }),
-                        });
-                        
-                        if (checkResponse.ok) {
-                            const existingData = await checkResponse.json();
-                            debugLog(`世界书 ${worldName} 已存在，条目数: ${Object.keys(existingData.entries || {}).length}`);
+                    allWorldBooks.set(worldName, worldData);
+                    debugLog(`收集到独立世界书: ${worldName}`);
+                }
+            }
+            
+            // 2. 收集角色绑定的世界书
+            if (packageData.characters) {
+                for (const [characterName, characterData] of Object.entries(packageData.characters)) {
+                    const character = characterData.character || characterData;
+                    const boundWorldName = character?.data?.extensions?.world || character?.extensions?.world;
+                    if (boundWorldName && !allWorldBooks.has(boundWorldName)) {
+                        // 角色绑定的世界书不在包内，需要从当前系统获取
+                        try {
+                            const worldResp = await fetch('/api/worldinfo/get', {
+                                method: 'POST',
+                                headers: context.getRequestHeaders(),
+                                body: JSON.stringify({ name: boundWorldName }),
+                            });
+                            if (worldResp.ok) {
+                                const worldData = await worldResp.json();
+                                allWorldBooks.set(boundWorldName, worldData);
+                                debugLog(`收集到角色绑定世界书: ${boundWorldName} (来自系统)`);
+                            } else {
+                                debugLog(`角色绑定世界书不存在于系统: ${boundWorldName}`);
+                            }
+                        } catch (err) {
+                            debugLog(`获取角色绑定世界书失败: ${boundWorldName} - ${err.message}`);
                         }
-                        
-                        // 使用edit API创建/更新世界书
-                        const editResponse = await fetch('/api/worldinfo/edit', {
-                            method: 'POST',
-                            headers: context.getRequestHeaders(),
-                            body: JSON.stringify({
-                                name: worldName,
-                                data: worldData
-                            }),
-                        });
-                        
-                        if (editResponse.ok) {
-                            const result = await editResponse.json();
-                            debugLog(`世界书 ${worldName} 导入成功:`, result);
-                            importedCount++;
-                        } else {
-                            const errorText = await editResponse.text();
-                            debugLog(`世界书 ${worldName} 导入失败: ${editResponse.status} - ${errorText}`);
-                        }
-                        
-                    } catch (error) {
-                        debugLog(`世界书 ${worldName} 导入失败: ${error.message}`);
-                        debugLog(`错误堆栈:`, error.stack);
                     }
                 }
-                
-                debugLog(`世界书导入完成，共导入 ${Object.keys(packageData.world_books).length} 个世界书`);
+            }
+            
+            // 3. 导入所有收集到的世界书
+            if (allWorldBooks.size > 0) {
+                debugLog(`开始导入世界书，共 ${allWorldBooks.size} 个`);
+                for (const [worldName, worldData] of allWorldBooks) {
+                    try {
+                        const finalName = String(worldName);
+                        const resp = await fetch('/api/worldinfo/edit', {
+                            method: 'POST',
+                            headers: context.getRequestHeaders(),
+                            body: JSON.stringify({ name: finalName, data: worldData }),
+                        });
+                        if (resp.ok) {
+                            importedCount++;
+                            debugLog(`世界书导入成功: ${finalName}`);
+                        } else {
+                            const txt = await resp.text();
+                            debugLog(`世界书导入失败: ${finalName} - ${resp.status} ${txt}`);
+                        }
+                    } catch (wiErr) {
+                        debugLog(`世界书导入异常: ${worldName} - ${wiErr.message}`);
+                    }
+                }
             } else {
                 debugLog('没有发现世界书数据需要导入');
             }
             
-            // 导入角色卡
+            // 导入角色卡（完整JSON格式，包含绑定的世界书和正则）
             if (packageData.characters) {
                 debugLog('开始导入角色卡...');
                 debugLog(`发现 ${Object.keys(packageData.characters).length} 个角色卡需要导入`);
@@ -1126,11 +1156,39 @@
                 const context = SillyTavern.getContext();
                 debugLog('Context获取成功:', context);
                 
-                for (const [characterName, characterData] of Object.entries(packageData.characters)) {
+                for (const [characterName, characterPackage] of Object.entries(packageData.characters)) {
                     try {
                         debugLog(`准备导入角色卡: ${characterName}`);
                         
-                        // 使用API直接创建角色卡
+                        // 检查是否是新的完整格式（包含character字段）
+                        const characterData = characterPackage.character || characterPackage;
+                        const isNewFormat = characterPackage.character !== undefined;
+                        
+                        if (isNewFormat) {
+                            debugLog(`检测到完整格式角色卡包，包含绑定内容`);
+                            debugLog(`绑定世界书: ${characterPackage.bound_worldbooks?.length || 0} 个`);
+                            debugLog(`绑定正则: ${characterPackage.bound_regexes?.length || 0} 个`);
+                            debugLog(`TavernHelper脚本: ${characterPackage.bound_tavernhelper_scripts?.length || 0} 个`);
+                        }
+                        
+                        // 跳过世界书的立即导入，保留原生点击角色后由酒馆弹窗接管导入
+                        
+                        // 暂存正则脚本数据，在角色卡创建后处理
+                        let pendingRegexScripts = [];
+                        if (isNewFormat && characterPackage.bound_regexes) {
+                            debugLog(`准备导入 ${characterPackage.bound_regexes.length} 个正则脚本到局部正则分类`);
+                            pendingRegexScripts = characterPackage.bound_regexes.map(regexData => ({
+                                ...regexData,
+                                id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+                            }));
+                        }
+                        
+                        // 注意：角色卡不绑定快速回复集，跳过快速回复集导入
+                        
+                        // 注意：TavernHelper脚本由酒馆助手扩展自己处理，不需要手动导入
+                        // 酒馆助手扩展会监听角色卡导入，自动处理TavernHelper_scripts字段
+                        
+                        // 现在导入角色卡本身
                         debugLog('使用API创建角色卡');
                         
                         // 构建角色卡数据，确保格式正确，包含所有字段
@@ -1194,6 +1252,71 @@
                             const result = await createResponse.text();
                             debugLog(`角色卡 ${characterName} 导入成功:`, result);
                             importedCount++;
+
+                            // 等待一下让角色卡完全创建
+                            await new Promise(resolve => setTimeout(resolve, 500));
+
+                            // 重新获取角色列表，找到 avatar（writeExtensionField 需要 avatar）
+                            let createdAvatar = '';
+                            try {
+                                const charactersResponse = await fetch('/api/characters/all', {
+                                    method: 'POST',
+                                    headers: context.getRequestHeaders(),
+                                    body: JSON.stringify({}),
+                                });
+                                if (charactersResponse.ok) {
+                                    const charactersData = await charactersResponse.json();
+                                    const list = charactersData.characters || charactersData || [];
+                                    const found = list.find(c => (c.name === characterToImport.ch_name) || (c.data?.name === characterToImport.ch_name));
+                                    if (found && found.avatar && found.avatar !== 'none') {
+                                        createdAvatar = found.avatar;
+                                    }
+                                }
+                            } catch (lookupErr) {
+                                debugLog(`获取新角色头像失败: ${lookupErr.message}`);
+                            }
+
+                            // 二次处理：将包内的局部正则与酒馆助手脚本，写入角色扩展字段（scoped），而不是全局
+                            try {
+                                const pkgCharacterData = characterData; // 来自包的原始角色数据
+                                const scopedRegex = pkgCharacterData?.data?.extensions?.regex_scripts || [];
+                                const helperScripts = pkgCharacterData?.data?.extensions?.TavernHelper_scripts || [];
+
+                                // 仅当找到 avatar 时才调用合并接口
+                                if (createdAvatar) {
+                                    if (Array.isArray(scopedRegex) && scopedRegex.length > 0) {
+                                        const payload = {
+                                            avatar: createdAvatar,
+                                            data: { extensions: { regex_scripts: scopedRegex } },
+                                        };
+                                        const mergeResp = await fetch('/api/characters/merge-attributes', {
+                                            method: 'POST',
+                                            headers: context.getRequestHeaders(),
+                                            body: JSON.stringify(payload),
+                                        });
+                                        if (mergeResp.ok) debugLog(`已写入局部正则 ${scopedRegex.length} 个到角色`);
+                                        else debugLog(`写入局部正则失败: ${mergeResp.status}`);
+                                    }
+
+                                    if (Array.isArray(helperScripts) && helperScripts.length > 0) {
+                                        const payload2 = {
+                                            avatar: createdAvatar,
+                                            data: { extensions: { TavernHelper_scripts: helperScripts } },
+                                        };
+                                        const mergeResp2 = await fetch('/api/characters/merge-attributes', {
+                                            method: 'POST',
+                                            headers: context.getRequestHeaders(),
+                                            body: JSON.stringify(payload2),
+                                        });
+                                        if (mergeResp2.ok) debugLog(`已写入TavernHelper局部脚本 ${helperScripts.length} 个到角色`);
+                                        else debugLog(`写入TavernHelper脚本失败: ${mergeResp2.status}`);
+                                    }
+                                } else {
+                                    debugLog('未获取到新角色的avatar，跳过局部正则与脚本写入');
+                                }
+                            } catch (scopedErr) {
+                                debugLog(`写入局部正则/脚本出错: ${scopedErr.message}`);
+                            }
                         } else {
                             const errorText = await createResponse.text();
                             debugLog(`角色卡 ${characterName} 导入失败: ${createResponse.status} - ${errorText}`);
@@ -1210,6 +1333,22 @@
                 debugLog('没有发现角色卡数据需要导入');
             }
             
+            // 恢复导入前的全局世界书选择
+            try {
+                if (Array.isArray(originalGlobalWorlds)) {
+                    await fetch('/api/settings/set', {
+                        method: 'POST',
+                        headers: context.getRequestHeaders(),
+                        body: JSON.stringify({
+                            world_info: { globalSelect: originalGlobalWorlds }
+                        }),
+                    });
+                    debugLog('已恢复导入前的全局世界书启用列表');
+                }
+            } catch (e) {
+                debugLog(`恢复全局世界书启用列表失败: ${e.message}`);
+            }
+
             showProgress(100);
             showStatus(`导入完成！成功导入 ${importedCount} 个项目，即将自动刷新页面`, 'success');
             debugLog('导入完成');
