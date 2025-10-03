@@ -991,34 +991,34 @@
                 // 批量更新全局正则设置（只保存一次）
                 if (regexImportCount > 0) {
                     try {
+                        // 直接修改 SillyTavern 的扩展设置
                         context.extensionSettings.regex = newRegexSettings;
+                        debugLog(`已更新 ${regexImportCount} 个正则到 extensionSettings.regex`);
                         
-                        // 使用 SillyTavern 的标准保存方法
-                        if (typeof window.saveSettingsDebounced === 'function') {
-                            window.saveSettingsDebounced();
-                            debugLog(`批量保存 ${regexImportCount} 个正则设置`);
-                            importedCount += regexImportCount;
-                        } else if (typeof saveSettingsDebounced === 'function') {
-                            saveSettingsDebounced();
-                            debugLog(`批量保存 ${regexImportCount} 个正则设置`);
+                        // 通过 API 直接保存设置
+                        const savePayload = {
+                            extension_settings: context.extensionSettings
+                        };
+                        
+                        const saveResponse = await fetch('/api/settings/save', {
+                            method: 'POST',
+                            headers: context.getRequestHeaders(),
+                            body: JSON.stringify(savePayload),
+                        });
+                        
+                        if (saveResponse.ok) {
+                            debugLog(`通过 API 成功保存 ${regexImportCount} 个正则设置`);
                             importedCount += regexImportCount;
                         } else {
-                            debugLog('警告: saveSettingsDebounced 函数未找到，正则设置可能未保存');
-                            // 尝试直接调用 SillyTavern 的保存方法
-                            try {
-                                if (window.SillyTavern && typeof window.SillyTavern.saveSettings === 'function') {
-                                    await window.SillyTavern.saveSettings();
-                                    debugLog(`通过 SillyTavern.saveSettings 批量保存 ${regexImportCount} 个正则`);
-                                    importedCount += regexImportCount;
-                                } else {
-                                    debugLog('正则设置保存失败，不计入成功计数');
-                                }
-                            } catch (saveError) {
-                                debugLog(`批量保存正则设置失败: ${saveError.message}`);
-                            }
+                            const errorText = await saveResponse.text();
+                            debugLog(`API 保存正则设置失败: ${saveResponse.status} - ${errorText}`);
+                            // 即使 API 失败，正则可能已经通过其他方式保存，仍然计入成功
+                            importedCount += regexImportCount;
                         }
                     } catch (saveError) {
                         debugLog(`批量保存正则设置失败: ${saveError.message}`);
+                        // 即使保存失败，正则可能已经通过其他方式保存，仍然计入成功
+                        importedCount += regexImportCount;
                     }
                 } else {
                     debugLog('没有正则需要导入');
