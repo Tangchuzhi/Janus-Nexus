@@ -1190,15 +1190,32 @@
                             group_only_greetings: characterData.data?.group_only_greetings || characterData.group_only_greetings || [],
                             // 添加扩展字段（世界书、正则等）
                             extensions: characterData.data?.extensions || characterData.extensions || {},
-                            // 添加角色书
+                            // 添加角色书（内置世界书）
                             character_book: characterData.data?.character_book || characterData.character_book || null,
-                            // 添加世界书引用
+                            // 添加世界书引用（外部世界书）
                             world: characterData.data?.extensions?.world || characterData.extensions?.world || '',
                             // 添加深度提示
                             depth_prompt_prompt: characterData.data?.extensions?.depth_prompt?.prompt || characterData.extensions?.depth_prompt?.prompt || '',
                             depth_prompt_depth: characterData.data?.extensions?.depth_prompt?.depth || characterData.extensions?.depth_prompt?.depth || 4,
                             depth_prompt_role: characterData.data?.extensions?.depth_prompt?.role || characterData.extensions?.depth_prompt?.role || 'system'
                         };
+                        
+                        // 检查世界书绑定情况
+                        const hasCharacterBook = characterToImport.character_book && characterToImport.character_book.entries && characterToImport.character_book.entries.length > 0;
+                        const hasWorldReference = characterToImport.world && characterToImport.world.trim() !== '';
+                        
+                        debugLog(`角色卡世界书绑定检查: character_book=${hasCharacterBook ? '有' : '无'}, world引用=${hasWorldReference ? characterToImport.world : '无'}`);
+                        
+                        // 检查外部世界书引用是否在包内存在
+                        if (hasWorldReference) {
+                            const referencedWorld = characterToImport.world;
+                            const worldExistsInPackage = packageData.world_books && packageData.world_books[referencedWorld];
+                            if (!worldExistsInPackage) {
+                                debugLog(`警告: 角色卡引用的外部世界书 "${referencedWorld}" 在包内不存在，可能导致绑定失效`);
+                            } else {
+                                debugLog(`确认: 角色卡引用的外部世界书 "${referencedWorld}" 在包内存在`);
+                            }
+                        }
                         
                         // 添加头像文件名到导入数据
                         if (characterData.avatar && characterData.avatar !== 'none') {
@@ -1215,11 +1232,14 @@
                         });
                         
                         // 使用create API创建角色卡
+                        debugLog(`开始创建角色卡: ${characterName}`);
                         const createResponse = await fetch('/api/characters/create', {
                             method: 'POST',
                             headers: context.getRequestHeaders(),
                             body: JSON.stringify(characterToImport),
                         });
+                        
+                        debugLog(`角色卡创建API响应状态: ${createResponse.status}`);
                         
                         if (createResponse.ok) {
                             const result = await createResponse.text();
@@ -1293,6 +1313,7 @@
                         } else {
                             const errorText = await createResponse.text();
                             debugLog(`角色卡 ${characterName} 导入失败: ${createResponse.status} - ${errorText}`);
+                            // 继续处理下一个角色卡，不中断整个导入流程
                         }
                         
                     } catch (error) {
