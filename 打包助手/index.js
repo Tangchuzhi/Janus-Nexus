@@ -531,8 +531,6 @@
             return;
         }
         
-        const tagPrefix = document.getElementById('tag-prefix').value.trim();
-        const regexNoOverwrite = document.getElementById('regex-no-overwrite').checked;
         
         try {
             showStatus('生成打包文件...', 'info');
@@ -541,7 +539,6 @@
             const packageObj = {
                 name: packageName,
                 created: new Date().toISOString(),
-                tag_prefix: tagPrefix,
                 presets: {},
                 regexes: {},
                 quick_reply_sets: {},
@@ -559,7 +556,6 @@
                         // 使用 getCompletionPresetByName 获取预设的完整内容
                         const preset = presetManager.getCompletionPresetByName(presetName);
                         if (preset) {
-                            const finalName = tagPrefix ? `${tagPrefix}${presetName}` : presetName;
                             
                             // 过滤掉API相关的设置
                             const filteredPreset = { ...preset };
@@ -587,10 +583,10 @@
                             });
                             
                             // 确保预设名称正确
-                            filteredPreset.name = finalName;
+                            filteredPreset.name = presetName;
                             
-                            packageObj.presets[finalName] = filteredPreset;
-                            debugLog(`已打包预设: ${finalName} (${Object.keys(filteredPreset).length} 个设置项)`);
+                            packageObj.presets[presetName] = filteredPreset;
+                            debugLog(`已打包预设: ${presetName} (${Object.keys(filteredPreset).length} 个设置项)`);
                         } else {
                             debugLog(`预设 ${presetName} 未找到`);
                         }
@@ -609,13 +605,7 @@
             for (const regexIndex of selectedRegexes) {
                 const regex = regexSettings[regexIndex];
                 if (regex) {
-                    let finalName = regex.scriptName || `正则脚本 ${regexIndex + 1}`;
-                    if (tagPrefix) {
-                        finalName = `${tagPrefix}${finalName}`;
-                    }
-                    if (regexNoOverwrite) {
-                        finalName = `${finalName}_新`;
-                    }
+                    const finalName = regex.scriptName || `正则脚本 ${regexIndex + 1}`;
                     
                     packageObj.regexes[finalName] = {
                         ...regex,
@@ -631,7 +621,6 @@
             
             for (const setName of selectedQuickReplies) {
                 try {
-                    const finalSetName = tagPrefix ? `${tagPrefix}${setName}` : setName;
                     
                     // 从API获取快速回复集数据
                     const response = await fetch('/api/settings/get', {
@@ -648,7 +637,7 @@
                         
                         if (presetData) {
                             qrSet = {
-                                name: finalSetName,
+                                name: setName,
                                 scope: presetData.scope || 'global',
                                 disableSend: presetData.disableSend || false,
                                 placeBeforeInput: presetData.placeBeforeInput || false,
@@ -679,7 +668,7 @@
                     // 如果没有找到，创建一个基本的QR集结构
                     if (!qrSet) {
                         qrSet = {
-                            name: finalSetName,
+                            name: setName,
                             scope: 'global',
                             disableSend: false,
                             placeBeforeInput: false,
@@ -691,8 +680,8 @@
                         debugLog(`创建空快速回复集: ${setName}`);
                     }
                     
-                    packageObj.quick_reply_sets[finalSetName] = qrSet;
-                    debugLog(`已打包快速回复集: ${finalSetName} (${qrSet.qrList.length} 个回复)`);
+                    packageObj.quick_reply_sets[setName] = qrSet;
+                    debugLog(`已打包快速回复集: ${setName} (${qrSet.qrList.length} 个回复)`);
                 } catch (error) {
                     debugLog(`快速回复集 ${setName} 打包失败: ${error.message}`);
                 }
@@ -702,8 +691,7 @@
             // 打包世界书
             for (const worldName of selectedWorldBooks) {
                 try {
-                    const finalName = tagPrefix ? `${tagPrefix}${worldName}` : worldName;
-                    debugLog(`开始打包世界书: ${worldName} -> ${finalName}`);
+                    debugLog(`开始打包世界书: ${worldName}`);
                     
                     // 获取世界书数据 - 使用与加载时相同的方法
                     const worldResponse = await fetch('/api/worldinfo/get', {
@@ -720,10 +708,10 @@
                         
                         // 确保世界书名称正确
                         const worldBookToSave = { ...worldData };
-                        worldBookToSave.name = finalName;
+                        worldBookToSave.name = worldName;
                         
-                        packageObj.world_books[finalName] = worldBookToSave;
-                        debugLog(`已打包世界书: ${finalName} (${Object.keys(worldData.entries || {}).length} 个条目)`);
+                        packageObj.world_books[worldName] = worldBookToSave;
+                        debugLog(`已打包世界书: ${worldName} (${Object.keys(worldData.entries || {}).length} 个条目)`);
                     } else {
                         const errorText = await worldResponse.text();
                         debugLog(`世界书 ${worldName} 获取失败: ${worldResponse.status} - ${errorText}`);
@@ -754,28 +742,27 @@
                         
                         // 确定最终名称
                         const originalName = characterData.name || characterData.data?.name || characterAvatar.replace('.png', '');
-                        const finalName = tagPrefix ? `${tagPrefix}${originalName}` : originalName;
                         
                         // 直接输出角色对象（不使用 bound_* 包装）
                         const characterObject = { ...characterData };
-                        characterObject.name = finalName;
+                        characterObject.name = originalName;
                         if (!characterObject.data) characterObject.data = {};
-                        characterObject.data.name = finalName;
+                        characterObject.data.name = originalName;
                         if (!characterObject.data.extensions) characterObject.data.extensions = {};
                         
                         // 保留世界书引用，不打包到 bound_*
                         const worldName = characterData.data?.extensions?.world || characterData.extensions?.world;
                         if (worldName) {
-                            debugLog(`角色卡 ${finalName} 绑定了世界书: ${worldName}`);
-                            // 角色卡内部绑定的世界书引用保持原名称，不应用标签前缀
+                            debugLog(`角色卡 ${originalName} 绑定了世界书: ${worldName}`);
+                            // 角色卡内部绑定的世界书引用保持原名称
                             characterObject.data.extensions.world = worldName;
                         }
                         
                         // 写入正则脚本到扩展字段（不使用 bound_*）
                         const regexScripts = characterData.data?.extensions?.regex_scripts || characterData.extensions?.regex_scripts || [];
                         if (regexScripts.length > 0) {
-                            debugLog(`角色卡 ${finalName} 包含 ${regexScripts.length} 个正则脚本`);
-                            // 角色卡内部绑定的正则脚本保持原名称，不应用标签前缀
+                            debugLog(`角色卡 ${originalName} 包含 ${regexScripts.length} 个正则脚本`);
+                            // 角色卡内部绑定的正则脚本保持原名称
                             characterObject.data.extensions.regex_scripts = regexScripts;
                             debugLog(`已写入 regex_scripts 至角色扩展: ${regexScripts.length} 个`);
                         }
@@ -783,16 +770,16 @@
                         // 写入 TavernHelper 脚本到扩展字段（不使用 bound_*）
                         const tavernHelperScripts = characterData.data?.extensions?.TavernHelper_scripts || characterData.extensions?.TavernHelper_scripts || [];
                         if (tavernHelperScripts.length > 0) {
-                            debugLog(`角色卡 ${finalName} 包含 ${tavernHelperScripts.length} 个TavernHelper脚本`);
-                            // 角色卡内部绑定的TavernHelper脚本保持原名称，不应用标签前缀
+                            debugLog(`角色卡 ${originalName} 包含 ${tavernHelperScripts.length} 个TavernHelper脚本`);
+                            // 角色卡内部绑定的TavernHelper脚本保持原名称
                             characterObject.data.extensions.TavernHelper_scripts = tavernHelperScripts;
                             debugLog(`已写入 TavernHelper_scripts 至角色扩展: ${tavernHelperScripts.length} 个`);
                         }
                         
                         // 注意：角色卡不绑定快速回复集，跳过快速回复集打包
                         
-                        packageObj.characters[finalName] = characterObject;
-                        debugLog(`已打包完整角色卡: ${finalName} (regex_scripts: ${characterObject.data?.extensions?.regex_scripts?.length || 0}, TavernHelper_scripts: ${characterObject.data?.extensions?.TavernHelper_scripts?.length || 0})`);
+                        packageObj.characters[originalName] = characterObject;
+                        debugLog(`已打包完整角色卡: ${originalName} (regex_scripts: ${characterObject.data?.extensions?.regex_scripts?.length || 0}, TavernHelper_scripts: ${characterObject.data?.extensions?.TavernHelper_scripts?.length || 0})`);
                     } else {
                         const errorText = await characterResponse.text();
                         debugLog(`角色卡 ${characterAvatar} 获取失败: ${characterResponse.status} - ${errorText}`);
@@ -882,9 +869,6 @@
         
         let html = `<p><strong>名称:</strong> ${data.name || '未知'}</p>`;
         html += `<p><strong>创建:</strong> ${data.created ? new Date(data.created).toLocaleString() : '未知'}</p>`;
-        if (data.tag_prefix) {
-            html += `<p><strong>标签:</strong> ${data.tag_prefix}</p>`;
-        }
         html += `<p><strong>预设:</strong> ${data.presets ? Object.keys(data.presets).length : 0} 个</p>`;
         html += `<p><strong>正则:</strong> ${data.regexes ? Object.keys(data.regexes).length : 0} 个</p>`;
         html += `<p><strong>快速回复集:</strong> ${data.quick_reply_sets ? Object.keys(data.quick_reply_sets).length : 0} 个</p>`;
