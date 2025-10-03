@@ -918,9 +918,6 @@
         
         try {
             showStatus('导入中...', 'info');
-            
-            // 获取标签前缀设置（用于导入时的名称处理）
-            const tagPrefix = document.getElementById('tag-prefix').value.trim();
             let totalItems = (packageData.presets ? Object.keys(packageData.presets).length : 0) + 
                              (packageData.regexes ? Object.keys(packageData.regexes).length : 0) +
                              (packageData.quick_reply_sets ? Object.keys(packageData.quick_reply_sets).length : 0) +
@@ -1207,6 +1204,9 @@
                 debugLog('开始导入角色卡...');
                 debugLog(`发现 ${Object.keys(packageData.characters).length} 个角色卡需要导入`);
                 
+                // 获取标签前缀设置（用于导入时的名称处理）
+                const tagPrefix = document.getElementById('tag-prefix').value.trim();
+                
                 // 确保context变量可用
                 const context = SillyTavern.getContext();
                 debugLog('Context获取成功:', context);
@@ -1279,24 +1279,12 @@
                             character_version: characterData.data?.character_version || characterData.character_version || '',
                             // 添加组专用开场白
                             group_only_greetings: characterData.data?.group_only_greetings || characterData.group_only_greetings || [],
-                            // 添加扩展字段（世界书、正则等）- 应用标签前缀到世界书引用
-                            extensions: (() => {
-                                const extensions = characterData.data?.extensions || characterData.extensions || {};
-                                if (extensions.world && tagPrefix) {
-                                    return {
-                                        ...extensions,
-                                        world: `${tagPrefix}${extensions.world}`
-                                    };
-                                }
-                                return extensions;
-                            })(),
+                            // 添加扩展字段（世界书、正则等）- 保持原名称，不应用标签前缀
+                            extensions: characterData.data?.extensions || characterData.extensions || {},
                             // 添加角色书（内置世界书）
                             character_book: characterData.data?.character_book || characterData.character_book || null,
-                            // 添加世界书引用（外部世界书）- 应用标签前缀
-                            world: (() => {
-                                const worldRef = characterData.data?.extensions?.world || characterData.extensions?.world || '';
-                                return worldRef && tagPrefix ? `${tagPrefix}${worldRef}` : worldRef;
-                            })(),
+                            // 添加世界书引用（外部世界书）- 保持原名称，不应用标签前缀
+                            world: characterData.data?.extensions?.world || characterData.extensions?.world || '',
                             // 添加深度提示
                             depth_prompt_prompt: characterData.data?.extensions?.depth_prompt?.prompt || characterData.extensions?.depth_prompt?.prompt || '',
                             depth_prompt_depth: characterData.data?.extensions?.depth_prompt?.depth || characterData.extensions?.depth_prompt?.depth || 4,
@@ -1378,6 +1366,7 @@
                             }
 
                             // 二次处理：将包内的局部正则、酒馆助手脚本、角色书，写入角色扩展字段
+                            // 注意：局部正则和脚本保持原名称，不应用标签前缀
                             try {
                                 const pkgCharacterData = characterData; // 来自包的原始角色数据
                                 const scopedRegex = pkgCharacterData?.data?.extensions?.regex_scripts || [];
