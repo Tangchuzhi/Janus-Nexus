@@ -996,19 +996,58 @@
                         debugLog(`已更新 ${regexImportCount} 个正则到 extensionSettings.regex`);
                         
                         // 尝试使用 SillyTavern 的标准保存方法（如果可用）
+                        let saveSuccess = false;
+                        
+                        // 方法1: 尝试从 window 对象获取
                         if (typeof window.saveSettingsDebounced === 'function') {
                             window.saveSettingsDebounced();
-                            debugLog(`通过 saveSettingsDebounced 保存 ${regexImportCount} 个正则设置`);
-                        } else if (typeof saveSettingsDebounced === 'function') {
+                            debugLog(`通过 window.saveSettingsDebounced 保存 ${regexImportCount} 个正则设置`);
+                            saveSuccess = true;
+                        }
+                        // 方法2: 尝试从全局作用域获取
+                        else if (typeof saveSettingsDebounced === 'function') {
                             saveSettingsDebounced();
-                            debugLog(`通过 saveSettingsDebounced 保存 ${regexImportCount} 个正则设置`);
-                        } else {
-                            debugLog('saveSettingsDebounced 函数未找到，但正则已通过直接修改 extensionSettings 保存');
+                            debugLog(`通过全局 saveSettingsDebounced 保存 ${regexImportCount} 个正则设置`);
+                            saveSuccess = true;
+                        }
+                        // 方法3: 尝试从 SillyTavern 对象获取
+                        else if (window.SillyTavern && typeof window.SillyTavern.saveSettingsDebounced === 'function') {
+                            window.SillyTavern.saveSettingsDebounced();
+                            debugLog(`通过 SillyTavern.saveSettingsDebounced 保存 ${regexImportCount} 个正则设置`);
+                            saveSuccess = true;
+                        }
+                        // 方法4: 尝试直接调用 saveSettings 函数
+                        else if (typeof saveSettings === 'function') {
+                            saveSettings();
+                            debugLog(`通过 saveSettings 保存 ${regexImportCount} 个正则设置`);
+                            saveSuccess = true;
+                        }
+                        // 方法5: 尝试通过 API 保存设置
+                        else {
+                            try {
+                                const response = await fetch('/api/settings/set', {
+                                    method: 'POST',
+                                    headers: context.getRequestHeaders(),
+                                    body: JSON.stringify({ extension_settings: context.extensionSettings }),
+                                });
+                                if (response.ok) {
+                                    debugLog(`通过 API 保存 ${regexImportCount} 个正则设置`);
+                                    saveSuccess = true;
+                                } else {
+                                    debugLog(`API 保存失败: ${response.status}`);
+                                }
+                            } catch (apiError) {
+                                debugLog(`API 保存出错: ${apiError.message}`);
+                            }
                         }
                         
-                        // 正则设置已通过直接修改 extensionSettings 自动保存，计入成功计数
-                        importedCount += regexImportCount;
-                        debugLog(`正则设置已自动保存，计入成功计数: ${regexImportCount} 个`);
+                        if (saveSuccess) {
+                            // 只有保存成功时才计入成功计数
+                            importedCount += regexImportCount;
+                            debugLog(`正则设置保存成功，计入成功计数: ${regexImportCount} 个`);
+                        } else {
+                            debugLog('所有保存方法都失败，正则设置未保存，不计入成功计数');
+                        }
                     } catch (saveError) {
                         debugLog(`批量保存正则设置失败: ${saveError.message}`);
                     }
@@ -1576,4 +1615,5 @@
     }
     
 })();
+
 
