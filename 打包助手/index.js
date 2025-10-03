@@ -993,57 +993,44 @@
                     try {
                         context.extensionSettings.regex = newRegexSettings;
                         
-                        // 使用 SillyTavern 的标准保存方法
-                        // 正则设置已经更新到内存中，现在需要保存到持久化存储
+                        // 使用更安全的方法：只更新正则设置，不影响其他设置
                         try {
-                            // 尝试多种方式调用保存函数
-                            let saveSuccess = false;
+                            // 先获取当前的完整设置
+                            const getResponse = await fetch('/api/settings/get', {
+                                method: 'POST',
+                                headers: context.getRequestHeaders(),
+                                body: JSON.stringify({}),
+                            });
                             
-                            // 方式1: 检查全局作用域
-                            if (typeof window.saveSettingsDebounced === 'function') {
-                                window.saveSettingsDebounced();
-                                saveSuccess = true;
-                                debugLog(`通过 window.saveSettingsDebounced 批量保存 ${regexImportCount} 个正则设置`);
-                            }
-                            // 方式2: 检查模块导入的函数
-                            else if (typeof saveSettingsDebounced === 'function') {
-                                saveSettingsDebounced();
-                                saveSuccess = true;
-                                debugLog(`通过 saveSettingsDebounced 批量保存 ${regexImportCount} 个正则设置`);
-                            }
-                            // 方式3: 通过 SillyTavern 对象
-                            else if (window.SillyTavern && typeof window.SillyTavern.saveSettings === 'function') {
-                                await window.SillyTavern.saveSettings();
-                                saveSuccess = true;
-                                debugLog(`通过 SillyTavern.saveSettings 批量保存 ${regexImportCount} 个正则`);
-                            }
-                            // 方式4: 直接调用 saveSettings
-                            else if (typeof saveSettings === 'function') {
-                                saveSettings();
-                                saveSuccess = true;
-                                debugLog(`通过 saveSettings 批量保存 ${regexImportCount} 个正则设置`);
-                            }
-                            // 方式5: 通过 context 对象
-                            else if (context && typeof context.saveSettings === 'function') {
-                                await context.saveSettings();
-                                saveSuccess = true;
-                                debugLog(`通过 context.saveSettings 批量保存 ${regexImportCount} 个正则设置`);
-                            }
-                            
-                            if (saveSuccess) {
-                                importedCount += regexImportCount;
-                                debugLog(`正则设置保存成功，计入成功计数: ${regexImportCount} 个`);
+                            if (getResponse.ok) {
+                                const currentSettings = await getResponse.json();
+                                
+                                // 只更新 extension_settings 中的 regex 部分
+                                if (!currentSettings.extension_settings) {
+                                    currentSettings.extension_settings = {};
+                                }
+                                currentSettings.extension_settings.regex = newRegexSettings;
+                                
+                                // 保存完整的设置（包含所有原有设置）
+                                const saveResponse = await fetch('/api/settings/save', {
+                                    method: 'POST',
+                                    headers: context.getRequestHeaders(),
+                                    body: JSON.stringify(currentSettings),
+                                    cache: 'no-cache',
+                                });
+                                
+                                if (saveResponse.ok) {
+                                    debugLog(`批量保存 ${regexImportCount} 个正则设置成功`);
+                                    importedCount += regexImportCount;
+                                } else {
+                                    const errorText = await saveResponse.text();
+                                    debugLog(`正则设置保存失败: ${saveResponse.status} - ${errorText}`);
+                                }
                             } else {
-                                // 即使找不到保存函数，正则数据已经更新到内存中，在页面刷新时会生效
-                                debugLog(`警告: 未找到保存函数，但正则设置已更新到内存中，将在页面刷新时生效`);
-                                importedCount += regexImportCount;
-                                debugLog(`正则数据已更新到内存，计入成功计数: ${regexImportCount} 个`);
+                                debugLog(`获取当前设置失败: ${getResponse.status}`);
                             }
                         } catch (saveError) {
                             debugLog(`批量保存正则设置失败: ${saveError.message}`);
-                            // 即使保存失败，数据已经更新到内存中
-                            importedCount += regexImportCount;
-                            debugLog(`正则数据已更新到内存，计入成功计数: ${regexImportCount} 个`);
                         }
                     } catch (saveError) {
                         debugLog(`批量保存正则设置失败: ${saveError.message}`);
