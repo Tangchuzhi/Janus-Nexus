@@ -993,44 +993,33 @@
                     try {
                         context.extensionSettings.regex = newRegexSettings;
                         
-                        // 使用更安全的方法：只更新正则设置，不影响其他设置
-                        try {
-                            // 先获取当前的完整设置
-                            const getResponse = await fetch('/api/settings/get', {
-                                method: 'POST',
-                                headers: context.getRequestHeaders(),
-                                body: JSON.stringify({}),
-                            });
-                            
-                            if (getResponse.ok) {
-                                const currentSettings = await getResponse.json();
-                                
-                                // 只更新 extension_settings 中的 regex 部分
-                                if (!currentSettings.extension_settings) {
-                                    currentSettings.extension_settings = {};
-                                }
-                                currentSettings.extension_settings.regex = newRegexSettings;
-                                
-                                // 保存完整的设置（包含所有原有设置）
-                                const saveResponse = await fetch('/api/settings/save', {
-                                    method: 'POST',
-                                    headers: context.getRequestHeaders(),
-                                    body: JSON.stringify(currentSettings),
-                                    cache: 'no-cache',
-                                });
-                                
-                                if (saveResponse.ok) {
-                                    debugLog(`批量保存 ${regexImportCount} 个正则设置成功`);
+                        // 使用 SillyTavern 的标准保存方法
+                        if (typeof window.saveSettingsDebounced === 'function') {
+                            window.saveSettingsDebounced();
+                            debugLog(`批量保存 ${regexImportCount} 个正则设置`);
+                            // 等待一下让保存操作完成
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            importedCount += regexImportCount;
+                        } else if (typeof saveSettingsDebounced === 'function') {
+                            saveSettingsDebounced();
+                            debugLog(`批量保存 ${regexImportCount} 个正则设置`);
+                            // 等待一下让保存操作完成
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            importedCount += regexImportCount;
+                        } else {
+                            debugLog('警告: saveSettingsDebounced 函数未找到，正则设置可能未保存');
+                            // 尝试直接调用 SillyTavern 的保存方法
+                            try {
+                                if (window.SillyTavern && typeof window.SillyTavern.saveSettings === 'function') {
+                                    await window.SillyTavern.saveSettings();
+                                    debugLog(`通过 SillyTavern.saveSettings 批量保存 ${regexImportCount} 个正则`);
                                     importedCount += regexImportCount;
                                 } else {
-                                    const errorText = await saveResponse.text();
-                                    debugLog(`正则设置保存失败: ${saveResponse.status} - ${errorText}`);
+                                    debugLog('正则设置保存失败，不计入成功计数');
                                 }
-                            } else {
-                                debugLog(`获取当前设置失败: ${getResponse.status}`);
+                            } catch (saveError) {
+                                debugLog(`批量保存正则设置失败: ${saveError.message}`);
                             }
-                        } catch (saveError) {
-                            debugLog(`批量保存正则设置失败: ${saveError.message}`);
                         }
                     } catch (saveError) {
                         debugLog(`批量保存正则设置失败: ${saveError.message}`);
