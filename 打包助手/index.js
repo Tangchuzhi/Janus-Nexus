@@ -959,6 +959,7 @@
                 
                 for (let i = 0; i < regexEntries.length; i++) {
                     const [name, regex] = regexEntries[i];
+                    let regexImportSuccess = false;
                     
                     try {
                         showStatus(`正在导入 正则：${i + 1}/${regexEntries.length}`, 'info');
@@ -979,86 +980,50 @@
                             debugLog(`正则导入: ${name} (新ID: ${regexWithNewId.id})`);
                         }
                         
+                        regexImportSuccess = true;
                         regexImportCount++;
                         debugLog(`正则 ${name} 导入成功`);
                     } catch (error) {
                         debugLog(`正则 ${name} 导入失败: ${error.message}`);
                         debugLog(`正则导入错误详情:`, error);
-                        // 失败时不增加计数
                     }
                 }
                 
                 // 批量更新全局正则设置（只保存一次）
                 if (regexImportCount > 0) {
                     try {
-                        // 直接更新扩展设置
                         context.extensionSettings.regex = newRegexSettings;
-                        debugLog(`已更新 extensionSettings.regex，包含 ${newRegexSettings.length} 个正则`);
                         
                         // 使用 SillyTavern 的标准保存方法
                         if (typeof window.saveSettingsDebounced === 'function') {
                             window.saveSettingsDebounced();
-                            debugLog(`使用 window.saveSettingsDebounced 保存设置`);
+                            debugLog(`批量保存 ${regexImportCount} 个正则设置`);
                         } else if (typeof saveSettingsDebounced === 'function') {
                             saveSettingsDebounced();
-                            debugLog(`使用全局 saveSettingsDebounced 保存设置`);
+                            debugLog(`批量保存 ${regexImportCount} 个正则设置`);
                         } else {
-                            debugLog('警告: saveSettingsDebounced 函数未找到');
-                        }
-                        
-                        // 强制刷新正则扩展UI
-                        try {
-                            // 方法1: 调用正则扩展的 loadRegexScripts 函数
-                            if (typeof window.loadRegexScripts === 'function') {
-                                await window.loadRegexScripts();
-                                debugLog('已调用 loadRegexScripts 刷新UI');
-                            }
-                            
-                            // 方法2: 触发正则扩展重新渲染
-                            if (window.extension_prompt_regex && typeof window.extension_prompt_regex.loadRegexScripts === 'function') {
-                                await window.extension_prompt_regex.loadRegexScripts();
-                                debugLog('已调用正则扩展的 loadRegexScripts');
-                            }
-                            
-                            // 方法3: 手动清空并重新渲染正则列表
-                            const regexContainer = document.getElementById('saved_regex_scripts');
-                            if (regexContainer) {
-                                regexContainer.innerHTML = '';
-                                debugLog('已清空正则脚本容器');
-                                
-                                // 触发重新渲染
-                                if (window.dispatchEvent) {
-                                    window.dispatchEvent(new CustomEvent('extensionSettingsUpdated', {
-                                        detail: { extension: 'regex' }
-                                    }));
-                                    debugLog('已触发扩展设置更新事件');
+                            debugLog('警告: saveSettingsDebounced 函数未找到，正则设置可能未保存');
+                            // 尝试直接调用 SillyTavern 的保存方法
+                            try {
+                                if (window.SillyTavern && typeof window.SillyTavern.saveSettings === 'function') {
+                                    await window.SillyTavern.saveSettings();
+                                    debugLog(`通过 SillyTavern.saveSettings 批量保存 ${regexImportCount} 个正则`);
                                 }
+                            } catch (saveError) {
+                                debugLog(`批量保存正则设置失败: ${saveError.message}`);
                             }
-                            
-                            // 方法4: 重新加载当前聊天以应用正则
-                            if (typeof window.reloadCurrentChat === 'function') {
-                                await window.reloadCurrentChat();
-                                debugLog('已重新加载当前聊天');
-                            }
-                            
-                        } catch (refreshError) {
-                            debugLog(`刷新正则扩展UI失败: ${refreshError.message}`);
                         }
                         
                         importedCount += regexImportCount;
-                        debugLog(`正则导入成功，共导入 ${regexImportCount} 个正则`);
-                        
                     } catch (saveError) {
                         debugLog(`批量保存正则设置失败: ${saveError.message}`);
                     }
-                } else {
-                    debugLog('没有正则需要导入');
                 }
                 
                 debugLog(`全局正则导入完成，共导入 ${regexImportCount} 个正则`);
                 
                 // 等待一下确保正则设置完全保存
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
             
             // 导入快速回复 - 使用slash命令系统
@@ -1132,53 +1097,9 @@
                             });
                         }
                         
-                        // 执行slash命令序列 - 使用更安全的方式
+                        // 执行slash命令序列
                         try {
-                            // 确保在聊天界面执行slash命令
-                            const chatTextarea = document.querySelector('#send_textarea');
-                            if (!chatTextarea) {
-                                throw new Error('未找到聊天输入框，无法执行slash命令');
-                            }
-                            
-                            // 清空输入框
-                            chatTextarea.value = '';
-                            chatTextarea.dispatchEvent(new Event('input', { bubbles: true }));
-                            
-                            // 逐行执行命令，避免堆积
-                            const commands = slashCommands.split('||\n').filter(cmd => cmd.trim());
-                            for (let j = 0; j < commands.length; j++) {
-                                const command = commands[j].trim();
-                                if (command) {
-                                    debugLog(`执行命令 ${j + 1}/${commands.length}: ${command.substring(0, 50)}...`);
-                                    
-                                    // 设置命令到输入框
-                                    chatTextarea.value = command;
-                                    chatTextarea.dispatchEvent(new Event('input', { bubbles: true }));
-                                    
-                                    // 触发发送
-                                    const sendButton = document.querySelector('#send_but');
-                                    if (sendButton && !sendButton.disabled) {
-                                        sendButton.click();
-                                    } else {
-                                        // 使用Enter键发送
-                                        chatTextarea.dispatchEvent(new KeyboardEvent('keydown', {
-                                            key: 'Enter',
-                                            code: 'Enter',
-                                            keyCode: 13,
-                                            which: 13,
-                                            bubbles: true
-                                        }));
-                                    }
-                                    
-                                    // 等待命令执行完成
-                                    await new Promise(resolve => setTimeout(resolve, 300));
-                                }
-                            }
-                            
-                            // 清空输入框
-                            chatTextarea.value = '';
-                            chatTextarea.dispatchEvent(new Event('input', { bubbles: true }));
-                            
+                            await triggerSlash(slashCommands);
                             debugLog(`slash命令序列执行完成: ${setName}`);
                         } catch (slashError) {
                             debugLog(`slash命令执行失败: ${slashError.message}`);
@@ -1224,7 +1145,7 @@
                 debugLog(`快速回复集导入完成，共导入 ${Object.keys(packageData.quick_reply_sets).length} 个集`);
                 
                 // 等待一下确保快速回复集完全创建
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
             
             // 导入世界书
