@@ -993,29 +993,42 @@
                     try {
                         context.extensionSettings.regex = newRegexSettings;
                         
-                        // 使用 SillyTavern 的标准保存方法
-                        if (typeof window.saveSettingsDebounced === 'function') {
-                            window.saveSettingsDebounced();
-                            debugLog(`批量保存 ${regexImportCount} 个正则设置`);
-                            importedCount += regexImportCount;
-                        } else if (typeof saveSettingsDebounced === 'function') {
-                            saveSettingsDebounced();
-                            debugLog(`批量保存 ${regexImportCount} 个正则设置`);
+                        // 等待一下确保SillyTavern完全加载
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        // 使用 SillyTavern 的标准保存方法，增加重试机制
+                        let saveSuccess = false;
+                        const saveMethods = [
+                            () => window.saveSettingsDebounced?.(),
+                            () => saveSettingsDebounced?.(),
+                            () => window.SillyTavern?.saveSettings?.(),
+                            async () => {
+                                const response = await fetch('/api/settings/set', {
+                                    method: 'POST',
+                                    headers: context.getRequestHeaders(),
+                                    body: JSON.stringify({ extension_settings: context.extensionSettings }),
+                                });
+                                return response.ok;
+                            }
+                        ];
+                        
+                        for (let i = 0; i < saveMethods.length; i++) {
+                            try {
+                                const result = await saveMethods[i]();
+                                if (result !== false) {
+                                    debugLog(`通过方法 ${i + 1} 批量保存 ${regexImportCount} 个正则设置`);
+                                    saveSuccess = true;
+                                    break;
+                                }
+                            } catch (error) {
+                                debugLog(`保存方法 ${i + 1} 失败: ${error.message}`);
+                            }
+                        }
+                        
+                        if (saveSuccess) {
                             importedCount += regexImportCount;
                         } else {
-                            debugLog('警告: saveSettingsDebounced 函数未找到，正则设置可能未保存');
-                            // 尝试直接调用 SillyTavern 的保存方法
-                            try {
-                                if (window.SillyTavern && typeof window.SillyTavern.saveSettings === 'function') {
-                                    await window.SillyTavern.saveSettings();
-                                    debugLog(`通过 SillyTavern.saveSettings 批量保存 ${regexImportCount} 个正则`);
-                                    importedCount += regexImportCount;
-                                } else {
-                                    debugLog('正则设置保存失败，不计入成功计数');
-                                }
-                            } catch (saveError) {
-                                debugLog(`批量保存正则设置失败: ${saveError.message}`);
-                            }
+                            debugLog('所有保存方法都失败，正则设置可能未保存');
                         }
                     } catch (saveError) {
                         debugLog(`批量保存正则设置失败: ${saveError.message}`);
@@ -1115,32 +1128,59 @@
                             
                             // 逐行执行命令，避免堆积
                             const commands = slashCommands.split('||\n').filter(cmd => cmd.trim());
+                            let successCount = 0;
+                            
                             for (let j = 0; j < commands.length; j++) {
                                 const command = commands[j].trim();
                                 if (command) {
                                     debugLog(`执行命令 ${j + 1}/${commands.length}: ${command.substring(0, 50)}...`);
                                     
-                                    // 设置命令到输入框
-                                    chatTextarea.value = command;
-                                    chatTextarea.dispatchEvent(new Event('input', { bubbles: true }));
-                                    
-                                    // 触发发送
-                                    const sendButton = document.querySelector('#send_but');
-                                    if (sendButton && !sendButton.disabled) {
-                                        sendButton.click();
-                                    } else {
-                                        // 使用Enter键发送
-                                        chatTextarea.dispatchEvent(new KeyboardEvent('keydown', {
-                                            key: 'Enter',
-                                            code: 'Enter',
-                                            keyCode: 13,
-                                            which: 13,
-                                            bubbles: true
-                                        }));
+                                    try {
+                                        // 确保输入框可用
+                                        if (chatTextarea.disabled || chatTextarea.readOnly) {
+                                            debugLog(`输入框不可用，跳过命令: ${command.substring(0, 30)}...`);
+                                            continue;
+                                        }
+                                        
+                                        // 清空输入框
+                                        chatTextarea.value = '';
+                                        chatTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+                                        
+                                        // 等待一下确保输入框清空
+                                        await new Promise(resolve => setTimeout(resolve, 100));
+                                        
+                                        // 设置命令到输入框
+                                        chatTextarea.value = command;
+                                        chatTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+                                        
+                                        // 等待一下确保输入框更新
+                                        await new Promise(resolve => setTimeout(resolve, 100));
+                                        
+                                        // 触发发送
+                                        const sendButton = document.querySelector('#send_but');
+                                        if (sendButton && !sendButton.disabled) {
+                                            sendButton.click();
+                                            debugLog(`通过发送按钮执行命令: ${command.substring(0, 30)}...`);
+                                        } else {
+                                            // 使用Enter键发送
+                                            chatTextarea.dispatchEvent(new KeyboardEvent('keydown', {
+                                                key: 'Enter',
+                                                code: 'Enter',
+                                                keyCode: 13,
+                                                which: 13,
+                                                bubbles: true
+                                            }));
+                                            debugLog(`通过Enter键执行命令: ${command.substring(0, 30)}...`);
+                                        }
+                                        
+                                        successCount++;
+                                        
+                                        // 等待命令执行完成，增加等待时间
+                                        await new Promise(resolve => setTimeout(resolve, 800));
+                                        
+                                    } catch (cmdError) {
+                                        debugLog(`命令执行失败: ${command.substring(0, 30)}... - ${cmdError.message}`);
                                     }
-                                    
-                                    // 等待命令执行完成
-                                    await new Promise(resolve => setTimeout(resolve, 300));
                                 }
                             }
                             
@@ -1148,7 +1188,13 @@
                             chatTextarea.value = '';
                             chatTextarea.dispatchEvent(new Event('input', { bubbles: true }));
                             
-                            debugLog(`slash命令序列执行完成: ${setName}`);
+                            debugLog(`slash命令序列执行完成: ${setName} (${successCount}/${commands.length} 个命令成功执行)`);
+                            
+                            // 如果成功执行的命令数量少于预期，记录警告
+                            if (successCount < commands.length) {
+                                debugLog(`警告: 快速回复集 ${setName} 部分命令执行失败 (${successCount}/${commands.length})`);
+                            }
+                            
                         } catch (slashError) {
                             debugLog(`slash命令执行失败: ${slashError.message}`);
                             throw slashError;
@@ -1160,6 +1206,9 @@
                         // 验证快速回复集是否创建成功
                         let verificationSuccess = false;
                         try {
+                            // 等待一下让快速回复集有时间保存
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                            
                             // 检查QuickReplySet.list中是否存在该集
                             if (window.QuickReplySet && window.QuickReplySet.list) {
                                 const createdSet = window.QuickReplySet.list.find(set => set.name === setName);
@@ -1171,18 +1220,21 @@
                                 }
                             } else {
                                 debugLog('无法验证: QuickReplySet.list不存在');
-                                verificationSuccess = true; // 假设成功，因为无法验证
+                                // 如果无法验证，但命令执行成功，仍然认为成功
+                                verificationSuccess = successCount > 0;
                             }
                         } catch (verifyError) {
                             debugLog(`验证过程出错: ${verifyError.message}`);
-                            verificationSuccess = true; // 假设成功，避免验证错误影响导入
+                            // 如果验证出错，但命令执行成功，仍然认为成功
+                            verificationSuccess = successCount > 0;
                         }
                         
-                        if (verificationSuccess) {
-                            debugLog(`快速回复集 ${setName} 导入成功`);
+                        // 如果验证成功，或者命令执行成功，都计入成功
+                        if (verificationSuccess || successCount > 0) {
+                            debugLog(`快速回复集 ${setName} 导入成功 (验证: ${verificationSuccess}, 命令执行: ${successCount})`);
                             importedCount++;
                         } else {
-                            debugLog(`快速回复集 ${setName} 导入可能失败，但继续处理其他集`);
+                            debugLog(`快速回复集 ${setName} 导入失败，验证和命令执行都失败`);
                         }
                         
                     } catch (error) {
