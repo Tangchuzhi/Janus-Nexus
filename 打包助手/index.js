@@ -945,133 +945,120 @@
                 }
             }
             
-            // 导入正则 - 使用 SillyTavern 原生方法
+            // 导入正则
             if (packageData.regexes && Object.keys(packageData.regexes).length > 0) {
                 debugLog('开始导入全局正则...');
                 debugLog(`发现 ${Object.keys(packageData.regexes).length} 个全局正则需要导入`);
                 const regexEntries = Object.entries(packageData.regexes);
                 
-                try {
-                    // 使用 SillyTavern 原生方法获取当前正则
-                    const context = SillyTavern.getContext();
-                    const currentRegexes = context.extensionSettings?.regex || [];
-                    const newRegexes = [...currentRegexes];
-                    let regexImportCount = 0;
+                // 批量处理正则，避免频繁保存设置
+                const context = SillyTavern.getContext();
+                const regexSettings = context.extensionSettings?.regex || [];
+                const newRegexSettings = [...regexSettings];
+                let regexImportCount = 0;
+                
+                for (let i = 0; i < regexEntries.length; i++) {
+                    const [name, regex] = regexEntries[i];
                     
-                    for (let i = 0; i < regexEntries.length; i++) {
-                        const [name, regex] = regexEntries[i];
+                    try {
+                        showStatus(`正在导入 正则：${i + 1}/${regexEntries.length}`, 'info');
                         
-                        try {
-                            showStatus(`正在导入 正则：${i + 1}/${regexEntries.length}`, 'info');
-                            
-                            // 为导入的正则生成新的唯一ID，避免与现有正则冲突
-                            const regexToImport = { ...regex };
-                            
-                            // 检查是否已存在相同名称的正则
-                            const existingIndex = newRegexes.findIndex(r => r.scriptName === name);
-                            if (existingIndex >= 0) {
-                                // 保留原有ID，更新内容
-                                regexToImport.id = newRegexes[existingIndex].id;
-                                newRegexes[existingIndex] = regexToImport;
-                                debugLog(`正则更新: ${name} (ID: ${regexToImport.id})`);
-                            } else {
-                                // 生成新ID
-                                regexToImport.id = crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                                newRegexes.push(regexToImport);
-                                debugLog(`正则新增: ${name} (ID: ${regexToImport.id})`);
-                            }
-                            
-                            regexImportCount++;
-                            debugLog(`正则 ${name} 导入成功`);
-                        } catch (error) {
-                            debugLog(`正则 ${name} 导入失败: ${error.message}`);
-                            debugLog(`正则导入错误详情:`, error);
+                        // 为导入的正则生成新的唯一ID，避免与现有正则冲突
+                        const regexWithNewId = {
+                            ...regex,
+                            id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+                        };
+                        
+                        // 检查是否已存在相同名称的正则
+                        const existingIndex = newRegexSettings.findIndex(r => r.scriptName === name);
+                        if (existingIndex >= 0) {
+                            newRegexSettings[existingIndex] = regexWithNewId;
+                            debugLog(`正则更新: ${name} (新ID: ${regexWithNewId.id})`);
+                        } else {
+                            newRegexSettings.push(regexWithNewId);
+                            debugLog(`正则导入: ${name} (新ID: ${regexWithNewId.id})`);
                         }
+                        
+                        regexImportCount++;
+                        debugLog(`正则 ${name} 导入成功`);
+                    } catch (error) {
+                        debugLog(`正则 ${name} 导入失败: ${error.message}`);
+                        debugLog(`正则导入错误详情:`, error);
+                        // 失败时不增加计数
                     }
-                    
-                    // 使用 SillyTavern 原生方法更新正则设置
-                    if (regexImportCount > 0) {
-                        try {
-                            // 直接更新扩展设置
-                            context.extensionSettings.regex = newRegexes;
-                            
-                            // 强制保存设置 - 使用多种方法确保保存成功
-                            let saveSuccess = false;
-                            
-                            // 方法1: 使用 saveSettingsDebounced
-                            if (typeof window.saveSettingsDebounced === 'function') {
-                                window.saveSettingsDebounced();
-                                debugLog(`使用 saveSettingsDebounced 保存 ${regexImportCount} 个正则`);
-                                saveSuccess = true;
-                            } else if (typeof saveSettingsDebounced === 'function') {
-                                saveSettingsDebounced();
-                                debugLog(`使用全局 saveSettingsDebounced 保存 ${regexImportCount} 个正则`);
-                                saveSuccess = true;
-                            }
-                            
-                            // 方法2: 使用 SillyTavern.saveSettings
-                            if (!saveSuccess && window.SillyTavern && typeof window.SillyTavern.saveSettings === 'function') {
-                                await window.SillyTavern.saveSettings();
-                                debugLog(`使用 SillyTavern.saveSettings 保存 ${regexImportCount} 个正则`);
-                                saveSuccess = true;
-                            }
-                            
-                            // 方法3: 直接调用保存函数
-                            if (!saveSuccess && window.saveSettings && typeof window.saveSettings === 'function') {
-                                await window.saveSettings();
-                                debugLog(`使用 window.saveSettings 保存 ${regexImportCount} 个正则`);
-                                saveSuccess = true;
-                            }
-                            
-                            if (saveSuccess) {
-                                importedCount += regexImportCount;
-                                debugLog(`正则设置保存成功，共导入 ${regexImportCount} 个正则`);
-                                
-                                // 强制刷新正则扩展，确保立即显示
-                                try {
-                                    // 方法1: 触发正则扩展重新加载
-                                    if (window.extension_prompt_regex && typeof window.extension_prompt_regex.loadSettings === 'function') {
-                                        window.extension_prompt_regex.loadSettings();
-                                        debugLog('已触发正则扩展重新加载');
-                                    }
-                                    
-                                    // 方法2: 触发扩展设置更新事件
-                                    if (window.dispatchEvent) {
-                                        window.dispatchEvent(new CustomEvent('extensionSettingsUpdated', {
-                                            detail: { extension: 'regex' }
-                                        }));
-                                        debugLog('已触发扩展设置更新事件');
-                                    }
-                                    
-                                    // 方法3: 直接调用正则扩展的更新函数
-                                    if (window.extension_prompt_regex && typeof window.extension_prompt_regex.onSettingsUpdated === 'function') {
-                                        window.extension_prompt_regex.onSettingsUpdated();
-                                        debugLog('已调用正则扩展更新函数');
-                                    }
-                                    
-                                } catch (refreshError) {
-                                    debugLog(`刷新正则扩展失败: ${refreshError.message}`);
-                                }
-                            } else {
-                                debugLog('警告: 所有保存方法都失败，正则可能未保存');
-                            }
-                            
-                        } catch (saveError) {
-                            debugLog(`保存正则设置失败: ${saveError.message}`);
-                        }
-                    } else {
-                        debugLog('没有正则需要导入');
-                    }
-                    
-                    debugLog(`全局正则导入完成，共导入 ${regexImportCount} 个正则`);
-                    
-                    // 等待一下确保正则设置完全保存
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    
-                } catch (error) {
-                    debugLog(`正则导入过程失败: ${error.message}`);
-                    debugLog(`错误堆栈:`, error.stack);
                 }
+                
+                // 批量更新全局正则设置（只保存一次）
+                if (regexImportCount > 0) {
+                    try {
+                        // 直接更新扩展设置
+                        context.extensionSettings.regex = newRegexSettings;
+                        debugLog(`已更新 extensionSettings.regex，包含 ${newRegexSettings.length} 个正则`);
+                        
+                        // 使用 SillyTavern 的标准保存方法
+                        if (typeof window.saveSettingsDebounced === 'function') {
+                            window.saveSettingsDebounced();
+                            debugLog(`使用 window.saveSettingsDebounced 保存设置`);
+                        } else if (typeof saveSettingsDebounced === 'function') {
+                            saveSettingsDebounced();
+                            debugLog(`使用全局 saveSettingsDebounced 保存设置`);
+                        } else {
+                            debugLog('警告: saveSettingsDebounced 函数未找到');
+                        }
+                        
+                        // 强制刷新正则扩展UI
+                        try {
+                            // 方法1: 调用正则扩展的 loadRegexScripts 函数
+                            if (typeof window.loadRegexScripts === 'function') {
+                                await window.loadRegexScripts();
+                                debugLog('已调用 loadRegexScripts 刷新UI');
+                            }
+                            
+                            // 方法2: 触发正则扩展重新渲染
+                            if (window.extension_prompt_regex && typeof window.extension_prompt_regex.loadRegexScripts === 'function') {
+                                await window.extension_prompt_regex.loadRegexScripts();
+                                debugLog('已调用正则扩展的 loadRegexScripts');
+                            }
+                            
+                            // 方法3: 手动清空并重新渲染正则列表
+                            const regexContainer = document.getElementById('saved_regex_scripts');
+                            if (regexContainer) {
+                                regexContainer.innerHTML = '';
+                                debugLog('已清空正则脚本容器');
+                                
+                                // 触发重新渲染
+                                if (window.dispatchEvent) {
+                                    window.dispatchEvent(new CustomEvent('extensionSettingsUpdated', {
+                                        detail: { extension: 'regex' }
+                                    }));
+                                    debugLog('已触发扩展设置更新事件');
+                                }
+                            }
+                            
+                            // 方法4: 重新加载当前聊天以应用正则
+                            if (typeof window.reloadCurrentChat === 'function') {
+                                await window.reloadCurrentChat();
+                                debugLog('已重新加载当前聊天');
+                            }
+                            
+                        } catch (refreshError) {
+                            debugLog(`刷新正则扩展UI失败: ${refreshError.message}`);
+                        }
+                        
+                        importedCount += regexImportCount;
+                        debugLog(`正则导入成功，共导入 ${regexImportCount} 个正则`);
+                        
+                    } catch (saveError) {
+                        debugLog(`批量保存正则设置失败: ${saveError.message}`);
+                    }
+                } else {
+                    debugLog('没有正则需要导入');
+                }
+                
+                debugLog(`全局正则导入完成，共导入 ${regexImportCount} 个正则`);
+                
+                // 等待一下确保正则设置完全保存
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
             
             // 导入快速回复 - 使用slash命令系统
