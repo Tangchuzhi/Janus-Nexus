@@ -1083,66 +1083,10 @@
                 debugLog(`快速回复集导入完成，共导入 ${Object.keys(packageData.quick_reply_sets).length} 个集`);
             }
             
-            // 收集所有需要导入的世界书（包括角色绑定的）
-            const allWorldBooks = new Map();
-            
-            // 1. 先收集包内的独立世界书
+            // 导入世界书
             if (packageData.world_books) {
-                for (const [worldName, worldData] of Object.entries(packageData.world_books)) {
-                    allWorldBooks.set(worldName, worldData);
-                    debugLog(`收集到独立世界书: ${worldName}`);
-                }
-            }
-            
-            // 2. 收集角色绑定的世界书
-            if (packageData.characters) {
-                for (const [characterName, characterData] of Object.entries(packageData.characters)) {
-                    const character = characterData.character || characterData;
-                    const boundWorldName = character?.data?.extensions?.world || character?.extensions?.world;
-                    if (boundWorldName && !allWorldBooks.has(boundWorldName)) {
-                        // 角色绑定的世界书不在包内，需要从当前系统获取
-                        try {
-                            const worldResp = await fetch('/api/worldinfo/get', {
-                                method: 'POST',
-                                headers: context.getRequestHeaders(),
-                                body: JSON.stringify({ name: boundWorldName }),
-                            });
-                            if (worldResp.ok) {
-                                const worldData = await worldResp.json();
-                                allWorldBooks.set(boundWorldName, worldData);
-                                debugLog(`收集到角色绑定世界书: ${boundWorldName} (来自系统)`);
-                            } else {
-                                debugLog(`角色绑定世界书不存在于系统: ${boundWorldName}`);
-                            }
-                        } catch (err) {
-                            debugLog(`获取角色绑定世界书失败: ${boundWorldName} - ${err.message}`);
-                        }
-                    }
-                }
-            }
-            
-            // 3. 导入所有收集到的世界书
-            if (allWorldBooks.size > 0) {
-                debugLog(`开始导入世界书，共 ${allWorldBooks.size} 个`);
-                for (const [worldName, worldData] of allWorldBooks) {
-                    try {
-                        const finalName = String(worldName);
-                        const resp = await fetch('/api/worldinfo/edit', {
-                            method: 'POST',
-                            headers: context.getRequestHeaders(),
-                            body: JSON.stringify({ name: finalName, data: worldData }),
-                        });
-                        if (resp.ok) {
-                            importedCount++;
-                            debugLog(`世界书导入成功: ${finalName}`);
-                        } else {
-                            const txt = await resp.text();
-                            debugLog(`世界书导入失败: ${finalName} - ${resp.status} ${txt}`);
-                        }
-                    } catch (wiErr) {
-                        debugLog(`世界书导入异常: ${worldName} - ${wiErr.message}`);
-                    }
-                }
+                // 跳过世界书的全局导入，避免出现大量全局启用的世界书
+                debugLog('检测到包内世界书，但跳过全局导入，保留由角色绑定与原生弹窗处理');
             } else {
                 debugLog('没有发现世界书数据需要导入');
             }
