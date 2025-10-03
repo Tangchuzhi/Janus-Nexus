@@ -979,6 +979,8 @@
                 
                 for (let i = 0; i < regexEntries.length; i++) {
                     const [name, regex] = regexEntries[i];
+                    let regexImportSuccess = false;
+                    
                     try {
                         showStatus(`正在导入 正则：${i + 1}/${regexEntries.length}`, 'info');
                         
@@ -1005,11 +1007,39 @@
                         
                         // 更新全局正则设置
                         context.extensionSettings.regex = newRegexSettings;
-                        await context.saveSettings();
                         
-                        importedCount++;
+                        // 使用 SillyTavern 的标准保存方法
+                        if (typeof window.saveSettingsDebounced === 'function') {
+                            window.saveSettingsDebounced();
+                            debugLog(`正则 ${name} 设置已保存`);
+                        } else if (typeof saveSettingsDebounced === 'function') {
+                            saveSettingsDebounced();
+                            debugLog(`正则 ${name} 设置已保存`);
+                        } else {
+                            debugLog('警告: saveSettingsDebounced 函数未找到，正则设置可能未保存');
+                            // 尝试直接调用 SillyTavern 的保存方法
+                            try {
+                                if (window.SillyTavern && typeof window.SillyTavern.saveSettings === 'function') {
+                                    await window.SillyTavern.saveSettings();
+                                    debugLog(`正则 ${name} 通过 SillyTavern.saveSettings 保存`);
+                                }
+                            } catch (saveError) {
+                                debugLog(`保存正则设置失败: ${saveError.message}`);
+                            }
+                        }
+                        
+                        regexImportSuccess = true;
+                        debugLog(`正则 ${name} 导入成功`);
                     } catch (error) {
                         debugLog(`正则 ${name} 导入失败: ${error.message}`);
+                        debugLog(`正则导入错误详情:`, error);
+                    }
+                    
+                    // 无论成功失败都计数，避免计数不准确
+                    if (regexImportSuccess) {
+                        importedCount++;
+                    } else {
+                        debugLog(`正则 ${name} 导入失败，不计入成功计数`);
                     }
                 }
                 
@@ -1427,6 +1457,24 @@
             }
 
             showProgress(100);
+            
+            // 详细统计各模块导入情况
+            const presetCount = packageData.presets ? Object.keys(packageData.presets).length : 0;
+            const regexCount = packageData.regexes ? Object.keys(packageData.regexes).length : 0;
+            const qrCount = packageData.quick_reply_sets ? Object.keys(packageData.quick_reply_sets).length : 0;
+            const worldCount = packageData.world_books ? Object.keys(packageData.world_books).length : 0;
+            const charCount = packageData.characters ? Object.keys(packageData.characters).length : 0;
+            const totalExpected = presetCount + regexCount + qrCount + worldCount + charCount;
+            
+            debugLog(`导入统计详情:`);
+            debugLog(`- 预设: ${presetCount} 个`);
+            debugLog(`- 正则: ${regexCount} 个`);
+            debugLog(`- 快速回复集: ${qrCount} 个`);
+            debugLog(`- 世界书: ${worldCount} 个`);
+            debugLog(`- 角色卡: ${charCount} 个`);
+            debugLog(`- 总计预期: ${totalExpected} 个`);
+            debugLog(`- 实际导入: ${importedCount} 个`);
+            
             showStatus(`导入完成！成功导入 ${importedCount} 个项目，即将自动刷新页面`, 'success');
             debugLog('导入完成');
             
