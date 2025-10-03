@@ -1096,28 +1096,44 @@
                 }
             }
             
-            // 2. 收集角色绑定的世界书
+            // 2. 收集角色绑定的世界书（优先从包内查找，如果包内没有则跳过，避免创建空世界书）
             if (packageData.characters) {
                 for (const [characterName, characterData] of Object.entries(packageData.characters)) {
                     const character = characterData.character || characterData;
                     const boundWorldName = character?.data?.extensions?.world || character?.extensions?.world;
                     if (boundWorldName && !allWorldBooks.has(boundWorldName)) {
-                        // 角色绑定的世界书不在包内，需要从当前系统获取
-                        try {
-                            const worldResp = await fetch('/api/worldinfo/get', {
-                                method: 'POST',
-                                headers: context.getRequestHeaders(),
-                                body: JSON.stringify({ name: boundWorldName }),
-                            });
-                            if (worldResp.ok) {
-                                const worldData = await worldResp.json();
-                                allWorldBooks.set(boundWorldName, worldData);
-                                debugLog(`收集到角色绑定世界书: ${boundWorldName} (来自系统)`);
-                            } else {
-                                debugLog(`角色绑定世界书不存在于系统: ${boundWorldName}`);
+                        // 先检查包内是否有对应的世界书数据
+                        const packageWorldName = Object.keys(packageData.world_books || {}).find(name => 
+                            name === boundWorldName || name.includes(boundWorldName) || boundWorldName.includes(name)
+                        );
+                        
+                        if (packageWorldName && packageData.world_books[packageWorldName]) {
+                            // 使用包内的世界书数据
+                            allWorldBooks.set(boundWorldName, packageData.world_books[packageWorldName]);
+                            debugLog(`收集到角色绑定世界书: ${boundWorldName} (来自包内: ${packageWorldName})`);
+                        } else {
+                            // 包内没有对应数据，尝试从系统获取
+                            try {
+                                const worldResp = await fetch('/api/worldinfo/get', {
+                                    method: 'POST',
+                                    headers: context.getRequestHeaders(),
+                                    body: JSON.stringify({ name: boundWorldName }),
+                                });
+                                if (worldResp.ok) {
+                                    const worldData = await worldResp.json();
+                                    // 检查系统数据是否完整
+                                    if (worldData && worldData.entries && Object.keys(worldData.entries).length > 0) {
+                                        allWorldBooks.set(boundWorldName, worldData);
+                                        debugLog(`收集到角色绑定世界书: ${boundWorldName} (来自系统，${Object.keys(worldData.entries).length} 个条目)`);
+                                    } else {
+                                        debugLog(`跳过角色绑定世界书: ${boundWorldName} (系统数据为空或不完整)`);
+                                    }
+                                } else {
+                                    debugLog(`跳过角色绑定世界书: ${boundWorldName} (系统不存在)`);
+                                }
+                            } catch (err) {
+                                debugLog(`跳过角色绑定世界书: ${boundWorldName} (获取失败: ${err.message})`);
                             }
-                        } catch (err) {
-                            debugLog(`获取角色绑定世界书失败: ${boundWorldName} - ${err.message}`);
                         }
                     }
                 }
@@ -1129,6 +1145,13 @@
                 for (const [worldName, worldData] of allWorldBooks) {
                     try {
                         const finalName = String(worldName);
+                        
+                        // 检查世界书数据是否有效
+                        if (!worldData || !worldData.entries || Object.keys(worldData.entries).length === 0) {
+                            debugLog(`跳过空世界书: ${finalName} (无有效条目)`);
+                            continue;
+                        }
+                        
                         const resp = await fetch('/api/worldinfo/edit', {
                             method: 'POST',
                             headers: context.getRequestHeaders(),
@@ -1136,7 +1159,7 @@
                         });
                         if (resp.ok) {
                             importedCount++;
-                            debugLog(`世界书导入成功: ${finalName}`);
+                            debugLog(`世界书导入成功: ${finalName} (${Object.keys(worldData.entries).length} 个条目)`);
                         } else {
                             const txt = await resp.text();
                             debugLog(`世界书导入失败: ${finalName} - ${resp.status} ${txt}`);
@@ -1352,17 +1375,29 @@
                         }),
                     });
                     
-                    // 强制触发世界书UI更新，确保界面状态正确
-                    if (window.eventSource && window.eventSource.emit) {
-                        window.eventSource.emit('WORLDINFO_SETTINGS_UPDATED');
-                    }
-                    
-                    // 如果存在世界书相关的UI更新函数，也调用一下
-                    if (typeof window.updateWorldInfoList === 'function') {
-                        await window.updateWorldInfoList();
-                    }
-                    
-                    debugLog('已恢复导入前的全局世界书启用列表并刷新UI');
+                    // 延迟一下再触发UI更新，确保设置已保存
+                    setTimeout(() => {
+                        try {
+                            // 强制触发世界书UI更新，确保界面状态正确
+                            if (window.eventSource && window.eventSource.emit) {
+                                window.eventSource.emit('WORLDINFO_SETTINGS_UPDATED');
+                            }
+                            
+                            // 如果存在世界书相关的UI更新函数，也调用一下
+                            if (typeof window.updateWorldInfoList === 'function') {
+                                window.updateWorldInfoList();
+                            }
+                            
+                            // 尝试直接更新世界书选择列表的UI
+                            if (window.$ && window.$('#world_info').length > 0) {
+                                window.$('#world_info').val(null).trigger('change');
+                            }
+                            
+                            debugLog('已恢复导入前的全局世界书启用列表并刷新UI');
+                        } catch (uiErr) {
+                            debugLog(`UI更新失败: ${uiErr.message}`);
+                        }
+                    }, 200);
                 }
             } catch (e) {
                 debugLog(`恢复全局世界书启用列表失败: ${e.message}`);
