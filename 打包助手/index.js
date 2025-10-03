@@ -756,50 +756,39 @@
                         const originalName = characterData.name || characterData.data?.name || characterAvatar.replace('.png', '');
                         const finalName = tagPrefix ? `${tagPrefix}${originalName}` : originalName;
                         
-                        // 直接输出角色对象（不使用 bound_* 包装）
+                        // 直接输出角色对象
                         const characterObject = { ...characterData };
                         characterObject.name = finalName;
                         if (!characterObject.data) characterObject.data = {};
                         characterObject.data.name = finalName;
                         if (!characterObject.data.extensions) characterObject.data.extensions = {};
                         
-                        // 保留世界书引用，不打包到 bound_*
+                        // 保留世界书引用
                         const worldName = characterData.data?.extensions?.world || characterData.extensions?.world;
                         if (worldName) {
                             debugLog(`角色卡 ${finalName} 绑定了世界书: ${worldName}`);
-                            // 仅调整引用名称以与可选的标签前缀一致
-                            const finalWorldName = tagPrefix ? `${tagPrefix}${worldName}` : worldName;
-                            characterObject.data.extensions.world = finalWorldName;
+                            // 保持世界书引用为原始名称，不加标签前缀，确保能正确引用包内的世界书
+                            characterObject.data.extensions.world = worldName;
                         }
                         
-                        // 写入正则脚本到扩展字段（不使用 bound_*）
+                        // 写入正则脚本到扩展字段
                         const regexScripts = characterData.data?.extensions?.regex_scripts || characterData.extensions?.regex_scripts || [];
                         if (regexScripts.length > 0) {
                             debugLog(`角色卡 ${finalName} 包含 ${regexScripts.length} 个正则脚本`);
-                            characterObject.data.extensions.regex_scripts = regexScripts.map(regexScript => ({
-                                ...regexScript,
-                                ...(regexScript.scriptName && tagPrefix ? { scriptName: `${tagPrefix}${regexScript.scriptName}` } : {})
-                            }));
+                            // 保持正则脚本的原始名称，不加标签前缀，确保能正确引用包内的正则
+                            characterObject.data.extensions.regex_scripts = regexScripts;
                             debugLog(`已写入 regex_scripts 至角色扩展: ${regexScripts.length} 个`);
                         }
                         
-                        // 写入 TavernHelper 脚本到扩展字段（不使用 bound_*）
+                        // 写入 TavernHelper 脚本到扩展字段
                         const tavernHelperScripts = characterData.data?.extensions?.TavernHelper_scripts || characterData.extensions?.TavernHelper_scripts || [];
                         if (tavernHelperScripts.length > 0) {
                             debugLog(`角色卡 ${finalName} 包含 ${tavernHelperScripts.length} 个TavernHelper脚本`);
-                            characterObject.data.extensions.TavernHelper_scripts = tavernHelperScripts.map(script => ({
-                                ...script,
-                                ...(script.value?.name && tagPrefix ? {
-                                    value: {
-                                        ...script.value,
-                                        name: `${tagPrefix}${script.value.name}`
-                                    }
-                                } : {})
-                            }));
+                            // 保持TavernHelper脚本的原始名称，不加标签前缀，确保能正确引用包内的脚本
+                            characterObject.data.extensions.TavernHelper_scripts = tavernHelperScripts;
                             debugLog(`已写入 TavernHelper_scripts 至角色扩展: ${tavernHelperScripts.length} 个`);
                         }
                         
-                        // 注意：角色卡不绑定快速回复集，跳过快速回复集打包
                         
                         packageObj.characters[finalName] = characterObject;
                         debugLog(`已打包完整角色卡: ${finalName} (regex_scripts: ${characterObject.data?.extensions?.regex_scripts?.length || 0}, TavernHelper_scripts: ${characterObject.data?.extensions?.TavernHelper_scripts?.length || 0})`);
