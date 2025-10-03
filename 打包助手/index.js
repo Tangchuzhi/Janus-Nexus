@@ -947,10 +947,14 @@
             if (packageData.presets) {
                 const context = SillyTavern.getContext();
                 const presetManager = context.getPresetManager();
+                const presetEntries = Object.entries(packageData.presets);
                 
                 if (presetManager) {
-                    for (const [name, preset] of Object.entries(packageData.presets)) {
+                    for (let i = 0; i < presetEntries.length; i++) {
+                        const [name, preset] = presetEntries[i];
                         try {
+                            showStatus(`正在导入 预设：${i + 1}/${presetEntries.length}`, 'info');
+                            
                             // 确保预设名称正确
                             const presetToSave = { ...preset };
                             presetToSave.name = name;
@@ -969,16 +973,88 @@
             
             // 导入正则
             if (packageData.regexes && Object.keys(packageData.regexes).length > 0) {
-                // 跳过将正则导入为全局，避免二次处理与全局污染
-                debugLog('检测到包内正则，但跳过全局导入，交由角色本地/原生弹窗处理');
+                debugLog('开始导入全局正则...');
+                debugLog(`发现 ${Object.keys(packageData.regexes).length} 个全局正则需要导入`);
+                const regexEntries = Object.entries(packageData.regexes);
+                
+                for (let i = 0; i < regexEntries.length; i++) {
+                    const [name, regex] = regexEntries[i];
+                    let regexImportSuccess = false;
+                    
+                    try {
+                        showStatus(`正在导入 正则：${i + 1}/${regexEntries.length}`, 'info');
+                        
+                        // 为导入的正则生成新的唯一ID，避免与现有正则冲突
+                        const regexWithNewId = {
+                            ...regex,
+                            id: crypto.randomUUID ? crypto.randomUUID() : 'regex_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+                        };
+                        
+                        // 获取当前全局正则设置
+                        const context = SillyTavern.getContext();
+                        const regexSettings = context.extensionSettings?.regex || [];
+                        const newRegexSettings = [...regexSettings];
+                        
+                        // 检查是否已存在相同名称的正则
+                        const existingIndex = newRegexSettings.findIndex(r => r.scriptName === name);
+                        if (existingIndex >= 0) {
+                            newRegexSettings[existingIndex] = regexWithNewId;
+                            debugLog(`正则更新: ${name} (新ID: ${regexWithNewId.id})`);
+                        } else {
+                            newRegexSettings.push(regexWithNewId);
+                            debugLog(`正则导入: ${name} (新ID: ${regexWithNewId.id})`);
+                        }
+                        
+                        // 更新全局正则设置
+                        context.extensionSettings.regex = newRegexSettings;
+                        
+                        // 使用 SillyTavern 的标准保存方法
+                        if (typeof window.saveSettingsDebounced === 'function') {
+                            window.saveSettingsDebounced();
+                            debugLog(`正则 ${name} 设置已保存`);
+                        } else if (typeof saveSettingsDebounced === 'function') {
+                            saveSettingsDebounced();
+                            debugLog(`正则 ${name} 设置已保存`);
+                        } else {
+                            debugLog('警告: saveSettingsDebounced 函数未找到，正则设置可能未保存');
+                            // 尝试直接调用 SillyTavern 的保存方法
+                            try {
+                                if (window.SillyTavern && typeof window.SillyTavern.saveSettings === 'function') {
+                                    await window.SillyTavern.saveSettings();
+                                    debugLog(`正则 ${name} 通过 SillyTavern.saveSettings 保存`);
+                                }
+                            } catch (saveError) {
+                                debugLog(`保存正则设置失败: ${saveError.message}`);
+                            }
+                        }
+                        
+                        regexImportSuccess = true;
+                        debugLog(`正则 ${name} 导入成功`);
+                    } catch (error) {
+                        debugLog(`正则 ${name} 导入失败: ${error.message}`);
+                        debugLog(`正则导入错误详情:`, error);
+                    }
+                    
+                    // 无论成功失败都计数，避免计数不准确
+                    if (regexImportSuccess) {
+                        importedCount++;
+                    } else {
+                        debugLog(`正则 ${name} 导入失败，不计入成功计数`);
+                    }
+                }
+                
+                debugLog(`全局正则导入完成，共导入 ${Object.keys(packageData.regexes).length} 个正则`);
             }
             
             // 导入快速回复 - 使用slash命令系统
             if (packageData.quick_reply_sets) {
                 debugLog('开始使用slash命令系统导入快速回复集...');
+                const qrEntries = Object.entries(packageData.quick_reply_sets);
                 
-                for (const [setName, qrSet] of Object.entries(packageData.quick_reply_sets)) {
+                for (let i = 0; i < qrEntries.length; i++) {
+                    const [setName, qrSet] = qrEntries[i];
                     try {
+                        showStatus(`正在导入 快速回复集：${i + 1}/${qrEntries.length}`, 'info');
                         debugLog(`准备导入快速回复集: ${setName}`);
                         
                         // 构建slash命令序列
@@ -1085,8 +1161,40 @@
             
             // 导入世界书
             if (packageData.world_books) {
-                // 跳过世界书的全局导入，避免出现大量全局启用的世界书
-                debugLog('检测到包内世界书，但跳过全局导入，保留由角色绑定与原生弹窗处理');
+                debugLog('开始导入世界书...');
+                debugLog(`发现 ${Object.keys(packageData.world_books).length} 个世界书需要导入`);
+                const worldEntries = Object.entries(packageData.world_books);
+                
+                for (let i = 0; i < worldEntries.length; i++) {
+                    const [worldName, worldData] = worldEntries[i];
+                    try {
+                        showStatus(`正在导入 世界书：${i + 1}/${worldEntries.length}`, 'info');
+                        debugLog(`准备导入世界书: ${worldName}`);
+                        debugLog(`世界书条目数量: ${Object.keys(worldData.entries || {}).length}`);
+                        
+                        // 使用API直接创建/更新世界书
+                        const editResponse = await fetch('/api/worldinfo/edit', {
+                            method: 'POST',
+                            headers: context.getRequestHeaders(),
+                            body: JSON.stringify({ name: worldName, data: worldData }),
+                        });
+                        
+                        if (editResponse.ok) {
+                            const result = await editResponse.json();
+                            debugLog(`世界书 ${worldName} 导入成功:`, result);
+                            importedCount++;
+                        } else {
+                            const errorText = await editResponse.text();
+                            debugLog(`世界书 ${worldName} 导入失败: ${editResponse.status} - ${errorText}`);
+                        }
+                        
+                    } catch (error) {
+                        debugLog(`世界书 ${worldName} 导入失败: ${error.message}`);
+                        debugLog(`错误堆栈:`, error.stack);
+                    }
+                }
+                
+                debugLog(`世界书导入完成，共导入 ${Object.keys(packageData.world_books).length} 个世界书`);
             } else {
                 debugLog('没有发现世界书数据需要导入');
             }
@@ -1100,9 +1208,12 @@
                 const context = SillyTavern.getContext();
                 debugLog('Context获取成功:', context);
                 
-                for (const [characterName, characterPackage] of Object.entries(packageData.characters)) {
+                const characterEntries = Object.entries(packageData.characters);
+                for (let i = 0; i < characterEntries.length; i++) {
+                    const [characterName, characterPackage] = characterEntries[i];
                     try {
                         debugLog(`准备导入角色卡: ${characterName}`);
+                        showStatus(`正在导入 角色卡：${i + 1}/${characterEntries.length}`, 'info');
                         
                         // 检查是否是新的完整格式（包含character字段）
                         const characterData = characterPackage.character || characterPackage;
@@ -1161,15 +1272,32 @@
                             group_only_greetings: characterData.data?.group_only_greetings || characterData.group_only_greetings || [],
                             // 添加扩展字段（世界书、正则等）
                             extensions: characterData.data?.extensions || characterData.extensions || {},
-                            // 添加角色书
+                            // 添加角色书（内置世界书）
                             character_book: characterData.data?.character_book || characterData.character_book || null,
-                            // 添加世界书引用
+                            // 添加世界书引用（外部世界书）
                             world: characterData.data?.extensions?.world || characterData.extensions?.world || '',
                             // 添加深度提示
                             depth_prompt_prompt: characterData.data?.extensions?.depth_prompt?.prompt || characterData.extensions?.depth_prompt?.prompt || '',
                             depth_prompt_depth: characterData.data?.extensions?.depth_prompt?.depth || characterData.extensions?.depth_prompt?.depth || 4,
                             depth_prompt_role: characterData.data?.extensions?.depth_prompt?.role || characterData.extensions?.depth_prompt?.role || 'system'
                         };
+                        
+                        // 检查世界书绑定情况
+                        const hasCharacterBook = characterToImport.character_book && characterToImport.character_book.entries && characterToImport.character_book.entries.length > 0;
+                        const hasWorldReference = characterToImport.world && characterToImport.world.trim() !== '';
+                        
+                        debugLog(`角色卡世界书绑定检查: character_book=${hasCharacterBook ? '有' : '无'}, world引用=${hasWorldReference ? characterToImport.world : '无'}`);
+                        
+                        // 检查外部世界书引用是否在包内存在
+                        if (hasWorldReference) {
+                            const referencedWorld = characterToImport.world;
+                            const worldExistsInPackage = packageData.world_books && packageData.world_books[referencedWorld];
+                            if (!worldExistsInPackage) {
+                                debugLog(`警告: 角色卡引用的外部世界书 "${referencedWorld}" 在包内不存在，可能导致绑定失效`);
+                            } else {
+                                debugLog(`确认: 角色卡引用的外部世界书 "${referencedWorld}" 在包内存在`);
+                            }
+                        }
                         
                         // 添加头像文件名到导入数据
                         if (characterData.avatar && characterData.avatar !== 'none') {
@@ -1185,12 +1313,20 @@
                             avatar: characterToImport.file_name || '默认头像'
                         });
                         
-                        // 使用create API创建角色卡
-                        const createResponse = await fetch('/api/characters/create', {
-                            method: 'POST',
-                            headers: context.getRequestHeaders(),
-                            body: JSON.stringify(characterToImport),
-                        });
+                        // 使用create API创建角色卡，添加超时处理
+                        debugLog(`开始创建角色卡: ${characterName}`);
+                        const createResponse = await Promise.race([
+                            fetch('/api/characters/create', {
+                                method: 'POST',
+                                headers: context.getRequestHeaders(),
+                                body: JSON.stringify(characterToImport),
+                            }),
+                            new Promise((_, reject) => 
+                                setTimeout(() => reject(new Error('角色卡创建超时')), 30000)
+                            )
+                        ]);
+                        
+                        debugLog(`角色卡创建API响应状态: ${createResponse.status}`);
                         
                         if (createResponse.ok) {
                             const result = await createResponse.text();
@@ -1220,14 +1356,16 @@
                                 debugLog(`获取新角色头像失败: ${lookupErr.message}`);
                             }
 
-                            // 二次处理：将包内的局部正则与酒馆助手脚本，写入角色扩展字段（scoped），而不是全局
+                            // 二次处理：将包内的局部正则、酒馆助手脚本、角色书，写入角色扩展字段
                             try {
                                 const pkgCharacterData = characterData; // 来自包的原始角色数据
                                 const scopedRegex = pkgCharacterData?.data?.extensions?.regex_scripts || [];
                                 const helperScripts = pkgCharacterData?.data?.extensions?.TavernHelper_scripts || [];
+                                const characterBook = pkgCharacterData?.data?.character_book || null;
 
                                 // 仅当找到 avatar 时才调用合并接口
                                 if (createdAvatar) {
+                                    // 写入局部正则
                                     if (Array.isArray(scopedRegex) && scopedRegex.length > 0) {
                                         const payload = {
                                             avatar: createdAvatar,
@@ -1242,6 +1380,7 @@
                                         else debugLog(`写入局部正则失败: ${mergeResp.status}`);
                                     }
 
+                                    // 写入TavernHelper脚本
                                     if (Array.isArray(helperScripts) && helperScripts.length > 0) {
                                         const payload2 = {
                                             avatar: createdAvatar,
@@ -1255,20 +1394,38 @@
                                         if (mergeResp2.ok) debugLog(`已写入TavernHelper局部脚本 ${helperScripts.length} 个到角色`);
                                         else debugLog(`写入TavernHelper脚本失败: ${mergeResp2.status}`);
                                     }
+
+                                    // 写入角色书（character_book）
+                                    if (characterBook && characterBook.entries && characterBook.entries.length > 0) {
+                                        const payload3 = {
+                                            avatar: createdAvatar,
+                                            data: { character_book: characterBook },
+                                        };
+                                        const mergeResp3 = await fetch('/api/characters/merge-attributes', {
+                                            method: 'POST',
+                                            headers: context.getRequestHeaders(),
+                                            body: JSON.stringify(payload3),
+                                        });
+                                        if (mergeResp3.ok) debugLog(`已写入角色书 ${characterBook.entries.length} 个条目到角色`);
+                                        else debugLog(`写入角色书失败: ${mergeResp3.status}`);
+                                    }
                                 } else {
-                                    debugLog('未获取到新角色的avatar，跳过局部正则与脚本写入');
+                                    debugLog('未获取到新角色的avatar，跳过局部正则、脚本与角色书写入');
                                 }
                             } catch (scopedErr) {
-                                debugLog(`写入局部正则/脚本出错: ${scopedErr.message}`);
+                                debugLog(`写入局部正则/脚本/角色书出错: ${scopedErr.message}`);
                             }
                         } else {
                             const errorText = await createResponse.text();
                             debugLog(`角色卡 ${characterName} 导入失败: ${createResponse.status} - ${errorText}`);
+                            showStatus(`角色卡 ${characterName} 导入失败: ${createResponse.status}`, 'error');
+                            // 继续处理下一个角色卡，不中断整个导入流程
                         }
                         
                     } catch (error) {
                         debugLog(`角色卡 ${characterName} 导入失败: ${error.message}`);
                         debugLog(`错误堆栈:`, error.stack);
+                        showStatus(`角色卡 ${characterName} 导入异常: ${error.message}`, 'error');
                     }
                 }
                 
@@ -1280,20 +1437,44 @@
             // 恢复导入前的全局世界书选择
             try {
                 if (Array.isArray(originalGlobalWorlds)) {
-                    await fetch('/api/settings/set', {
+                    const restoreResponse = await fetch('/api/settings/set', {
                         method: 'POST',
                         headers: context.getRequestHeaders(),
                         body: JSON.stringify({
                             world_info: { globalSelect: originalGlobalWorlds }
                         }),
                     });
-                    debugLog('已恢复导入前的全局世界书启用列表');
+                    
+                    if (restoreResponse.ok) {
+                        debugLog('已恢复导入前的全局世界书启用列表');
+                    } else {
+                        debugLog(`恢复全局世界书启用列表失败: ${restoreResponse.status} ${restoreResponse.statusText}`);
+                    }
                 }
             } catch (e) {
                 debugLog(`恢复全局世界书启用列表失败: ${e.message}`);
+                // 这个错误不影响导入结果，只是无法完全恢复全局世界书状态
             }
 
             showProgress(100);
+            
+            // 详细统计各模块导入情况
+            const presetCount = packageData.presets ? Object.keys(packageData.presets).length : 0;
+            const regexCount = packageData.regexes ? Object.keys(packageData.regexes).length : 0;
+            const qrCount = packageData.quick_reply_sets ? Object.keys(packageData.quick_reply_sets).length : 0;
+            const worldCount = packageData.world_books ? Object.keys(packageData.world_books).length : 0;
+            const charCount = packageData.characters ? Object.keys(packageData.characters).length : 0;
+            const totalExpected = presetCount + regexCount + qrCount + worldCount + charCount;
+            
+            debugLog(`导入统计详情:`);
+            debugLog(`- 预设: ${presetCount} 个`);
+            debugLog(`- 正则: ${regexCount} 个`);
+            debugLog(`- 快速回复集: ${qrCount} 个`);
+            debugLog(`- 世界书: ${worldCount} 个`);
+            debugLog(`- 角色卡: ${charCount} 个`);
+            debugLog(`- 总计预期: ${totalExpected} 个`);
+            debugLog(`- 实际导入: ${importedCount} 个`);
+            
             showStatus(`导入完成！成功导入 ${importedCount} 个项目，即将自动刷新页面`, 'success');
             debugLog('导入完成');
             
