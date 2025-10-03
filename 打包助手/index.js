@@ -928,6 +928,7 @@
             // 保护：记录导入前的全局世界书启用列表，导入后恢复，避免无关世界被设为全局
             const context = SillyTavern.getContext();
             let originalGlobalWorlds = [];
+            let originalWorldInfoSettings = null;
             try {
                 const settingsResp = await fetch('/api/settings/get', {
                     method: 'POST',
@@ -937,6 +938,7 @@
                 if (settingsResp.ok) {
                     const data = await settingsResp.json();
                     originalGlobalWorlds = data?.world_info?.globalSelect || [];
+                    originalWorldInfoSettings = data?.world_info || {};
                     debugLog(`导入前全局世界启用数: ${originalGlobalWorlds.length}`);
                 }
             } catch (e) {
@@ -1333,17 +1335,34 @@
                 debugLog('没有发现角色卡数据需要导入');
             }
             
-            // 恢复导入前的全局世界书选择
+            // 恢复导入前的全局世界书选择，并强制刷新UI状态
             try {
-                if (Array.isArray(originalGlobalWorlds)) {
+                if (Array.isArray(originalGlobalWorlds) && originalWorldInfoSettings) {
+                    // 恢复完整的世界书设置，包括其他配置
+                    const restoredSettings = {
+                        ...originalWorldInfoSettings,
+                        globalSelect: originalGlobalWorlds
+                    };
+                    
                     await fetch('/api/settings/set', {
                         method: 'POST',
                         headers: context.getRequestHeaders(),
                         body: JSON.stringify({
-                            world_info: { globalSelect: originalGlobalWorlds }
+                            world_info: restoredSettings
                         }),
                     });
-                    debugLog('已恢复导入前的全局世界书启用列表');
+                    
+                    // 强制触发世界书UI更新，确保界面状态正确
+                    if (window.eventSource && window.eventSource.emit) {
+                        window.eventSource.emit('WORLDINFO_SETTINGS_UPDATED');
+                    }
+                    
+                    // 如果存在世界书相关的UI更新函数，也调用一下
+                    if (typeof window.updateWorldInfoList === 'function') {
+                        await window.updateWorldInfoList();
+                    }
+                    
+                    debugLog('已恢复导入前的全局世界书启用列表并刷新UI');
                 }
             } catch (e) {
                 debugLog(`恢复全局世界书启用列表失败: ${e.message}`);
