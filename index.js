@@ -190,9 +190,11 @@ jQuery(() => {
     
     // 加载外接口游戏管理器
     async function loadExternalGameManager() {
-        // 如果外接口游戏管理器已经加载，直接返回
+        // 如果外接口游戏管理器已经加载，直接显示内容并刷新列表
         if (window.externalGameManager) {
-            console.log('[Janus Nexus] 外接口游戏管理器已存在');
+            console.log('[Janus Nexus] 外接口游戏管理器已存在，刷新内容');
+            // 显示游戏中心内容
+            showGameCenterContent();
             // 刷新已导入游戏列表
             setTimeout(() => {
                 refreshImportedGamesList();
@@ -205,6 +207,8 @@ jQuery(() => {
             script.src = 'scripts/extensions/third-party/Janus-Nexus/游戏/external-game-manager.js';
             script.onload = () => {
                 console.log('[Janus Nexus] 外接口游戏管理器脚本加载完成');
+                // 显示游戏中心内容
+                showGameCenterContent();
                 // 刷新已导入游戏列表
                 setTimeout(() => {
                     refreshImportedGamesList();
@@ -217,6 +221,52 @@ jQuery(() => {
         } catch (error) {
             console.error('[Janus Nexus] 加载外接口游戏管理器失败:', error);
         }
+    }
+    
+    // 显示游戏中心内容
+    function showGameCenterContent() {
+        const contentArea = document.querySelector('.janus-content-area');
+        if (!contentArea) return;
+        
+        const gameContent = `
+            <div class="janus-tab-content">
+                <h4 style="text-align: center;"><i class="fa-solid fa-gamepad"></i> 游戏中心</h4>
+                
+                <div class="external-interface">
+                    <h5><i class="fa-solid fa-info-circle"></i> 外接游戏说明</h5>
+                    <div class="supported-formats">
+                        <div class="url-types" style="color: var(--SmartThemeTextColor, inherit);">
+                            <strong>支持导入的游戏文件/URL：</strong><br>
+                            - Javascript（需包含startGame函数）<br>
+                            - Html（完整前端代码）<br>
+                            - Json（游戏配置）<br>
+                        </div>
+                    </div>
+                    
+                    <div class="import-section">
+                        <h6><i class="fa-solid fa-upload"></i> 导入游戏</h6>
+                        <div class="import-controls">
+                            <input type="file" id="game-file-input" accept=".js,.json" style="display: none;" onchange="if(this.files[0]) window.janusHandlers.importGameFromFile(this.files[0])">
+                            <button onclick="document.getElementById('game-file-input').click()" class="import-btn">
+                                <i class="fa-solid fa-folder-open"></i> 选择游戏文件
+                            </button>
+                            <button onclick="window.janusHandlers.importGameFromUrl()" class="import-btn">
+                                <i class="fa-solid fa-link"></i> 从URL导入
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="imported-games">
+                        <h6><i class="fa-solid fa-list"></i> 已导入的游戏</h6>
+                        <div id="imported-games-list">
+                            <div class="no-games">暂无导入的游戏</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        contentArea.innerHTML = gameContent;
     }
     
     
@@ -260,38 +310,9 @@ jQuery(() => {
             case 'games':
                 content = `
                     <div class="janus-tab-content">
-                        <h4 style="text-align: center;"><i class="fa-solid fa-gamepad"></i> 游戏中心</h4>
-                        
-                        <div class="external-interface">
-                            <h5><i class="fa-solid fa-info-circle"></i> 外接游戏说明</h5>
-                            <div class="supported-formats">
-                                <div class="url-types" style="color: var(--SmartThemeTextColor, inherit);">
-                                    <strong>支持导入的游戏文件/URL：</strong><br>
-                                    - Javascript（需包含startGame函数）<br>
-                                    - Html（完整前端代码）<br>
-                                    - Json（游戏配置）<br>
-                                </div>
-                            </div>
-                            
-                            <div class="import-section">
-                                <h6><i class="fa-solid fa-upload"></i> 导入游戏</h6>
-                                <div class="import-controls">
-                                    <input type="file" id="game-file-input" accept=".js,.json" style="display: none;" onchange="if(this.files[0]) window.janusHandlers.importGameFromFile(this.files[0])">
-                                    <button onclick="document.getElementById('game-file-input').click()" class="import-btn">
-                                        <i class="fa-solid fa-folder-open"></i> 选择游戏文件
-                                    </button>
-                                    <button onclick="window.janusHandlers.importGameFromUrl()" class="import-btn">
-                                        <i class="fa-solid fa-link"></i> 从URL导入
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="imported-games">
-                                <h6><i class="fa-solid fa-list"></i> 已导入的游戏</h6>
-                                <div id="imported-games-list">
-                                    <div class="no-games">暂无导入的游戏</div>
-                                </div>
-                            </div>
+                        <div style="text-align: center; padding: 20px;">
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+                            <p>正在加载游戏中心...</p>
                         </div>
                     </div>
                 `;
