@@ -399,6 +399,49 @@ window.startGame = startHTMLGame; // 添加这个别名以确保兼容性
     }
 
     /**
+     * 清除游戏缓存（仅在删除游戏时调用）
+     */
+    clearGameCache(gameInfo) {
+        try {
+            // 只清除DOM元素和样式，保留游戏数据和函数
+            // 这样不会影响其他游戏的运行，也不会破坏数据保存
+            
+            // 清除可能的DOM元素
+            const existingContainer = document.getElementById('gomoku-game-container');
+            if (existingContainer) {
+                existingContainer.remove();
+            }
+            
+            // 清除可能的样式
+            const existingStyles = document.getElementById('gomoku-game-styles');
+            if (existingStyles) {
+                existingStyles.remove();
+            }
+            
+            // 清除其他可能的游戏容器
+            const gameContainers = document.querySelectorAll('[id*="game-container"]');
+            gameContainers.forEach(container => {
+                if (container.id.includes('gomoku') || container.id.includes('game')) {
+                    container.remove();
+                }
+            });
+            
+            // 清除其他可能的游戏样式
+            const gameStyles = document.querySelectorAll('[id*="game-styles"]');
+            gameStyles.forEach(style => {
+                if (style.id.includes('gomoku') || style.id.includes('game')) {
+                    style.remove();
+                }
+            });
+            
+            console.log(`[ExternalGameManager] 已清除游戏缓存: ${gameInfo.name}`);
+            
+        } catch (error) {
+            console.error('[ExternalGameManager] 清除游戏缓存失败:', error);
+        }
+    }
+
+    /**
      * 执行JavaScript游戏
      */
     async executeJSGame(gameInfo) {
@@ -485,6 +528,11 @@ window.startGame = startHTMLGame; // 添加这个别名以确保兼容性
      */
     removeGame(gameId) {
         if (this.importedGames.has(gameId)) {
+            const gameInfo = this.importedGames.get(gameId);
+            
+            // 删除游戏前清除缓存
+            this.clearGameCache(gameInfo);
+            
             this.importedGames.delete(gameId);
             this.saveImportedGames();
             console.log(`[ExternalGameManager] 删除游戏: ${gameId}`);
@@ -497,6 +545,11 @@ window.startGame = startHTMLGame; // 添加这个别名以确保兼容性
      * 清空所有已导入的游戏
      */
     clearAllGames() {
+        // 清除所有游戏的缓存
+        this.importedGames.forEach((gameInfo, gameId) => {
+            this.clearGameCache(gameInfo);
+        });
+        
         this.importedGames.clear();
         this.saveImportedGames();
         console.log('[ExternalGameManager] 清空所有已导入的游戏');
